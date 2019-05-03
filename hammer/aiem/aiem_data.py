@@ -1,46 +1,7 @@
 import numpy as np
 import re
-
-# ==> Memoized Property Felgercarb <== #
-
-from functools import wraps
-def memoized_property(fget):
-    """
-    Return a property attribute for new-style classes that only calls its getter on the first
-    access. The result is stored and on subsequent accesses is returned, preventing the need to
-    call the getter any more.
-
-    Example::
-
-        >>> class C(object):
-        ...     load_name_count = 0
-        ...     @memoized_property
-        ...     def name(self):
-        ...         "name's docstring"
-        ...         self.load_name_count += 1
-        ...         return "the name"
-        >>> c = C()
-        >>> c.load_name_count
-        0
-        >>> c.name
-        "the name"
-        >>> c.load_name_count
-        1
-        >>> c.name
-        "the name"
-        >>> c.load_name_count
-        1
-
-    """
-    attr_name = '_{0}'.format(fget.__name__)
-
-    @wraps(fget)
-    def fget_memoized(self):
-        if not hasattr(self, attr_name):
-            setattr(self, attr_name, fget(self))
-        return getattr(self, attr_name)
-
-    return property(fget_memoized)
+from ..util import memoized_property
+from ..core import PauliOperator, PauliString, Pauli
 
 # ==> AIEM Connectivity (Abstracts A <-> B Connectivity Pattern) <== #
 
@@ -85,6 +46,18 @@ class AIEMConnectivity(object):
             for B in range(A):
                 M[A,B] = M[B,A] = True
         return np.max(np.abs(M ^ self.connectivity)) == 0
+
+    @memoized_property
+    def is_special(self):
+        return not (self.is_all or self.is_linear or self.is_cyclic)
+
+    @memoized_property
+    def connectivity_str(self):
+        if self.is_linear: return 'linear'
+        elif self.is_cyclic: return 'cyclic'
+        elif self.is_all: return 'all'
+        elif self.is_special: return 'special'
+        else: raise RuntimeError('Impossible')
 
     @memoized_property
     def ABs(self):
@@ -306,8 +279,8 @@ class AIEMMonomer(AIEMConnectivity):
         R0 = np.zeros((N,3))
 
         # Fixed H/P charges
-        QH = charges.copy()
-        QP = charges.copy()
+        QH = np.array(charges[:N])
+        QP = np.array(charges[:N])
 
         re_EH = re.compile(r'^Energy\s+0:\s+(\S+)\s*$')
         re_EP = re.compile(r'^Energy\s+1:\s+(\S+)\s*$')
@@ -317,7 +290,7 @@ class AIEMMonomer(AIEMConnectivity):
         re_R0 = re.compile(r'^COM:\s+(\S+)\s+(\S+)\s+(\S+)\s*$')
 
         for A, filename in enumerate(filenames):
-            if A > N: break # Might not need all files
+            if A >= N: break # Might not need all files
             lines = open(filename).readlines()
             for line in lines:
                 # EH
@@ -607,7 +580,7 @@ class AIEMMonomerGrad(AIEMConnectivity):
         re_R0 = re.compile(r'^COM\s+Derivative:\s+(\S+)\s+(\S+)\s+(\S+)\s*$')
 
         for A, filename in enumerate(filenames):
-            if A > N: break # Might not need all files
+            if A >= N: break # Might not need all files
             lines = open(filename).readlines()
             EH2 = []
             EP2 = []
@@ -1105,8 +1078,76 @@ class AIEMUtil(object):
             ZZ=ZZ,
             )
         
+    @staticmethod
+    def aiem_pauli_to_pauli(
+        aiem,
+        ):
 
+        strings = [] 
+        values = []
 
+        strings.append(PauliString.from_string('1'))
+        values.append(aiem.E)
+
+        for A in range(aiem.N):
+            strings.append(PauliString.from_string('X%d' % A))
+            values.append(aiem.X[A])
+            strings.append(PauliString.from_string('Z%d' % A))
+            values.append(aiem.Z[A])
+
+        for A, B in aiem.ABs:
+            strings.append(PauliString.from_string('X%d*X%d' % (A,B)))
+            values.append(aiem.XX[A,B])
+            strings.append(PauliString.from_string('X%d*Z%d' % (A,B)))
+            values.append(aiem.XZ[A,B])
+            strings.append(PauliString.from_string('Z%d*X%d' % (A,B)))
+            values.append(aiem.ZX[A,B])
+            strings.append(PauliString.from_string('Z%d*Z%d' % (A,B)))
+            values.append(aiem.ZZ[A,B])
+
+        strings = tuple(strings)
+        values = np.array(values)
+
+        pauli = Pauli(strings, values) 
+    
+        return pauli
+
+    @staticmethod
+    def pauli_to_aiem_pauli(
+        pauli,
+        ):
+
+        if pauli.max_order > 2: raise RuntimeError('AIEMPauli is at most order 2')
+
+        canonical = pauli.canonical
+
+        N = canonical.N
+        E = canonical['1']
+        X = np.array([canonical['X%d' % _] for _ in range(N)])
+        Z = np.array([canonical['Z%d' % _] for _ in range(N)])
+
+        XX = np.zeros((N,N))
+        XZ = np.zeros((N,N))
+        ZX = np.zeros((N,N))
+        ZZ = np.zeros((N,N))
+
+        indices2 = canonical.indices(order=2)
+        print(indices2)
+        
+        return AIEMPauli(
+            connectivity=connectivity,
+            E=E,
+            X=X,
+            Z=Z,
+            XX=XX,
+            XZ=XZ,
+            ZX=ZX,
+            ZZ=ZZ,
+            )
+        
+        
+        
+            
 if __name__ == '__main__':
 
     monomer = AIEMMonomer.from_tc_exciton_files(

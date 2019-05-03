@@ -1,5 +1,5 @@
 import numpy as np
-from . import options    
+from ..util import options    
 from . import collocation
 
 class Optimizer(object):

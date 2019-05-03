@@ -1,5 +1,5 @@
 import numpy as np
-import quasar
+from ..quasar import quasar
 from . import pauli
 
 class Backend(object):

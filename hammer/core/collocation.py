@@ -1,5 +1,5 @@
 import numpy as np
-import quasar
+from ..quasar import *
 from . import pauli
 
 class Collocation(object):
@@ -12,7 +12,6 @@ class Collocation(object):
         shots,
         hamiltonian,
         circuit,
-        parameter_group,
         ):
 
         pauli_dm = backend.compute_pauli_dm(
@@ -29,7 +28,6 @@ class Collocation(object):
         shots,
         hamiltonian,
         circuit,
-        parameter_group,
         reference_circuits,
         reference_weights,
         ):
@@ -43,7 +41,6 @@ class Collocation(object):
                 shots=shots,
                 hamiltonian=hamiltonian,
                 circuit=circuit2,
-                parameter_group=parameter_group,
                 )
             E += weight * E2
             pauli_dm += weight * pauli_dm2
