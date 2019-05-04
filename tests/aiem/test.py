@@ -2,16 +2,16 @@ import hammer
 
 if __name__ == '__main__':
 
-    backend = hammer.QuasarSimulatorBackend()
+    # backend = hammer.QuasarSimulatorBackend()
+    backend = hammer.QiskitSimulatorBackend()
 
     datapath = '../../data/aiem/bchl-a-8-stack/tc'
     filenames = ['%s/%d/exciton.dat' % (datapath, _) for _ in range(1, 8+1)]
     charges = [0.0]*8
-    N = 6
+    N = 8
     nstate = 3
     connectivity = 'linear'
-    # cis_circuit_type = 'mark2'
-    cis_circuit_type = 'mark1'
+    cis_circuit_type = 'mark2'
 
     aiem_monomer = hammer.AIEMMonomer.from_tc_exciton_files(
         filenames=filenames,
@@ -35,6 +35,9 @@ if __name__ == '__main__':
         cis_circuit_type=cis_circuit_type,
         )
     aiem.compute_energy()
+    
+    print(aiem.cis_circuits[0])
+    print(aiem.vqe_circuit)
 
     
         

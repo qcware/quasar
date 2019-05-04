@@ -63,15 +63,27 @@ class AIEM(object):
             allowed_types=[AIEMPauli],
             doc='AIEM Hamiltonian in Pauli basis (optional - generated from aiem_monomer if not provided')
 
-        # > Quantum Circuit Selection < #
+        # > Quantum Circuit Specification/Recipe < #
 
         opt.add_option(
             key='cis_circuit_type',
-            value='mark1',
+            value='mark2',
             required=True,
             allowed_types=[str],
             allowed_values=['mark1', 'mark2'],
             doc='CIS state preparation circuit recipe')
+        opt.add_option(
+            key='vqe_circuit',
+            value=None,
+            allowed_types=[quasar.Circuit],
+            doc='Explicit SA-VQE Entangler circuit (1st priority)')
+        opt.add_option(
+            key='vqe_circuit_type',
+            value='mark1',
+            required=True,
+            allowed_types=[str],
+            allowed_values=['mark1'],
+            doc='SA-VQE Entangler circuit recipe (2nd priority)')
     
         AIEM._default_options = opt
         return AIEM._default_options.copy()
@@ -136,7 +148,8 @@ class AIEM(object):
 
     @memoized_property
     def hamiltonian_pauli(self):
-        return AIEMUtil.aiem_pauli_to_pauli(self.aiem_hamiltonian_pauli)
+        """ Normal Ordered (self energy E removed) """
+        return AIEMUtil.aiem_pauli_to_pauli(self.aiem_hamiltonian_pauli, self_energy=False)
 
     @property
     def cis_circuit_type(self):
@@ -147,6 +160,11 @@ class AIEM(object):
         if self.cis_circuit_type == 'mark1': return AIEM.build_cis_circuit_mark1
         elif self.cis_circuit_type == 'mark2': return AIEM.build_cis_circuit_mark2
         else: raise RuntimeError('Unknown cis_circuit_type: %s' % self.cis_circuit_type)
+
+    @property
+    def vqe_circuit_function(self):
+        if self.options['vqe_circuit_type'] == 'mark1' : return AIEM.build_vqe_circuit_mark1
+        else: raise RuntimeError('Unknown vqe_circuit_type: %s' % self.options['vqe_circuit_type'])
 
     def compute_energy(
         self,
@@ -170,10 +188,6 @@ class AIEM(object):
             print(' %-12s = %d' % ('Ncis', self.ncis))
             print(' %-12s = %d' % ('Nstate', self.nstate))
             print(' %-12s = %s' % ('Connectivity', self.aiem_monomer.connectivity_str))
-            print('')
-
-            print('CIS Circuits:')
-            print('  %16s = %s' % ('cis_circuit_type', self.cis_circuit_type))
             print('')
 
         # > CIS States < #
@@ -203,11 +217,16 @@ class AIEM(object):
 
         # > CIS Circuits < #
 
+        if self.print_level:
+            print('CIS Circuits:')
+            print('  %16s = %s' % ('cis_circuit_type', self.cis_circuit_type))
+            print('')
+
         self.cis_circuits = [self.cis_circuit_function(
             thetas=thetas,
             ) for thetas in self.cis_angles]
 
-        # > CIS Circuit Verification < #
+        # > CIS Circuit Verification (Quasar Simulator) < #
 
         if self.print_level:
             print('CIS Verification:\n')
@@ -217,9 +236,35 @@ class AIEM(object):
                 shots=None,
                 )[0]
             for I in range(self.nstate):
-                dEcis = Ecis2[I] - self.cis_E[I] - self.aiem_hamiltonian_pauli.E
+                dEcis = Ecis2[I] - self.cis_E[I]
                 print('%-5d: %11.3E' % (I, dEcis))
             print('')
+
+        # > VQE Circuit Construction < #
+
+        if self.options['vqe_circuit']:
+            self.vqe_circuit = self.options['vqe_circuit'].copy()
+        else:
+            self.vqe_circuit = self.vqe_circuit_function(self.aiem_hamiltonian_pauli)
+
+        if self.print_level:
+            print('VQE Entangler Circuit:')
+            print('  %-16s = %s' % ('vqe_circuit_type', 'custom' if self.options['vqe_circuit'] else self.options['vqe_circuit_type']))
+            print('  %-16s = %d' % ('vqe_nparam', self.vqe_circuit.nparam))
+            print('')
+
+        # > Param Values < #
+
+        if param_values_ref:
+            if self.print_level:
+                print('Initial VQE params taken from input guess.\n')
+            self.vqe_circuit.set_param_values(param_values_ref)
+        else:
+            if self.print_level:
+                if self.options['vqe_circuit']:
+                    print('Initial VQE params taken from input circuit.\n')
+                else:
+                    print('Initital VQE params guessed as zero.\n')
 
         # > Trailer < #
 
@@ -396,10 +441,62 @@ class AIEM(object):
                 hamiltonian=self.hamiltonian_pauli,
                 circuit=circuit,
                 )
-            D2 = AIEMUtil.pauli_to_aiem_pauli(D)
-            print(D2)
             Es.append(E)
             Ds.append(D)
         return Es, Ds
             
+    # => VQE Entangler Circuit Recipes <= #
+
+    @staticmethod
+    def build_vqe_circuit_mark1(hamiltonian, nonredundant=True):
+        
+        """ From https://arxiv.org/pdf/1203.0722.pdf """
+
+        # Validity checks
+        if hamiltonian.N % 2: 
+            raise RuntimeError('Currently only set up for N even')
+        if not hamiltonian.is_linear and not hamiltonian.is_cyclic:
+            raise RuntimeError('Hamiltonian must be linear or cyclic')
+
+        # 2-body circuit (even)
+        circuit_even = quasar.Circuit(N=hamiltonian.N)
+        for A in range(hamiltonian.N):
+            if A % 2: continue
+            B = A + 1
+            circuit_even.add_gate(T=0,  key=A, gate=quasar.Gate.Ry(theta=0.0))
+            circuit_even.add_gate(T=0,  key=B, gate=quasar.Gate.Ry(theta=0.0))
+            circuit_even.add_gate(T=1,  key=(A,B), gate=quasar.Gate.CNOT)
+            circuit_even.add_gate(T=2,  key=A, gate=quasar.Gate.Ry(theta=0.0))
+            circuit_even.add_gate(T=2,  key=B, gate=quasar.Gate.Ry(theta=0.0))
+            circuit_even.add_gate(T=3,  key=(A,B), gate=quasar.Gate.CNOT)
+            circuit_even.add_gate(T=4,  key=A, gate=quasar.Gate.Ry(theta=0.0))
+            circuit_even.add_gate(T=4,  key=B, gate=quasar.Gate.Ry(theta=0.0))
+
+        # 2-body circuit (odd)
+        circuit_odd = quasar.Circuit(N=hamiltonian.N)
+        for A in range(hamiltonian.N):
+            if (A + 1) % 2: continue
+            B = A + 1
+            # Handle or delete cyclic term
+            if A + 1 == hamiltonian.N:
+                if hamiltonian.is_cyclic and hamiltonian.N > 2:
+                    B = 0
+                else:
+                    continue 
+            circuit_odd.add_gate(T=0,  key=A, gate=quasar.Gate.Ry(theta=0.0))
+            circuit_odd.add_gate(T=0,  key=B, gate=quasar.Gate.Ry(theta=0.0))
+            circuit_odd.add_gate(T=1,  key=(A,B), gate=quasar.Gate.CNOT)
+            circuit_odd.add_gate(T=2,  key=A, gate=quasar.Gate.Ry(theta=0.0))
+            circuit_odd.add_gate(T=2,  key=B, gate=quasar.Gate.Ry(theta=0.0))
+            circuit_odd.add_gate(T=3,  key=(A,B), gate=quasar.Gate.CNOT)
+            circuit_odd.add_gate(T=4,  key=A, gate=quasar.Gate.Ry(theta=0.0))
+            circuit_odd.add_gate(T=4,  key=B, gate=quasar.Gate.Ry(theta=0.0))
+
+        # Remove redundant Ry gates if requested
+        if nonredundant and hamiltonian.N > 2:
+            circuit_odd = circuit_odd.subset(Ts=range(1,5))
+
+        circuit = quasar.Circuit.concatenate([circuit_even, circuit_odd])
+
+        return circuit
 

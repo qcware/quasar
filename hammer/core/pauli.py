@@ -144,22 +144,6 @@ class PauliString(object):
     def __hash__(self):
         return self.operators.__hash__()
 
-    # => Canonicalization <= #
-
-    @property
-    def canonical(self):
-        return PauliString(tuple(sorted(self.operators)))
-
-    @property
-    def is_canonical(self):
-        return self == self.canonical
-
-    # => Symmetrization <= #
-
-    @property
-    def symmetric(self):
-        return tuple(PauliString(_) for _ in itertools.permutations(self.operators))
-
 class Pauli(object):
 
     def __init__(
@@ -225,70 +209,10 @@ class Pauli(object):
     def __contains__(self, key):
         return self._index_map.__contains__(str(key))
 
-    # => Canonicalization <= #
-
-    @property
-    def canonical(self):
-        
-        pauli2 = {}
-        for string, value in zip(self.strings, self.values):
-            canonical_str = string.canonical
-            if not canonical_str in pauli2:
-                pauli2[canonical_str] = 0.0
-            pauli2[canonical_str] += value
-
-        strings2 = []   
-        values2 = []
-        for key in sorted(pauli2.keys()):
-            strings2.append(key)
-            values2.append(pauli2[key])
-        strings2 = tuple(strings2)
-        values2 = np.array(values2)
-    
-        return Pauli(
-            strings=strings2,
-            values=values2,
-            )
-
-    @property
-    def is_canonical(self):
-        return self.strings == self.canonical.strings
-
     @staticmethod
     def equivalent_strings(x, y):
         return x.strings == y.strings
 
-    @staticmethod
-    def equivalent_canonical_strings(x, y):
-        return x.canonical.strings == y.canonical.strings
-
-    # => Symmetrization <= #
-
-    @property
-    def symmetric(self):
-
-        canonical = self.canonical
-        
-        strings = []
-        values = []
-        for string, value in zip(canonical.strings, canonical.values):
-            strings2 = string.symmetric
-            value2 = value / len(strings2)
-            strings += strings2
-            values += [value2] * len(strings2) 
-        strings = tuple(strings)
-        values = np.array(values)
-    
-        return Pauli(
-            strings=strings,
-            values=values,
-            )
-    
-    def is_symmetric(self, cutoff=1.0E-12):
-        symmetric = self.symmetric
-        if not Pauli.equivalent_strings(self, symmetric): return False
-        return (self - symmetric).norminf < cutoff
-        
     # => Arithmetic <= #
 
     def __pos__(self):
@@ -349,12 +273,10 @@ class Pauli(object):
 
         if not isinstance(other, Pauli): raise TypeError('other must be Pauli')
     
-        self_canonical = self.canonical
-        other_canonical = other.canonical
-        if self_canonical.strings != other_canonical.strings:
-            raise RuntimeError('self and other do not have equivalent canonical strings')
+        if self.strings != other.strings:
+            raise RuntimeError('self and other do not have equivalent strings')
 
-        return np.sum(self_canonical.values * other_canonical.values)
+        return np.sum(self.values * other.values)
 
     @property
     def norm2(self):
@@ -418,7 +340,7 @@ class Pauli(object):
         return Pauli(
             strings=strings, 
             values=values,
-            ).symmetric
+            )
 
 if __name__ == '__main__':
 
@@ -435,7 +357,6 @@ if __name__ == '__main__':
     print(pauli.values)    
     print(pauli)
     print('%r' % pauli)
-    print(pauli.canonical)
     print(pauli.max_order)
     print(Pauli.equivalent_strings(pauli, pauli))
 
@@ -446,7 +367,6 @@ if __name__ == '__main__':
     print(pauli * 3.0 - 2.0 * pauli)
     # pauli -= pauli
     print(pauli)
-    print(pauli.is_canonical)
 
     print(PauliString.from_string('Z1*Z3*X2'))
     print(PauliString.from_string('X1'))
@@ -459,19 +379,12 @@ if __name__ == '__main__':
     print(pauli['Z1*Z2'])
     # print(pauli['Z1*X1'])
 
-    print(PauliString.from_string('Z1').symmetric)
-    print(PauliString.from_string('Z1*Z2').symmetric)
-    print(PauliString.from_string('Z1*Z2*Z3').symmetric)
-
     print(pauli == pauli)
     print(pauli != pauli)
     print(pauli == pauli2)
 
     print(pauli.norm2)
     print(pauli.norminf)
-
-    print(pauli.is_symmetric)
-    print(pauli.symmetric.is_symmetric(1.0E-12))
 
     print('1' in pauli)
 

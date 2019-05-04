@@ -61,31 +61,25 @@ class Backend(object):
         if pauli2.max_order > 2: 
             raise NotImplemented
 
-        canonical = pauli2.canonical
-
-        canonical_dm = pauli.Pauli.zeros_like(canonical)
-        if '1' in canonical_dm:
-            canonical_dm['1'] = 1.0
-        for index in canonical_dm.indices(1):
+        pauli_dm = pauli.Pauli.zeros_like(pauli2)
+        if '1' in pauli_dm:
+            pauli_dm['1'] = 1.0
+        for index in pauli_dm.indices(1):
             A = index[0]
             P = quasar.Circuit.compute_pauli_1(wfn=statevector, A=A)
             for dA, DA in zip([1, 2, 3], ['X', 'Y', 'Z']):
                 key = '%s%d' % (DA, A)
-                if key in canonical_dm:
-                    canonical_dm[key] = P[dA]
-        for index in canonical_dm.indices(2):
+                if key in pauli_dm:
+                    pauli_dm[key] = P[dA]
+        for index in pauli_dm.indices(2):
             A = index[0]
             B = index[1]
             P = quasar.Circuit.compute_pauli_2(wfn=statevector, A=A, B=B)
             for dA, DA in zip([1, 2, 3], ['X', 'Y', 'Z']):
                 for dB, DB in zip([1, 2, 3], ['X', 'Y', 'Z']):
                     key = '%s%d*%s%d' % (DA, A, DB, B)
-                    if key in canonical_dm:
-                        canonical_dm[key] = P[dA, dB]
-
-        pauli_dm = pauli.Pauli.zeros_like(pauli2)
-        for string in pauli_dm.strings:
-            pauli_dm[string] = canonical_dm[string.canonical]
+                    if key in pauli_dm:
+                        pauli_dm[key] = P[dA, dB]
 
         return pauli_dm
 

@@ -1077,17 +1077,37 @@ class AIEMUtil(object):
             ZX=ZX,
             ZZ=ZZ,
             )
+
+    @staticmethod
+    def pauli_energy(
+        pauli_hamiltonian,
+        pauli_dm,
+        self_energy=True,
+        ):
+
+        E = 0.0
+        if self_energy:
+            E += 1.0 * pauli_dm.E * pauli_hamiltonian.E
+        E += 1.0 * np.sum(pauli_dm.X * pauli_hamiltonian.X)
+        E += 1.0 * np.sum(pauli_dm.Z * pauli_hamiltonian.Z)
+        E += 0.5 * np.sum(pauli_dm.XX * pauli_hamiltonian.XX)
+        E += 0.5 * np.sum(pauli_dm.XZ * pauli_hamiltonian.XZ)
+        E += 0.5 * np.sum(pauli_dm.ZX * pauli_hamiltonian.ZX)
+        E += 0.5 * np.sum(pauli_dm.ZZ * pauli_hamiltonian.ZZ)
+        return E
         
     @staticmethod
     def aiem_pauli_to_pauli(
         aiem,
+        self_energy=True,
         ):
 
         strings = [] 
         values = []
 
-        strings.append(PauliString.from_string('1'))
-        values.append(aiem.E)
+        if self_energy:
+            strings.append(PauliString.from_string('1'))
+            values.append(aiem.E)
 
         for A in range(aiem.N):
             strings.append(PauliString.from_string('X%d' % A))
@@ -1096,6 +1116,7 @@ class AIEMUtil(object):
             values.append(aiem.Z[A])
 
         for A, B in aiem.ABs:
+            if A > B: continue
             strings.append(PauliString.from_string('X%d*X%d' % (A,B)))
             values.append(aiem.XX[A,B])
             strings.append(PauliString.from_string('X%d*Z%d' % (A,B)))
@@ -1122,7 +1143,7 @@ class AIEMUtil(object):
         canonical = pauli.canonical
 
         N = canonical.N
-        E = canonical['1']
+        E = canonical['1'] if '1' in canonical else 0.0
         X = np.array([canonical['X%d' % _] for _ in range(N)])
         Z = np.array([canonical['Z%d' % _] for _ in range(N)])
 
@@ -1131,9 +1152,17 @@ class AIEMUtil(object):
         ZX = np.zeros((N,N))
         ZZ = np.zeros((N,N))
 
+        connectivity = np.zeros((N,N), dtype=np.bool)
+
         indices2 = canonical.indices(order=2)
-        print(indices2)
-        
+        for A, B in indices2:
+            connectivity[A,B] = True            
+            connectivity[B,A] = True            
+            XX[A,B] = XX[B,A] = pauli['X%d*X%d' % (A,B)]
+            XZ[A,B] = ZX[B,A] = pauli['X%d*Z%d' % (A,B)]
+            ZX[A,B] = XZ[B,A] = pauli['Z%d*X%d' % (A,B)]
+            ZZ[A,B] = ZZ[B,A] = pauli['Z%d*Z%d' % (A,B)]
+ 
         return AIEMPauli(
             connectivity=connectivity,
             E=E,
@@ -1144,8 +1173,6 @@ class AIEMUtil(object):
             ZX=ZX,
             ZZ=ZZ,
             )
-        
-        
         
             
 if __name__ == '__main__':
