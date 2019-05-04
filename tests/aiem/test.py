@@ -1,3 +1,4 @@
+import numpy as np
 import tomcat
 
 if __name__ == '__main__':
@@ -8,7 +9,7 @@ if __name__ == '__main__':
     datapath = '../../data/aiem/bchl-a-8-stack/tc'
     filenames = ['%s/%d/exciton.dat' % (datapath, _) for _ in range(1, 8+1)]
     charges = [0.0]*8
-    N = 2
+    N = 4
     nstate = 3
     connectivity = 'linear'
     cis_circuit_type = 'mark2'
@@ -43,4 +44,18 @@ if __name__ == '__main__':
     print(aiem.vqe_cis_overlaps)
     
         
+    print(aiem.vqe_V)
         
+    H = np.zeros((aiem.nstate,)*2)
+    for I in range(aiem.nstate):
+        for J in range(aiem.nstate):
+            H[I,J] = aiem.vqe_D[I,J].dot(aiem.hamiltonian_pauli)
+    print(np.max(np.abs(H - aiem.vqe_H)))
+        
+    H2 = np.zeros((aiem.nstate,)*2)
+    for I in range(aiem.nstate):
+        for J in range(aiem.nstate):
+            H2[I,J] = aiem.vqe_D2[I,J].dot(aiem.hamiltonian_pauli)
+    print(np.max(np.abs(H2 - np.diag(aiem.vqe_E))))
+
+    
