@@ -2,6 +2,7 @@ import numpy as np
 from ..quasar import quasar
 from ..util import Options
 from ..util import memoized_property
+from ..core import Pauli
 from ..core import Backend
 from ..core import QuasarSimulatorBackend
 from ..core import Collocation
@@ -355,15 +356,6 @@ class AIEM(object):
 
         # > Subspace Eigenproblem < #
 
-        # self.vqe_E, self.vqe_C, self.vqe_H = AIEM.solve_subspace_eigenproblem(
-        #     backend=self.backend,
-        #     shots=self.shots,
-        #     hamiltonian=self.hamiltonian_pauli,
-        #     vqe_circuit=self.vqe_circuit,
-        #     Cs=self.cis_C,
-        #     cis_circuit_function=self.cis_circuit_function,
-        #     )
-
         self.subspace_eigenproblem()
 
         # > VQE Phasing <= #
@@ -376,6 +368,7 @@ class AIEM(object):
                 if np.abs(P[I]) < 0.5: print('Warning: probable VQE state rotation: I=%d' % I)
                 if self.print_level: print('Applying sign of %2d to state %d. Overlap is %.3E' % (np.sign(P[I]), I, P[I]))
                 self.vqe_C[:,I] *= np.sign(P[I])
+                self.vqe_V[:,I] *= np.sign(P[I])
             if self.print_level: print('')
 
         # > VQE Angles < #        
@@ -389,6 +382,10 @@ class AIEM(object):
         self.vqe_circuits = [self.cis_circuit_function(
             thetas=thetas,
             ) for thetas in self.vqe_angles]
+
+        # > VQE Pauli DMs < #
+
+        self.rotate_vqe_dms()
 
         # > FCI States < #
 
@@ -406,12 +403,12 @@ class AIEM(object):
 
         # > Properties/Analysis < #
 
-        # self.fci_O, self.vqe_O, self.cis_O = self.compute_oscillator_strengths() # TODO
+        self.fci_O, self.vqe_O, self.cis_O = self.compute_oscillator_strengths()
 
         if self.print_level:
             self.analyze_energies()
-            # self.analyze_transitions() # TODO
-            # self.analyze_excitations() # TODO
+            self.analyze_transitions()
+            self.analyze_excitations()
 
         # > Trailer < #
 
@@ -484,6 +481,117 @@ class AIEM(object):
                 self.vqe_E[I] - self.vqe_E[0] - self.fci_E[I] + self.fci_E[0],
                 self.cis_E[I] - self.cis_E[0] - self.fci_E[I] + self.fci_E[0],
                 ))
+        print('')
+
+    def compute_oscillator_strengths(self):
+
+        mu_pauli = AIEMUtil.monomer_to_pauli_dipole(self.aiem_monomer)
+
+        fci_O = []
+        for J in range(1, self.nstate):
+            T_pauli = self.compute_fci_tdm(I=0, J=J)
+            X = AIEMUtil.pauli_energy(pauli_hamiltonian=mu_pauli[0], pauli_dm=T_pauli)
+            Y = AIEMUtil.pauli_energy(pauli_hamiltonian=mu_pauli[1], pauli_dm=T_pauli)
+            Z = AIEMUtil.pauli_energy(pauli_hamiltonian=mu_pauli[2], pauli_dm=T_pauli)
+            O = 2.0 / 3.0 * (self.fci_E[J] - self.fci_E[0]) * (X**2 + Y**2 + Z**2)
+            fci_O.append(O)
+        fci_O = np.array(fci_O)
+
+        vqe_O = []
+        for J in range(1, self.nstate):
+            T_pauli = self.compute_vqe_tdm(I=0, J=J)
+            X = AIEMUtil.pauli_energy(pauli_hamiltonian=mu_pauli[0], pauli_dm=T_pauli)
+            Y = AIEMUtil.pauli_energy(pauli_hamiltonian=mu_pauli[1], pauli_dm=T_pauli)
+            Z = AIEMUtil.pauli_energy(pauli_hamiltonian=mu_pauli[2], pauli_dm=T_pauli)
+            O = 2.0 / 3.0 * (self.vqe_E[J] - self.vqe_E[0]) * (X**2 + Y**2 + Z**2)
+            vqe_O.append(O)
+        vqe_O = np.array(vqe_O)
+
+        cis_O = []
+        for J in range(1, self.nstate):
+            T_pauli = self.compute_cis_tdm(I=0, J=J)
+            X = AIEMUtil.pauli_energy(pauli_hamiltonian=mu_pauli[0], pauli_dm=T_pauli)
+            Y = AIEMUtil.pauli_energy(pauli_hamiltonian=mu_pauli[1], pauli_dm=T_pauli)
+            Z = AIEMUtil.pauli_energy(pauli_hamiltonian=mu_pauli[2], pauli_dm=T_pauli)
+            O = 2.0 / 3.0 * (self.cis_E[J] - self.cis_E[0]) * (X**2 + Y**2 + Z**2)
+            cis_O.append(O)
+        cis_O = np.array(cis_O)
+
+        return fci_O, vqe_O, cis_O
+        
+    def analyze_transitions(self):
+
+        print('Oscillator Strengths:\n')
+        print('%-5s: %24s %24s %24s %24s %24s' % (
+            'State',
+            'FCI',
+            'VQE',
+            'CIS',
+            'dVQE',
+            'dCIS',
+            ))
+        for I in range(1,self.nstate):
+            print('%-5d: %24.16E %24.16E %24.16E %24.15E %24.16E' % (
+                I,
+                self.fci_O[I-1],
+                self.vqe_O[I-1],
+                self.cis_O[I-1],
+                self.vqe_O[I-1] - self.fci_O[I-1],
+                self.cis_O[I-1] - self.fci_O[I-1],
+                ))
+        print('')
+
+    def analyze_excitations(self):
+    
+        fci_D = []        
+        for I in range(self.nstate):
+            D_pauli = self.compute_fci_dm(I=I)
+            fci_D.append(D_pauli)
+    
+        vqe_D = []        
+        for I in range(self.nstate):
+            D_pauli = self.compute_vqe_dm(I=I)
+            vqe_D.append(D_pauli)
+    
+        cis_D = []        
+        for I in range(self.nstate):
+            D_pauli = self.compute_cis_dm(I=I)
+            cis_D.append(D_pauli)
+
+        print('FCI Excitation Fractions:\n')
+        print('%-3s: ' % ('A'), end=' ')
+        for I in range(self.nstate):
+            print('I=%3d ' % (I), end=' ')
+        print('')
+        for A in range(self.N):
+            print('%-3d: ' % (A), end=' ')
+            for I in range(self.nstate):
+                print('%5.3f ' % (0.5 * (1.0 - fci_D[I].Z[A])), end=' ')
+            print('')
+        print('')
+
+        print('VQE Excitation Fractions:\n')
+        print('%-3s: ' % ('A'), end=' ')
+        for I in range(self.nstate):
+            print('I=%3d ' % (I), end=' ')
+        print('')
+        for A in range(self.N):
+            print('%-3d: ' % (A), end=' ')
+            for I in range(self.nstate):
+                print('%5.3f ' % (0.5 * (1.0 - vqe_D[I].Z[A])), end=' ')
+            print('')
+        print('')
+
+        print('CIS Excitation Fractions:\n')
+        print('%-3s: ' % ('A'), end=' ')
+        for I in range(self.nstate):
+            print('I=%3d ' % (I), end=' ')
+        print('')
+        for A in range(self.N):
+            print('%-3d: ' % (A), end=' ')
+            for I in range(self.nstate):
+                print('%5.3f ' % (0.5 * (1.0 - cis_D[I].Z[A])), end=' ')
+            print('')
         print('')
 
     # => CIS Considerations (Classical) <= #
@@ -716,7 +824,7 @@ class AIEM(object):
     def subspace_eigenproblem(self):
 
         # Subspace hamiltonian
-        H = AIEM.compute_subspace_hamiltonian(
+        H, D = AIEM.compute_subspace_hamiltonian(
             backend=self.backend,
             shots=self.shots_subspace,
             hamiltonian=self.hamiltonian_pauli,
@@ -732,6 +840,9 @@ class AIEM(object):
         # Attribute assignment
         self.vqe_E = E
         self.vqe_C = C
+        self.vqe_V = V
+        self.vqe_H = H
+        self.vqe_D = D
 
     @staticmethod
     def compute_subspace_hamiltonian(
@@ -744,18 +855,20 @@ class AIEM(object):
         ):
     
         H = np.zeros((Cs.shape[1],)*2)
+        D = {}
         for I in range(Cs.shape[1]):
             C = Cs[:,I]
             thetas = AIEM.compute_cis_angles(cs=C)
             cis_circuit = cis_circuit_function(thetas=thetas)
             circuit = quasar.Circuit.concatenate([cis_circuit, vqe_circuit])
-            E, D = Collocation.compute_energy_and_pauli_dm( 
+            E, D2 = Collocation.compute_energy_and_pauli_dm( 
                 backend=backend,
                 shots=shots,
                 hamiltonian=hamiltonian,
                 circuit=circuit,
                 ) 
             H[I,I] = E
+            D[I,I] = D2
         for I in range(Cs.shape[1]):
             for J in range(I):
                 Cp = (Cs[:,I] + Cs[:,J]) / np.sqrt(2.0)
@@ -779,7 +892,22 @@ class AIEM(object):
                     circuit=circuitm,
                     ) 
                 H[I,J] = H[J,I] = 0.5 * (Ep - Em)
-        return H
+                D[I,J] = D[J,I] = 0.5 * (Dp - Dm)
+        return H, D
+
+    # => Rotation of VQE Pauli DMs (expensive) to VQE eigenbasis <= #
+
+    def rotate_vqe_dms(self):
+
+        self.vqe_D2 = {}
+        for I in range(self.nstate):
+            for J in range(self.nstate):
+                G = np.outer(self.vqe_V[:,I], self.vqe_V[:,J])
+                D = Pauli.zeros_like(self.hamiltonian_pauli)
+                for I2 in range(self.nstate):
+                    for J2 in range(self.nstate):
+                        D += G[I2, J2] * self.vqe_D[I2, J2]
+                self.vqe_D2[I, J] = D
 
     # => FCI Utility (Classical) <= #
 
@@ -1025,3 +1153,138 @@ class AIEM(object):
         cis_wfns = np.array([self.compute_cis_wavefunction(I) for I in range(self.nstate)])
         return np.dot(vqe_wfns.conj(), cis_wfns.T).real
 
+    # => Density Matrix Wrappers (AIEMPauli Basis) <= #
+
+    def compute_fci_dm(self, I=0, relaxed=False):
+
+        fci_Cs = [self.fci_C[:, I]]
+        fci_ws = [1.0]
+
+        # Relaxed/unrelaxed are identical
+        return AIEM.compute_fci_unrelaxed_dm(
+            hamiltonian=self.aiem_hamiltonian_pauli,
+            fci_Cs=fci_Cs,
+            fci_ws=fci_ws,
+            )
+
+    def compute_fci_tdm(self, I=0, J=1, relaxed=False):
+
+        if I == J: raise RuntimeError('Can only compute tdm for I != J')
+
+        fci_Cp = (self.fci_C[:, I] + self.fci_C[:, J]) / np.sqrt(2.0)
+        fci_Cm = (self.fci_C[:, I] - self.fci_C[:, J]) / np.sqrt(2.0)
+        fci_Cs = [fci_Cp, fci_Cm]
+        fci_ws = [0.5, -0.5]
+
+        # Relaxed/unrelaxed are identical
+        return AIEM.compute_fci_unrelaxed_dm(
+            hamiltonian=self.aiem_hamiltonian_pauli,
+            fci_Cs=fci_Cs,
+            fci_ws=fci_ws,
+            )
+
+    def compute_cis_dm(self, I=0, relaxed=False):
+
+        cis_Cs = [self.cis_C[:, I]]
+        cis_ws = [1.0]
+
+        # Relaxed/unrelaxed are identical
+        return AIEM.compute_cis_unrelaxed_dm(
+            hamiltonian=self.aiem_hamiltonian_pauli,
+            cis_Cs=cis_Cs,
+            cis_ws=cis_ws,
+            cis_circuit_function=self.cis_circuit_function,
+            )
+
+    def compute_cis_tdm(self, I=0, J=1, relaxed=False):
+
+        if I == J: raise RuntimeError('Can only compute tdm for I != J')
+
+        cis_Cp = (self.cis_C[:, I] + self.cis_C[:, J]) / np.sqrt(2.0)
+        cis_Cm = (self.cis_C[:, I] - self.cis_C[:, J]) / np.sqrt(2.0)
+        cis_Cs = [cis_Cp, cis_Cm]
+        cis_ws = [0.5, -0.5]
+
+        # Relaxed/unrelaxed are identical
+        return AIEM.compute_cis_unrelaxed_dm(
+            hamiltonian=self.aiem_hamiltonian_pauli,
+            cis_Cs=cis_Cs,
+            cis_ws=cis_ws,
+            cis_circuit_function=self.cis_circuit_function,
+            )
+
+    def compute_vqe_dm(self, I=0, relaxed=False):
+
+        if relaxed: raise NotImplemented
+
+        return AIEMUtil.pauli_to_aiem_pauli(self.vqe_D2[I,I])
+
+    def compute_vqe_tdm(self, I=0, J=1, relaxed=False):
+
+        if I == J: raise RuntimeError('Can only compute tdm for I != J')
+
+        if relaxed: raise NotImplemented
+
+        return AIEMUtil.pauli_to_aiem_pauli(self.vqe_D2[I,J])
+
+    # => Unrelaxed Density Matrices <= #        
+
+    @staticmethod
+    def compute_fci_unrelaxed_dm(
+        hamiltonian,
+        fci_Cs,
+        fci_ws,
+        ):
+
+        pauli_dm = AIEMPauli.zeros_like(hamiltonian)
+        for wfn, w in zip(fci_Cs, fci_ws):
+            pauli_dm.E += 1.0 * w
+            for A in range(pauli_dm.N):
+                D = quasar.Circuit.compute_pauli_1(wfn=wfn, A=A)
+                pauli_dm.X[A] += D[1] * w
+                pauli_dm.Z[A] += D[3] * w
+            for A, B in pauli_dm.ABs:
+                if A > B: continue
+                D = quasar.Circuit.compute_pauli_2(wfn=wfn, A=A, B=B)
+                pauli_dm.XX[A,B] += D[1,1] * w
+                pauli_dm.XX[B,A] += D[1,1] * w
+                pauli_dm.XZ[A,B] += D[1,3] * w
+                pauli_dm.ZX[B,A] += D[1,3] * w
+                pauli_dm.ZX[A,B] += D[3,1] * w
+                pauli_dm.XZ[B,A] += D[3,1] * w
+                pauli_dm.ZZ[A,B] += D[3,3] * w
+                pauli_dm.ZZ[B,A] += D[3,3] * w
+        return pauli_dm
+
+    @staticmethod
+    def compute_cis_unrelaxed_dm(
+        hamiltonian,
+        cis_Cs,
+        cis_ws,
+        cis_circuit_function,
+        ):
+
+        pauli_dm = AIEMPauli.zeros_like(hamiltonian)
+        for C, w in zip(cis_Cs, cis_ws):
+            thetas = AIEM.compute_cis_angles(cs=C)
+            cis_circuit = cis_circuit_function(thetas=thetas)
+            circuit = cis_circuit.compressed()
+            wfn = circuit.simulate()
+            pauli_dm.E += 1.0 * w
+            for A in range(pauli_dm.N):
+                D = quasar.Circuit.compute_pauli_1(wfn=wfn, A=A)
+                pauli_dm.X[A] += D[1] * w
+                pauli_dm.Z[A] += D[3] * w
+            for A, B in pauli_dm.ABs:
+                if A > B: continue
+                D = quasar.Circuit.compute_pauli_2(wfn=wfn, A=A, B=B)
+                pauli_dm.XX[A,B] += D[1,1] * w
+                pauli_dm.XX[B,A] += D[1,1] * w
+                pauli_dm.XZ[A,B] += D[1,3] * w
+                pauli_dm.ZX[B,A] += D[1,3] * w
+                pauli_dm.ZX[A,B] += D[3,1] * w
+                pauli_dm.XZ[B,A] += D[3,1] * w
+                pauli_dm.ZZ[A,B] += D[3,3] * w
+                pauli_dm.ZZ[B,A] += D[3,3] * w
+        return pauli_dm
+        

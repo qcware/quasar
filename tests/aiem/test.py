@@ -2,13 +2,13 @@ import tomcat
 
 if __name__ == '__main__':
 
-    # backend = tomcat.QuasarSimulatorBackend()
-    backend = tomcat.QiskitSimulatorBackend()
+    backend = tomcat.QuasarSimulatorBackend()
+    # backend = tomcat.QiskitSimulatorBackend()
 
     datapath = '../../data/aiem/bchl-a-8-stack/tc'
     filenames = ['%s/%d/exciton.dat' % (datapath, _) for _ in range(1, 8+1)]
     charges = [0.0]*8
-    N = 8
+    N = 2
     nstate = 3
     connectivity = 'linear'
     cis_circuit_type = 'mark2'
@@ -38,7 +38,9 @@ if __name__ == '__main__':
     
     print(aiem.cis_circuits[0])
     print(aiem.vqe_circuit)
-
+    print(aiem.fci_cis_overlaps)
+    print(aiem.fci_vqe_overlaps)
+    print(aiem.vqe_cis_overlaps)
     
         
         

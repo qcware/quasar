@@ -1095,6 +1095,47 @@ class AIEMUtil(object):
         E += 0.5 * np.sum(pauli_dm.ZX * pauli_hamiltonian.ZX)
         E += 0.5 * np.sum(pauli_dm.ZZ * pauli_hamiltonian.ZZ)
         return E
+
+    @staticmethod
+    def monomer_to_operator_dipole(
+        monomer,
+        ):
+
+        connectivity = np.copy(monomer.connectivity)
+        EH = np.copy(monomer.EH)
+        ET = np.copy(monomer.ET)
+        EP = np.copy(monomer.EP)
+        VHH = np.zeros((monomer.N,)*2)
+        VHT = np.zeros((monomer.N,)*2)
+        VHP = np.zeros((monomer.N,)*2)
+        VTH = np.zeros((monomer.N,)*2)
+        VTT = np.zeros((monomer.N,)*2)
+        VTP = np.zeros((monomer.N,)*2)
+        VPH = np.zeros((monomer.N,)*2)
+        VPT = np.zeros((monomer.N,)*2)
+        VPP = np.zeros((monomer.N,)*2)
+
+        return [AIEMOperator(
+            connectivity=connectivity,
+            EH=np.copy(monomer.MH[:,_]),
+            ET=np.copy(monomer.MT[:,_]),
+            EP=np.copy(monomer.MP[:,_]),
+            VHH=VHH,
+            VHT=VHT,
+            VHP=VHP,
+            VTH=VTH,
+            VTT=VTT,
+            VTP=VTP,
+            VPH=VPH,
+            VPT=VPT,
+            VPP=VPP,
+            ) for _ in range(3)]
+
+    # => Two-Hop Conversion Utility < #
+
+    @staticmethod
+    def monomer_to_pauli_dipole(monomer):
+        return [AIEMUtil.operator_to_pauli(operator=_) for _ in AIEMUtil.monomer_to_operator_dipole(monomer=monomer)]
         
     @staticmethod
     def aiem_pauli_to_pauli(
@@ -1140,12 +1181,10 @@ class AIEMUtil(object):
 
         if pauli.max_order > 2: raise RuntimeError('AIEMPauli is at most order 2')
 
-        canonical = pauli.canonical
-
-        N = canonical.N
-        E = canonical['1'] if '1' in canonical else 0.0
-        X = np.array([canonical['X%d' % _] for _ in range(N)])
-        Z = np.array([canonical['Z%d' % _] for _ in range(N)])
+        N = pauli.N
+        E = pauli['1'] if '1' in pauli else 0.0
+        X = np.array([pauli['X%d' % _] for _ in range(N)])
+        Z = np.array([pauli['Z%d' % _] for _ in range(N)])
 
         XX = np.zeros((N,N))
         XZ = np.zeros((N,N))
@@ -1154,7 +1193,7 @@ class AIEMUtil(object):
 
         connectivity = np.zeros((N,N), dtype=np.bool)
 
-        indices2 = canonical.indices(order=2)
+        indices2 = pauli.indices(order=2)
         for A, B in indices2:
             connectivity[A,B] = True            
             connectivity[B,A] = True            
