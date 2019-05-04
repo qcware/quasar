@@ -1,9 +1,9 @@
-import hammer
+import tomcat
 
 if __name__ == '__main__':
 
-    # backend = hammer.QuasarSimulatorBackend()
-    backend = hammer.QiskitSimulatorBackend()
+    # backend = tomcat.QuasarSimulatorBackend()
+    backend = tomcat.QiskitSimulatorBackend()
 
     datapath = '../../data/aiem/bchl-a-8-stack/tc'
     filenames = ['%s/%d/exciton.dat' % (datapath, _) for _ in range(1, 8+1)]
@@ -13,21 +13,21 @@ if __name__ == '__main__':
     connectivity = 'linear'
     cis_circuit_type = 'mark2'
 
-    aiem_monomer = hammer.AIEMMonomer.from_tc_exciton_files(
+    aiem_monomer = tomcat.AIEMMonomer.from_tc_exciton_files(
         filenames=filenames,
         charges=charges,
         N=N,
         connectivity=connectivity,
         )
 
-    aiem_monomer_grad = hammer.AIEMMonomerGrad.from_tc_exciton_files(
+    aiem_monomer_grad = tomcat.AIEMMonomerGrad.from_tc_exciton_files(
         filenames=filenames,
         charges=charges,
         N=N,
         connectivity=connectivity,
         )
 
-    aiem = hammer.AIEM.from_options(
+    aiem = tomcat.AIEM.from_options(
         backend=backend,
         nstate=nstate,
         aiem_monomer=aiem_monomer,

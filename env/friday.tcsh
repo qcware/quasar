@@ -1,1 +1,1 @@
-setenv PYTHONPATH /Users/parrish/Code/hammer
+setenv PYTHONPATH /Users/parrish/Code/tomcat

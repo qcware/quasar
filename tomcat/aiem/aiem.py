@@ -48,6 +48,11 @@ class AIEM(object):
             allowed_types=[int],
             doc='Number of states to target')
         opt.add_option(
+            key='vqe_weights',
+            required=False,
+            allowed_types=[np.ndarray],
+            doc='Weights for SA-VQE optimization (optional - 1/nstate if not provided)')
+        opt.add_option(
             key='aiem_monomer',
             required=True,
             allowed_types=[AIEMMonomer],
@@ -130,6 +135,12 @@ class AIEM(object):
     @property
     def nstate(self):
         return self.options['nstate']    
+
+    @memoized_property
+    def vqe_weights(self):
+        if self.options['vqe_weights']:
+            return self.options['vqe_weights']
+        return np.ones((self.nstate,)) / self.nstate
 
     @property
     def aiem_monomer(self):
@@ -238,6 +249,15 @@ class AIEM(object):
             for I in range(self.nstate):
                 dEcis = Ecis2[I] - self.cis_E[I]
                 print('%-5d: %11.3E' % (I, dEcis))
+            print('')
+
+        # > SA-VQE Weights < #
+
+        if self.print_level:
+            print('SA-VQE Weights:\n')
+            print('%-5s: %11s' % ('State', 'Weight'))
+            for I, w in enumerate(self.vqe_weights):
+                print('%-5d: %11.3E' % (I, w))
             print('')
 
         # > VQE Circuit Construction < #
