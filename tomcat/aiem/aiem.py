@@ -5,6 +5,10 @@ from ..util import memoized_property
 from ..core import Backend
 from ..core import QuasarSimulatorBackend
 from ..core import Collocation
+from ..core import Optimizer
+from ..core import BFGSOptimizer
+from ..core import PowellOptimizer
+from ..core import IdentityParameterGroup
 from .aiem_data import AIEMMonomer
 from .aiem_data import AIEMMonomerGrad
 from .aiem_data import AIEMPauli
@@ -38,7 +42,12 @@ class AIEM(object):
             key='shots',
             value=None,
             allowed_types=[int],
-            doc='Number of shots per observable, or None for infinite sampling')
+            doc='Number of shots per observable, or None for infinite sampling (backend must support statevector simulation)')
+        opt.add_option(
+            key='shots_subspace',
+            value=None,
+            allowed_types=[int],
+            doc='Number of shots per observable for final subspace Hamiltonian observation, or None for infinite sampling (backend must support statevector simulation)')
 
         # > Problem Description < #
 
@@ -89,7 +98,28 @@ class AIEM(object):
             allowed_types=[str],
             allowed_values=['mark1'],
             doc='SA-VQE Entangler circuit recipe (2nd priority)')
+
+        # > Variational Quantum Algorithm Optimizer < #
+
+        # Default Optimizer
+        # default_optimizer = PowellOptimizer.from_options(
+        #     maxiter=100,
+        #     ftol=1.0E-16,
+        #     xtol=1.0E-6,
+        #     ) 
+        # Default Optimizer
+        default_optimizer = BFGSOptimizer.from_options(
+            maxiter=100,
+            g_convergence=1.0E-6,
+            ) 
     
+        opt.add_option(
+            key='optimizer',
+            value=default_optimizer,
+            required=True,
+            allowed_types=[Optimizer],
+            doc='Variational Quantum Algorithm Optimizer')
+
         AIEM._default_options = opt
         return AIEM._default_options.copy()
 
@@ -123,6 +153,10 @@ class AIEM(object):
     @property
     def shots(self):
         return self.options['shots']
+
+    @property
+    def shots_subspace(self):
+        return self.options['shots_subspace']
 
     @property
     def N(self):
@@ -176,6 +210,10 @@ class AIEM(object):
     def vqe_circuit_function(self):
         if self.options['vqe_circuit_type'] == 'mark1' : return AIEM.build_vqe_circuit_mark1
         else: raise RuntimeError('Unknown vqe_circuit_type: %s' % self.options['vqe_circuit_type'])
+    
+    @property
+    def optimizer(self):
+        return self.options['optimizer']
 
     def compute_energy(
         self,
@@ -190,8 +228,9 @@ class AIEM(object):
             print('==> MC-VQE+AIEM <==\n')
     
             print('Quantum Resources:')
-            print('  %-7s = %s' % ('Backend', self.backend))
-            print('  %-7s = %s' % ('Shots', self.shots))
+            print('  %-14s = %s' % ('Backend', self.backend))
+            print('  %-14s = %s' % ('Shots', self.shots))
+            print('  %-14s = %s' % ('Shots Subspace', self.shots_subspace))
             print('')
 
             print('AIEM Problem:') 
@@ -286,6 +325,94 @@ class AIEM(object):
                 else:
                     print('Initital VQE params guessed as zero.\n')
 
+        # > Entangler Parameter Group < # 
+
+        self.vqe_parameter_group = IdentityParameterGroup(nparam=self.vqe_circuit.nparam)
+
+        # > MC-VQE Parameter Optimization < #
+
+        self.vqe_parameters, self.vqe_circuit, self.vqe_history = self.optimizer.optimize(
+            print_level=self.print_level,
+            backend=self.backend,
+            shots=self.shots,
+            hamiltonian=self.hamiltonian_pauli,
+            reference_circuits=self.cis_circuits,
+            reference_weights=self.vqe_weights,
+            entangler_circuit=self.vqe_circuit,
+            entangler_circuit_parameter_group=self.vqe_parameter_group,
+            guess_params=self.vqe_circuit.param_values,
+            )
+
+        # > Finished MC-VQE Circuit Parameters < #
+
+        if self.print_level:
+            print('Finished VQE Circuit:\n')
+            print(self.vqe_circuit)
+            print('')
+
+            print('Finished VQE Parameters:\n')
+            print(self.vqe_circuit.param_str)
+
+        # > Subspace Eigenproblem < #
+
+        # self.vqe_E, self.vqe_C, self.vqe_H = AIEM.solve_subspace_eigenproblem(
+        #     backend=self.backend,
+        #     shots=self.shots,
+        #     hamiltonian=self.hamiltonian_pauli,
+        #     vqe_circuit=self.vqe_circuit,
+        #     Cs=self.cis_C,
+        #     cis_circuit_function=self.cis_circuit_function,
+        #     )
+
+        self.subspace_eigenproblem()
+
+        # > VQE Phasing <= #
+
+        if vqe_C_ref is not None:
+            if vqe_C_ref.shape != self.vqe_C.shape: raise RuntimeError('vqe_C_ref.shape != vqe_C.shape')
+            P = np.diag(np.dot(vqe_C_ref.T, self.vqe_C))
+            if self.print_level: print('VQE Phasing:')
+            for I in range(self.vqe_C.shape[1]):
+                if np.abs(P[I]) < 0.5: print('Warning: probable VQE state rotation: I=%d' % I)
+                if self.print_level: print('Applying sign of %2d to state %d. Overlap is %.3E' % (np.sign(P[I]), I, P[I]))
+                self.vqe_C[:,I] *= np.sign(P[I])
+            if self.print_level: print('')
+
+        # > VQE Angles < #        
+
+        self.vqe_angles = [AIEM.compute_cis_angles(
+            cs=self.vqe_C[:,T],
+            ) for T in range(self.vqe_C.shape[1])]
+
+        # > VQE Circuits < #
+
+        self.vqe_circuits = [self.cis_circuit_function(
+            thetas=thetas,
+            ) for thetas in self.vqe_angles]
+
+        # > FCI States < #
+
+        # FCI (explicit or Davidson)
+        self.fci_E, self.fci_C = AIEM.compute_fci(
+            hamiltonian=self.aiem_hamiltonian_pauli,
+            nstate=self.nstate,
+            )
+    
+        # > Total Energies (Incl. Reference Energies) < #
+
+        self.fci_tot_E = self.fci_E + self.aiem_hamiltonian_pauli.E
+        self.vqe_tot_E = self.vqe_E + self.aiem_hamiltonian_pauli.E
+        self.cis_tot_E = self.cis_E + self.aiem_hamiltonian_pauli.E
+
+        # > Properties/Analysis < #
+
+        # self.fci_O, self.vqe_O, self.cis_O = self.compute_oscillator_strengths() # TODO
+
+        if self.print_level:
+            self.analyze_energies()
+            # self.analyze_transitions() # TODO
+            # self.analyze_excitations() # TODO
+
         # > Trailer < #
 
         if self.print_level:
@@ -294,6 +421,70 @@ class AIEM(object):
             print('  Viper:    "I like that in a pilot."')
             print('')
             print('==> End MC-VQE+AIEM <==\n')
+
+    # => Analysis <= #
+
+    def analyze_energies(self):
+
+        print('State Energies (Total):\n')
+        print('%-5s: %24s %24s %24s %24s %24s' % (
+            'State',
+            'FCI',
+            'VQE',
+            'CIS',
+            'dVQE',
+            'dCIS',
+            ))
+        for I in range(self.nstate):
+            print('%-5d: %24.16E %24.16E %24.16E %24.15E %24.16E' % (
+                I,
+                self.fci_tot_E[I],
+                self.vqe_tot_E[I],
+                self.cis_tot_E[I],
+                self.vqe_tot_E[I] - self.fci_tot_E[I],
+                self.cis_tot_E[I] - self.fci_tot_E[I],
+                ))
+        print('')
+            
+        print('State Energies (Normal):\n')
+        print('%-5s: %24s %24s %24s %24s %24s' % (
+            'State',
+            'FCI',
+            'VQE',
+            'CIS',
+            'dVQE',
+            'dCIS',
+            ))
+        for I in range(self.nstate):
+            print('%-5d: %24.16E %24.16E %24.16E %24.15E %24.16E' % (
+                I,
+                self.fci_E[I],
+                self.vqe_E[I],
+                self.cis_E[I],
+                self.vqe_E[I] - self.fci_E[I],
+                self.cis_E[I] - self.fci_E[I],
+                ))
+        print('')
+            
+        print('Excitation Energies:\n')
+        print('%-5s: %24s %24s %24s %24s %24s' % (
+            'State',
+            'FCI',
+            'VQE',
+            'CIS',
+            'dVQE',
+            'dCIS',
+            ))
+        for I in range(1,self.nstate):
+            print('%-5d: %24.16E %24.16E %24.16E %24.15E %24.16E' % (
+                I,
+                self.fci_E[I] - self.fci_E[0],
+                self.vqe_E[I] - self.vqe_E[0],
+                self.cis_E[I] - self.cis_E[0],
+                self.vqe_E[I] - self.vqe_E[0] - self.fci_E[I] + self.fci_E[0],
+                self.cis_E[I] - self.cis_E[0] - self.fci_E[I] + self.fci_E[0],
+                ))
+        print('')
 
     # => CIS Considerations (Classical) <= #
 
@@ -519,4 +710,318 @@ class AIEM(object):
         circuit = quasar.Circuit.concatenate([circuit_even, circuit_odd])
 
         return circuit
+
+    # => MC-VQE Subspace Hamiltonian <= #
+
+    def subspace_eigenproblem(self):
+
+        # Subspace hamiltonian
+        H = AIEM.compute_subspace_hamiltonian(
+            backend=self.backend,
+            shots=self.shots_subspace,
+            hamiltonian=self.hamiltonian_pauli,
+            vqe_circuit=self.vqe_circuit,
+            Cs=self.cis_C,
+            cis_circuit_function=self.cis_circuit_function,
+            )
+
+        # Subspace eigensolve
+        E, V = np.linalg.eigh(H)
+        C = np.dot(self.cis_C, V)
+
+        # Attribute assignment
+        self.vqe_E = E
+        self.vqe_C = C
+
+    @staticmethod
+    def compute_subspace_hamiltonian(
+        backend,
+        shots,
+        hamiltonian,
+        vqe_circuit,
+        Cs,
+        cis_circuit_function,
+        ):
+    
+        H = np.zeros((Cs.shape[1],)*2)
+        for I in range(Cs.shape[1]):
+            C = Cs[:,I]
+            thetas = AIEM.compute_cis_angles(cs=C)
+            cis_circuit = cis_circuit_function(thetas=thetas)
+            circuit = quasar.Circuit.concatenate([cis_circuit, vqe_circuit])
+            E, D = Collocation.compute_energy_and_pauli_dm( 
+                backend=backend,
+                shots=shots,
+                hamiltonian=hamiltonian,
+                circuit=circuit,
+                ) 
+            H[I,I] = E
+        for I in range(Cs.shape[1]):
+            for J in range(I):
+                Cp = (Cs[:,I] + Cs[:,J]) / np.sqrt(2.0)
+                Cm = (Cs[:,I] - Cs[:,J]) / np.sqrt(2.0)
+                thetasp = AIEM.compute_cis_angles(cs=Cp)
+                cis_circuitp = cis_circuit_function(thetas=thetasp)
+                circuitp = quasar.Circuit.concatenate([cis_circuitp, vqe_circuit])
+                Ep, Dp = Collocation.compute_energy_and_pauli_dm( 
+                    backend=backend,
+                    shots=shots,
+                    hamiltonian=hamiltonian,
+                    circuit=circuitp,
+                    ) 
+                thetasm = AIEM.compute_cis_angles(cs=Cm)
+                cis_circuitm = cis_circuit_function(thetas=thetasm)
+                circuitm = quasar.Circuit.concatenate([cis_circuitm, vqe_circuit])
+                Em, Dm = Collocation.compute_energy_and_pauli_dm( 
+                    backend=backend,
+                    shots=shots,
+                    hamiltonian=hamiltonian,
+                    circuit=circuitm,
+                    ) 
+                H[I,J] = H[J,I] = 0.5 * (Ep - Em)
+        return H
+
+    # => FCI Utility (Classical) <= #
+
+    @staticmethod
+    def compute_fci_hamiltonian(
+        hamiltonian,
+        ):
+
+        """ Compute the explicit monomer-basis Hamiltonian
+
+        Returns:
+            (np.ndarray of shape (2**N,)*2 and dtype of np.float64) - real,
+                symmetric monomer-basis Hamiltonian, normal ordered
+                (vacuum energy is not included).
+        """
+    
+        N = hamiltonian.N
+        H = np.zeros((2**N,)*2)
+    
+        # One-body term
+        for A in range(N):
+            A2 = N - A - 1 # Backward ordering in QIS
+            pA = [I for I in range(2**N) if not I & (1 << A2)] # |0_A> (+1)
+            nA = [I for I in range(2**N) if I & (1 << A2)]     # |1_A> (-1)
+            # X
+            H[pA,nA] += hamiltonian.X[A]
+            H[nA,pA] += hamiltonian.X[A]
+            # Z
+            H[pA,pA] += hamiltonian.Z[A]
+            H[nA,nA] -= hamiltonian.Z[A]
+        
+        # Two-body term
+        for A, B in hamiltonian.ABs:
+            if A > B: continue
+            A2 = N - A - 1 # Backward ordering in QIS
+            B2 = N - B - 1 # Backward ordering in QIS
+            pApB = [I for I in range(2**N) if (not I & (1 << A2)) and (not I & (1 << B2))]
+            pAnB = [I for I in range(2**N) if (not I & (1 << A2)) and (I & (1 << B2))]
+            nApB = [I for I in range(2**N) if (I & (1 << A2)) and (not I & (1 << B2))]
+            nAnB = [I for I in range(2**N) if (I & (1 << A2)) and (I & (1 << B2))]
+            # XX
+            H[pApB,nAnB] += hamiltonian.XX[A,B]
+            H[pAnB,nApB] += hamiltonian.XX[A,B]
+            H[nApB,pAnB] += hamiltonian.XX[A,B]
+            H[nAnB,pApB] += hamiltonian.XX[A,B]
+            # XZ
+            H[pApB,nApB] += hamiltonian.XZ[A,B]
+            H[nApB,pApB] += hamiltonian.XZ[A,B]
+            H[pAnB,nAnB] -= hamiltonian.XZ[A,B]
+            H[nAnB,pAnB] -= hamiltonian.XZ[A,B]
+            # ZX
+            H[pApB,pAnB] += hamiltonian.ZX[A,B]
+            H[pAnB,pApB] += hamiltonian.ZX[A,B]
+            H[nApB,nAnB] -= hamiltonian.ZX[A,B]
+            H[nAnB,nApB] -= hamiltonian.ZX[A,B]
+            # ZZ
+            H[pApB,pApB] += hamiltonian.ZZ[A,B]
+            H[pAnB,pAnB] -= hamiltonian.ZZ[A,B]
+            H[nApB,nApB] -= hamiltonian.ZZ[A,B]
+            H[nAnB,nAnB] += hamiltonian.ZZ[A,B]
+            
+        return H
+
+    @staticmethod
+    def compute_fci_sigma(
+        hamiltonian,
+        wfn,
+        ):
+
+        N = hamiltonian.N
+        sigma = np.zeros_like(wfn)
+
+        # One-body term
+        for A in range(N):
+            A2 = N - A - 1 # Backward ordering in QIS
+            pA = [I for I in range(2**N) if not I & (1 << A2)] # |0_A> (+1)
+            nA = [I for I in range(2**N) if I & (1 << A2)]     # |1_A> (-1)
+            # X
+            sigma[pA] += hamiltonian.X[A] * wfn[nA]
+            sigma[nA] += hamiltonian.X[A] * wfn[pA]
+            # Z
+            sigma[pA] += hamiltonian.Z[A] * wfn[pA]
+            sigma[nA] -= hamiltonian.Z[A] * wfn[nA]
+
+        # Two-body term
+        for A, B in hamiltonian.ABs:
+            if A > B: continue
+            A2 = N - A - 1 # Backward ordering in QIS
+            B2 = N - B - 1 # Backward ordering in QIS
+            pApB = [I for I in range(2**N) if (not I & (1 << A2)) and (not I & (1 << B2))]
+            pAnB = [I for I in range(2**N) if (not I & (1 << A2)) and (I & (1 << B2))]
+            nApB = [I for I in range(2**N) if (I & (1 << A2)) and (not I & (1 << B2))]
+            nAnB = [I for I in range(2**N) if (I & (1 << A2)) and (I & (1 << B2))]
+            # XX
+            sigma[pApB] += hamiltonian.XX[A,B] * wfn[nAnB]
+            sigma[pAnB] += hamiltonian.XX[A,B] * wfn[nApB]
+            sigma[nApB] += hamiltonian.XX[A,B] * wfn[pAnB]
+            sigma[nAnB] += hamiltonian.XX[A,B] * wfn[pApB]
+            # XZ
+            sigma[pApB] += hamiltonian.XZ[A,B] * wfn[nApB]
+            sigma[nApB] += hamiltonian.XZ[A,B] * wfn[pApB]
+            sigma[pAnB] -= hamiltonian.XZ[A,B] * wfn[nAnB]
+            sigma[nAnB] -= hamiltonian.XZ[A,B] * wfn[pAnB]
+            # ZX
+            sigma[pApB] += hamiltonian.ZX[A,B] * wfn[pAnB]
+            sigma[pAnB] += hamiltonian.ZX[A,B] * wfn[pApB]
+            sigma[nApB] -= hamiltonian.ZX[A,B] * wfn[nAnB]
+            sigma[nAnB] -= hamiltonian.ZX[A,B] * wfn[nApB]
+            # ZZ
+            sigma[pApB] += hamiltonian.ZZ[A,B] * wfn[pApB]
+            sigma[pAnB] -= hamiltonian.ZZ[A,B] * wfn[pAnB]
+            sigma[nApB] -= hamiltonian.ZZ[A,B] * wfn[nApB]
+            sigma[nAnB] += hamiltonian.ZZ[A,B] * wfn[nAnB]
+
+        return sigma
+
+    # => FCI Diagonalization Utility <= #
+
+    @staticmethod
+    def compute_fci(
+        hamiltonian,
+        nstate,
+        crossover=14,
+        ):
+        
+        if hamiltonian.N < crossover: return AIEM.compute_fci_explicit(hamiltonian=hamiltonian, nstate=nstate)
+        else: return AIEM.compute_fci_davidson(hamiltonian=hamiltonian, nstate=nstate)
+
+    @staticmethod
+    def compute_fci_explicit(
+        hamiltonian,
+        nstate,
+        ):
+
+        Hfci = AIEM.compute_fci_hamiltonian(hamiltonian=hamiltonian) 
+        Efci, Vfci = np.linalg.eigh(Hfci)
+
+        return Efci[:nstate], Vfci[:,:nstate]
+
+    @staticmethod
+    def compute_fci_davidson(
+        hamiltonian,
+        nstate,
+        r_convergence=1.0E-7,
+        norm_cutoff=1.0E-6,
+        maxiter=200,
+        subspace_M=10,
+        ):
+
+        # People might not have this
+        import lightspeed as ls
+
+        print('=> Davidson: <=\n')
+        
+        # CIS Guess
+        guesses = []
+        ref = np.zeros((2**hamiltonian.N,))
+        ref[0] = 1.0
+        guesses.append(ref)
+        for A in range(hamiltonian.N):
+            wfn = np.zeros((2**hamiltonian.N,))
+            wfn[1 << A] = 1.0
+            guesses.append(wfn)
+
+        # => Davidson <= #
+
+        dav = ls.Davidson(
+            hamiltonian.N+1,
+            subspace_M*(hamiltonian.N+1), 
+            r_convergence,
+            norm_cutoff,
+            )
+        print(dav)
+
+        bs = [x for x in guesses]
+
+        for iteration in range(maxiter):
+
+            sigmas = [AIEM.compute_fci_sigma(hamiltonian=hamiltonian, wfn=b) for b in bs]
+
+            Rs, Es = dav.add_vectors(
+                [ls.Tensor.array(x) for x in bs],
+                [ls.Tensor.array(x) for x in sigmas],
+                )
+            
+            print('%4d: %11.3E' % (iteration, dav.max_rnorm))
+
+            if dav.is_converged:
+                converged = True
+                break
+
+            # No preconditioning
+            Ds = Rs
+        
+            bs = dav.add_preconditioned(
+                [ls.Tensor.array(x) for x in Ds],
+                )
+
+        if converged:
+            print('\nDavidson Converged\n')
+        else:
+            print('\nDavidson Failed\n')
+
+        wfns = np.array([np.array(ls.Storage.from_storage(x, bs[0])) for x in dav.evecs]).T
+        Es = np.array([x for x in dav.evals])
+
+        print('=> End Davidson: <=\n')
+
+        return Es, wfns
+
+    # => Explicit Wavefunction Simulation (Quasar) <= #
+
+    def compute_fci_wavefunction(self, I=0):
+        return self.fci_C[:,I]
+
+    def compute_vqe_wavefunction(self, I=0):
+        circuit = quasar.Circuit.concatenate([self.vqe_circuits[I], self.vqe_circuit]).compressed()
+        wfn = circuit.simulate()
+        return wfn
+
+    def compute_cis_wavefunction(self, I=0):
+        circuit = self.cis_circuits[I].compressed()
+        wfn = circuit.simulate()
+        return wfn
+
+    # => Explicit Wavefunction Overlaps <= #
+
+    @memoized_property
+    def fci_cis_overlaps(self):
+        fci_wfns = np.array([self.compute_fci_wavefunction(I) for I in range(self.nstate)])
+        cis_wfns = np.array([self.compute_cis_wavefunction(I) for I in range(self.nstate)])
+        return np.dot(fci_wfns.conj(), cis_wfns.T).real
+
+    @memoized_property
+    def fci_vqe_overlaps(self):
+        fci_wfns = np.array([self.compute_fci_wavefunction(I) for I in range(self.nstate)])
+        vqe_wfns = np.array([self.compute_vqe_wavefunction(I) for I in range(self.nstate)])
+        return np.dot(fci_wfns.conj(), vqe_wfns.T).real
+
+    @memoized_property
+    def vqe_cis_overlaps(self):
+        vqe_wfns = np.array([self.compute_vqe_wavefunction(I) for I in range(self.nstate)])
+        cis_wfns = np.array([self.compute_cis_wavefunction(I) for I in range(self.nstate)])
+        return np.dot(vqe_wfns.conj(), cis_wfns.T).real
 

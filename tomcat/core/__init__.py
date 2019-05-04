@@ -3,3 +3,5 @@ from .results import Ket
 from .backend import QuasarSimulatorBackend, QiskitSimulatorBackend, Backend
 from .optimizer import PowellOptimizer, BFGSOptimizer
 from .collocation import Collocation
+from .optimizer import Optimizer, BFGSOptimizer, PowellOptimizer
+from .parameters import ParameterGroup, IdentityParameterGroup, LinearParameterGroup, CompositeParameterGroup

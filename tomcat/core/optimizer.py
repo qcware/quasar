@@ -77,7 +77,6 @@ class BFGSOptimizer(Optimizer):
                 shots=shots,
                 hamiltonian=hamiltonian,
                 circuit=entangler_circuit2,
-                parameter_group=entangler_circuit_parameter_group,
                 reference_circuits=reference_circuits,
                 reference_weights=reference_weights,
                 )[0]
@@ -198,7 +197,6 @@ class PowellOptimizer(Optimizer):
                 shots=shots,
                 hamiltonian=hamiltonian,
                 circuit=entangler_circuit2,
-                parameter_group=entangler_circuit_parameter_group,
                 reference_circuits=reference_circuits,
                 reference_weights=reference_weights,
                 )[0]

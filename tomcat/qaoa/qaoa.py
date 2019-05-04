@@ -34,12 +34,12 @@ class QAOA(object):
             key='shots',
             value=None,
             allowed_types=[int],
-            doc='Number of shots per observable, or None for infinite sampling')
+            doc='Number of shots per observable, or None for infinite sampling (backend must support statevector simulation)')
         opt.add_option(
             key='shots_final',
             value=1000,
             allowed_types=[int],
-            doc='Number of shots for final observables, or None for infinite sampling')
+            doc='Number of shots for final observables')
 
         # > Problem Structure < #
 

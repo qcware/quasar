@@ -35,7 +35,7 @@ class Collocation(object):
         pauli_dm = pauli.Pauli.zeros_like(hamiltonian)
         E = 0.0
         for reference, weight in zip(reference_circuits, reference_weights):
-            circuit2 = quasar.Circuit.concatenate([circuit, reference])
+            circuit2 = quasar.Circuit.concatenate([reference, circuit])
             E2, pauli_dm2 = Collocation.compute_energy_and_pauli_dm(
                 backend=backend,
                 shots=shots,
@@ -69,7 +69,6 @@ class Collocation(object):
                 shots=shots,
                 hamiltonian=hamiltonian,
                 circuit=circuit2,
-                parameter_group=parameter_group,
                 )[0]
             Zm = Z.copy()
             Zm[A] -= np.pi / 4.0
@@ -79,7 +78,6 @@ class Collocation(object):
                 shots=shots,
                 hamiltonian=hamiltonian,
                 circuit=circuit2,
-                parameter_group=parameter_group,
                 )[0]
             G[A] = (Ep - Em)
 
@@ -99,7 +97,7 @@ class Collocation(object):
 
         G = np.zeros((parameter_group.nparam,))
         for reference, weight in zip(reference_circuits, reference_weights):
-            circuit2 = quasar.Circuit.concatenate([circuit, reference])
+            circuit2 = quasar.Circuit.concatenate([reference.compressed(), circuit]) # TODO: Fucking dirty hack
             G2 = Collocation.compute_gradient(
                 backend=backend,
                 shots=shots,
