@@ -1,4 +1,4 @@
-import tomcat
+import quasar
 import collections
 import numpy as np
 
@@ -56,7 +56,7 @@ def test_matrix():
     # Dict of test results
     checks = collections.OrderedDict()
     for key, val in refs.items():
-        x = np.max(np.abs(val - tomcat.Matrix.__dict__[key]))
+        x = np.max(np.abs(val - quasar.Matrix.__dict__[key]))
         checks[key] = (x, x < 1.0E-16)
 
     # => Print and Return Results <= #
@@ -90,7 +90,7 @@ def test_explicit_gates():
 
     checks = collections.OrderedDict()
     for key, val in gates.items():
-        gate = tomcat.Gate.__dict__[key]
+        gate = quasar.Gate.__dict__[key]
         checks[key] = (
             gate.N == val[0],
             np.max(np.abs(gate.U - val[1])) < 1.0E-16,
@@ -111,22 +111,22 @@ def test_explicit_gates():
 
 def test_gates():
 
-    I = tomcat.Gate.I
+    I = quasar.Gate.I
     print(I)
     print(I.U)
 
 def test_ghz_5():
 
-    circuit = tomcat.Circuit(N=5)
-    circuit.add_gate(T=0, key=0, gate=tomcat.Gate.H)   
-    circuit.add_gate(T=1, key=(0,1), gate=tomcat.Gate.CNOT)
-    circuit.add_gate(T=2, key=(1,2), gate=tomcat.Gate.CNOT)
-    circuit.add_gate(T=3, key=(2,3), gate=tomcat.Gate.CNOT)
-    circuit.add_gate(T=4, key=3, gate=tomcat.Gate.H)   
-    circuit.add_gate(T=4, key=4, gate=tomcat.Gate.H)   
-    circuit.add_gate(T=5, key=(4,3), gate=tomcat.Gate.CNOT)
-    circuit.add_gate(T=6, key=3, gate=tomcat.Gate.H)   
-    circuit.add_gate(T=6, key=4, gate=tomcat.Gate.H)   
+    circuit = quasar.Circuit(N=5)
+    circuit.add_gate(T=0, key=0, gate=quasar.Gate.H)   
+    circuit.add_gate(T=1, key=(0,1), gate=quasar.Gate.CNOT)
+    circuit.add_gate(T=2, key=(1,2), gate=quasar.Gate.CNOT)
+    circuit.add_gate(T=3, key=(2,3), gate=quasar.Gate.CNOT)
+    circuit.add_gate(T=4, key=3, gate=quasar.Gate.H)   
+    circuit.add_gate(T=4, key=4, gate=quasar.Gate.H)   
+    circuit.add_gate(T=5, key=(4,3), gate=quasar.Gate.CNOT)
+    circuit.add_gate(T=6, key=3, gate=quasar.Gate.H)   
+    circuit.add_gate(T=6, key=4, gate=quasar.Gate.H)   
 
     print(circuit)
 
@@ -136,11 +136,11 @@ def test_ghz_5():
 
 def test_linear_4():
 
-    circuit = tomcat.Circuit(N=4)
-    circuit.add_gate(T=1, key=(1,2), gate=tomcat.Gate.SO4(A=0.0, B=0.0, C=0.0, D=0.0, E=0.0, F=0.0))
-    circuit.add_gate(T=1, key=(3,0), gate=tomcat.Gate.SO4(A=0.0, B=0.0, C=0.0, D=0.0, E=0.0, F=0.0))
-    circuit.add_gate(T=0, key=(0,1), gate=tomcat.Gate.SO4(A=0.0, B=0.0, C=0.0, D=0.0, E=0.0, F=0.0))
-    circuit.add_gate(T=0, key=(2,3), gate=tomcat.Gate.SO4(A=0.0, B=0.0, C=0.0, D=0.0, E=0.0, F=0.0))
+    circuit = quasar.Circuit(N=4)
+    circuit.add_gate(T=1, key=(1,2), gate=quasar.Gate.SO4(A=0.0, B=0.0, C=0.0, D=0.0, E=0.0, F=0.0))
+    circuit.add_gate(T=1, key=(3,0), gate=quasar.Gate.SO4(A=0.0, B=0.0, C=0.0, D=0.0, E=0.0, F=0.0))
+    circuit.add_gate(T=0, key=(0,1), gate=quasar.Gate.SO4(A=0.0, B=0.0, C=0.0, D=0.0, E=0.0, F=0.0))
+    circuit.add_gate(T=0, key=(2,3), gate=quasar.Gate.SO4(A=0.0, B=0.0, C=0.0, D=0.0, E=0.0, F=0.0))
     print(circuit) 
     print(circuit.param_str)
         

@@ -1,7 +1,7 @@
 import numpy as np
-from ..quasar import quasar
 from ..util import Options
 from ..util import memoized_property
+from ..core import Circuit, Gate
 from ..core import Pauli
 from ..core import Backend
 from ..core import QuasarSimulatorBackend
@@ -90,7 +90,7 @@ class AIEM(object):
         opt.add_option(
             key='vqe_circuit',
             value=None,
-            allowed_types=[quasar.Circuit],
+            allowed_types=[Circuit],
             doc='Explicit SA-VQE Entangler circuit (1st priority)')
         opt.add_option(
             key='vqe_circuit_type',
@@ -718,30 +718,30 @@ class AIEM(object):
     @staticmethod
     def build_cis_circuit_mark1(thetas):
         N = len(thetas)
-        circuit = quasar.Circuit(N=N)
-        circuit.add_gate(T=0, key=0, gate=quasar.Gate.Ry(theta=thetas[0]))
+        circuit = Circuit(N=N)
+        circuit.add_gate(T=0, key=0, gate=Gate.Ry(theta=thetas[0]))
         for I, theta in enumerate(thetas[1:]):
-            circuit.add_gate(T=2*I, key=(I+1), gate=quasar.Gate.Ry(theta=-theta/2.0)) 
-            circuit.add_gate(T=2*I+1, key=(I, I+1), gate=quasar.Gate.CZ)
-            circuit.add_gate(T=2*I+2, key=(I+1), gate=quasar.Gate.Ry(theta=+theta/2.0)) 
-        circuit2 = quasar.Circuit(N=N)
+            circuit.add_gate(T=2*I, key=(I+1), gate=Gate.Ry(theta=-theta/2.0)) 
+            circuit.add_gate(T=2*I+1, key=(I, I+1), gate=Gate.CZ)
+            circuit.add_gate(T=2*I+2, key=(I+1), gate=Gate.Ry(theta=+theta/2.0)) 
+        circuit2 = Circuit(N=N)
         T = 0
         for A in range(N-2, -1, -1):
             for B in range(N-1, A, -1):
-                circuit2.add_gate(T=T, key=(B,A), gate=quasar.Gate.CNOT)
+                circuit2.add_gate(T=T, key=(B,A), gate=Gate.CNOT)
                 T += 1
-        return quasar.Circuit.concatenate([circuit, circuit2])
+        return Circuit.concatenate([circuit, circuit2])
 
     @staticmethod
     def build_cis_circuit_mark2(thetas):
         N = len(thetas)
-        circuit = quasar.Circuit(N=N)
-        circuit.add_gate(T=0, key=0, gate=quasar.Gate.Ry(theta=thetas[0]))
+        circuit = Circuit(N=N)
+        circuit.add_gate(T=0, key=0, gate=Gate.Ry(theta=thetas[0]))
         for I, theta in enumerate(thetas[1:]):
-            circuit.add_gate(T=2*I, key=(I+1), gate=quasar.Gate.Ry(theta=-theta/2.0)) 
-            circuit.add_gate(T=2*I+1, key=(I, I+1), gate=quasar.Gate.CZ)
-            circuit.add_gate(T=2*I+2, key=(I+1), gate=quasar.Gate.Ry(theta=+theta/2.0)) 
-            circuit.add_gate(T=2*I+(3 if I+2 == N else 4), key=(I+1, I), gate=quasar.Gate.CX)
+            circuit.add_gate(T=2*I, key=(I+1), gate=Gate.Ry(theta=-theta/2.0)) 
+            circuit.add_gate(T=2*I+1, key=(I, I+1), gate=Gate.CZ)
+            circuit.add_gate(T=2*I+2, key=(I+1), gate=Gate.Ry(theta=+theta/2.0)) 
+            circuit.add_gate(T=2*I+(3 if I+2 == N else 4), key=(I+1, I), gate=Gate.CX)
         return circuit
 
     # => CIS Verification <= #
@@ -779,23 +779,23 @@ class AIEM(object):
             raise RuntimeError('Hamiltonian must be linear or cyclic')
 
         # 2-body circuit (even)
-        circuit_even = quasar.Circuit(N=hamiltonian.N)
+        circuit_even = Circuit(N=hamiltonian.N)
         for A in range(hamiltonian.N):
             if A % 2: continue
             B = A + 1
-            circuit_even.add_gate(T=0,  key=A, gate=quasar.Gate.Ry(theta=0.0))
-            circuit_even.add_gate(T=0,  key=B, gate=quasar.Gate.Ry(theta=0.0))
-            # circuit_even.add_gate(T=1,  key=(A,B), gate=quasar.Gate.CNOT)
-            circuit_even.add_gate(T=1,  key=(A,B), gate=quasar.Gate.CZ)
-            circuit_even.add_gate(T=2,  key=A, gate=quasar.Gate.Ry(theta=0.0))
-            circuit_even.add_gate(T=2,  key=B, gate=quasar.Gate.Ry(theta=0.0))
-            # circuit_even.add_gate(T=3,  key=(A,B), gate=quasar.Gate.CNOT)
-            circuit_even.add_gate(T=3,  key=(A,B), gate=quasar.Gate.CZ)
-            circuit_even.add_gate(T=4,  key=A, gate=quasar.Gate.Ry(theta=0.0))
-            circuit_even.add_gate(T=4,  key=B, gate=quasar.Gate.Ry(theta=0.0))
+            circuit_even.add_gate(T=0,  key=A, gate=Gate.Ry(theta=0.0))
+            circuit_even.add_gate(T=0,  key=B, gate=Gate.Ry(theta=0.0))
+            # circuit_even.add_gate(T=1,  key=(A,B), gate=Gate.CNOT)
+            circuit_even.add_gate(T=1,  key=(A,B), gate=Gate.CZ)
+            circuit_even.add_gate(T=2,  key=A, gate=Gate.Ry(theta=0.0))
+            circuit_even.add_gate(T=2,  key=B, gate=Gate.Ry(theta=0.0))
+            # circuit_even.add_gate(T=3,  key=(A,B), gate=Gate.CNOT)
+            circuit_even.add_gate(T=3,  key=(A,B), gate=Gate.CZ)
+            circuit_even.add_gate(T=4,  key=A, gate=Gate.Ry(theta=0.0))
+            circuit_even.add_gate(T=4,  key=B, gate=Gate.Ry(theta=0.0))
 
         # 2-body circuit (odd)
-        circuit_odd = quasar.Circuit(N=hamiltonian.N)
+        circuit_odd = Circuit(N=hamiltonian.N)
         for A in range(hamiltonian.N):
             if (A + 1) % 2: continue
             B = A + 1
@@ -805,22 +805,22 @@ class AIEM(object):
                     B = 0
                 else:
                     continue 
-            circuit_odd.add_gate(T=0,  key=A, gate=quasar.Gate.Ry(theta=0.0))
-            circuit_odd.add_gate(T=0,  key=B, gate=quasar.Gate.Ry(theta=0.0))
-            # circuit_odd.add_gate(T=1,  key=(A,B), gate=quasar.Gate.CNOT)
-            circuit_odd.add_gate(T=1,  key=(A,B), gate=quasar.Gate.CZ)
-            circuit_odd.add_gate(T=2,  key=A, gate=quasar.Gate.Ry(theta=0.0))
-            circuit_odd.add_gate(T=2,  key=B, gate=quasar.Gate.Ry(theta=0.0))
-            # circuit_odd.add_gate(T=3,  key=(A,B), gate=quasar.Gate.CNOT)
-            circuit_odd.add_gate(T=3,  key=(A,B), gate=quasar.Gate.CZ)
-            circuit_odd.add_gate(T=4,  key=A, gate=quasar.Gate.Ry(theta=0.0))
-            circuit_odd.add_gate(T=4,  key=B, gate=quasar.Gate.Ry(theta=0.0))
+            circuit_odd.add_gate(T=0,  key=A, gate=Gate.Ry(theta=0.0))
+            circuit_odd.add_gate(T=0,  key=B, gate=Gate.Ry(theta=0.0))
+            # circuit_odd.add_gate(T=1,  key=(A,B), gate=Gate.CNOT)
+            circuit_odd.add_gate(T=1,  key=(A,B), gate=Gate.CZ)
+            circuit_odd.add_gate(T=2,  key=A, gate=Gate.Ry(theta=0.0))
+            circuit_odd.add_gate(T=2,  key=B, gate=Gate.Ry(theta=0.0))
+            # circuit_odd.add_gate(T=3,  key=(A,B), gate=Gate.CNOT)
+            circuit_odd.add_gate(T=3,  key=(A,B), gate=Gate.CZ)
+            circuit_odd.add_gate(T=4,  key=A, gate=Gate.Ry(theta=0.0))
+            circuit_odd.add_gate(T=4,  key=B, gate=Gate.Ry(theta=0.0))
 
         # Remove redundant Ry gates if requested
         if nonredundant and hamiltonian.N > 2:
             circuit_odd = circuit_odd.subset(Ts=range(1,5))
 
-        circuit = quasar.Circuit.concatenate([circuit_even, circuit_odd])
+        circuit = Circuit.concatenate([circuit_even, circuit_odd])
 
         return circuit
 
@@ -836,19 +836,19 @@ class AIEM(object):
             raise RuntimeError('Hamiltonian must be linear or cyclic')
 
         # 2-body circuit (even)
-        circuit_even = quasar.Circuit(N=hamiltonian.N)
+        circuit_even = Circuit(N=hamiltonian.N)
         for A in range(hamiltonian.N):
             if A % 2: continue
             B = A + 1
-            circuit_even.add_gate(T=0,  key=A, gate=quasar.Gate.Ry(theta=0.0))
-            circuit_even.add_gate(T=0,  key=B, gate=quasar.Gate.Ry(theta=0.0))
-            # circuit_even.add_gate(T=1,  key=(A,B), gate=quasar.Gate.CNOT)
-            circuit_even.add_gate(T=1,  key=(A,B), gate=quasar.Gate.CZ)
-            circuit_even.add_gate(T=2,  key=A, gate=quasar.Gate.Ry(theta=0.0))
-            circuit_even.add_gate(T=2,  key=B, gate=quasar.Gate.Ry(theta=0.0))
+            circuit_even.add_gate(T=0,  key=A, gate=Gate.Ry(theta=0.0))
+            circuit_even.add_gate(T=0,  key=B, gate=Gate.Ry(theta=0.0))
+            # circuit_even.add_gate(T=1,  key=(A,B), gate=Gate.CNOT)
+            circuit_even.add_gate(T=1,  key=(A,B), gate=Gate.CZ)
+            circuit_even.add_gate(T=2,  key=A, gate=Gate.Ry(theta=0.0))
+            circuit_even.add_gate(T=2,  key=B, gate=Gate.Ry(theta=0.0))
 
         # 2-body circuit (odd)
-        circuit_odd = quasar.Circuit(N=hamiltonian.N)
+        circuit_odd = Circuit(N=hamiltonian.N)
         for A in range(hamiltonian.N):
             if (A + 1) % 2: continue
             B = A + 1
@@ -858,18 +858,18 @@ class AIEM(object):
                     B = 0
                 else:
                     continue 
-            circuit_odd.add_gate(T=0,  key=A, gate=quasar.Gate.Ry(theta=0.0))
-            circuit_odd.add_gate(T=0,  key=B, gate=quasar.Gate.Ry(theta=0.0))
-            # circuit_odd.add_gate(T=1,  key=(A,B), gate=quasar.Gate.CNOT)
-            circuit_odd.add_gate(T=1,  key=(A,B), gate=quasar.Gate.CZ)
-            circuit_odd.add_gate(T=2,  key=A, gate=quasar.Gate.Ry(theta=0.0))
-            circuit_odd.add_gate(T=2,  key=B, gate=quasar.Gate.Ry(theta=0.0))
+            circuit_odd.add_gate(T=0,  key=A, gate=Gate.Ry(theta=0.0))
+            circuit_odd.add_gate(T=0,  key=B, gate=Gate.Ry(theta=0.0))
+            # circuit_odd.add_gate(T=1,  key=(A,B), gate=Gate.CNOT)
+            circuit_odd.add_gate(T=1,  key=(A,B), gate=Gate.CZ)
+            circuit_odd.add_gate(T=2,  key=A, gate=Gate.Ry(theta=0.0))
+            circuit_odd.add_gate(T=2,  key=B, gate=Gate.Ry(theta=0.0))
 
         # Remove redundant Ry gates if requested
         if nonredundant and hamiltonian.N > 2:
             circuit_odd = circuit_odd.subset(Ts=range(1,3))
 
-        circuit = quasar.Circuit.concatenate([circuit_even, circuit_odd])
+        circuit = Circuit.concatenate([circuit_even, circuit_odd])
 
         return circuit
 
@@ -914,7 +914,7 @@ class AIEM(object):
             C = Cs[:,I]
             thetas = AIEM.compute_cis_angles(cs=C)
             cis_circuit = cis_circuit_function(thetas=thetas)
-            circuit = quasar.Circuit.concatenate([cis_circuit, vqe_circuit])
+            circuit = Circuit.concatenate([cis_circuit, vqe_circuit])
             E, D2 = Collocation.compute_energy_and_pauli_dm( 
                 backend=backend,
                 nmeasurement=nmeasurement,
@@ -929,7 +929,7 @@ class AIEM(object):
                 Cm = (Cs[:,I] - Cs[:,J]) / np.sqrt(2.0)
                 thetasp = AIEM.compute_cis_angles(cs=Cp)
                 cis_circuitp = cis_circuit_function(thetas=thetasp)
-                circuitp = quasar.Circuit.concatenate([cis_circuitp, vqe_circuit])
+                circuitp = Circuit.concatenate([cis_circuitp, vqe_circuit])
                 Ep, Dp = Collocation.compute_energy_and_pauli_dm( 
                     backend=backend,
                     nmeasurement=nmeasurement,
@@ -938,7 +938,7 @@ class AIEM(object):
                     ) 
                 thetasm = AIEM.compute_cis_angles(cs=Cm)
                 cis_circuitm = cis_circuit_function(thetas=thetasm)
-                circuitm = quasar.Circuit.concatenate([cis_circuitm, vqe_circuit])
+                circuitm = Circuit.concatenate([cis_circuitm, vqe_circuit])
                 Em, Dm = Collocation.compute_energy_and_pauli_dm( 
                     backend=backend,
                     nmeasurement=nmeasurement,
@@ -1178,7 +1178,7 @@ class AIEM(object):
         return self.fci_C[:,I]
 
     def compute_vqe_wavefunction(self, I=0):
-        circuit = quasar.Circuit.concatenate([self.vqe_circuits[I], self.vqe_circuit]).compressed()
+        circuit = Circuit.concatenate([self.vqe_circuits[I], self.vqe_circuit]).compressed()
         wfn = circuit.simulate()
         return wfn
 
@@ -1294,12 +1294,12 @@ class AIEM(object):
         for wfn, w in zip(fci_Cs, fci_ws):
             pauli_dm.E += 1.0 * w
             for A in range(pauli_dm.N):
-                D = quasar.Circuit.compute_pauli_1(wfn=wfn, A=A)
+                D = Circuit.compute_pauli_1(wfn=wfn, A=A)
                 pauli_dm.X[A] += D[1] * w
                 pauli_dm.Z[A] += D[3] * w
             for A, B in pauli_dm.ABs:
                 if A > B: continue
-                D = quasar.Circuit.compute_pauli_2(wfn=wfn, A=A, B=B)
+                D = Circuit.compute_pauli_2(wfn=wfn, A=A, B=B)
                 pauli_dm.XX[A,B] += D[1,1] * w
                 pauli_dm.XX[B,A] += D[1,1] * w
                 pauli_dm.XZ[A,B] += D[1,3] * w
@@ -1326,12 +1326,12 @@ class AIEM(object):
             wfn = circuit.simulate()
             pauli_dm.E += 1.0 * w
             for A in range(pauli_dm.N):
-                D = quasar.Circuit.compute_pauli_1(wfn=wfn, A=A)
+                D = Circuit.compute_pauli_1(wfn=wfn, A=A)
                 pauli_dm.X[A] += D[1] * w
                 pauli_dm.Z[A] += D[3] * w
             for A, B in pauli_dm.ABs:
                 if A > B: continue
-                D = quasar.Circuit.compute_pauli_2(wfn=wfn, A=A, B=B)
+                D = Circuit.compute_pauli_2(wfn=wfn, A=A, B=B)
                 pauli_dm.XX[A,B] += D[1,1] * w
                 pauli_dm.XX[B,A] += D[1,1] * w
                 pauli_dm.XZ[A,B] += D[1,3] * w

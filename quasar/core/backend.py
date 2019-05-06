@@ -1,9 +1,9 @@
 import numpy as np
-from ..quasar import Circuit, Gate
+from .circuit import Circuit, Gate
 from .pauli import Pauli
 
-""" File backend.py contains many utility classes the standardize the
-    input/output data for quantum circuits and many utility functions that
+""" File backend.py contains some utility classes the standardize the
+    input/output data for quantum circuits and some utility functions that
     abstract the details of the quantum backend from the user.
 
     It seems that there are two primary input data types for quantum circuits: 
@@ -11,8 +11,10 @@ from .pauli import Pauli
             the all-zero reference state. Here, we require that the input
             circuit be a quasar.Circuit object.
         (2) a many-body Pauli operator - the specification of the bases and
-            sparsity patterns of the relevant outputs of the quantum circuit.
-            Here, we require that the input Pauli operator be a Pauli object.
+            sparsity patterns of the relevant outputs of the quantum circuit,
+            e.g., as would be needed to construct a sparse Pauli-basis
+            many-body density matrix. Here, we require that the input Pauli
+            operator be a Pauli object.
 
     It seems that there are several primary output data types for NISQ-era
     quantum circuit manipulations:
@@ -27,7 +29,7 @@ from .pauli import Pauli
             the ket.
         (3) the simulated statevector - a 2**N-dimensional real or complex
             vector of Hilbert-space amplitudes. Here, we use a np.ndarray of
-            shape (2**N,) in QUASAR order.
+            shape (2**N,) in Quasar order.
         (4) a Pauli density matrix - a higher-level object formed by
             infinite-sampling contraction of a simulated statevector or by
             statistical expectation value of a many-body Pauli operator. Here,
@@ -40,7 +42,7 @@ from .pauli import Pauli
     (such as a QuasarSimulatorBackend, QiskitSimulatorBackend,
     QiskitHardwareBackend, etc), pass Quasar circuits and Pauli objects as
     arguments into the backend object's functions, and receive output in the
-    Quasar/Tomcat output types and ordering conventions described above.
+    Quasar output types and ordering conventions described above.
 """ 
 
 class Ket(int):

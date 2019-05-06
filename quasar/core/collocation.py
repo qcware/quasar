@@ -1,5 +1,5 @@
 import numpy as np
-from ..quasar import *
+from .circuit import Circuit
 from . import pauli
 
 class Collocation(object):
@@ -35,7 +35,7 @@ class Collocation(object):
         pauli_dm = pauli.Pauli.zeros_like(hamiltonian)
         E = 0.0
         for reference, weight in zip(reference_circuits, reference_weights):
-            circuit2 = quasar.Circuit.concatenate([reference, circuit])
+            circuit2 = Circuit.concatenate([reference, circuit])
             E2, pauli_dm2 = Collocation.compute_energy_and_pauli_dm(
                 backend=backend,
                 nmeasurement=nmeasurement,
@@ -97,7 +97,7 @@ class Collocation(object):
 
         G = np.zeros((parameter_group.nparam,))
         for reference, weight in zip(reference_circuits, reference_weights):
-            circuit2 = quasar.Circuit.concatenate([reference.compressed(), circuit]) # TODO: Fucking dirty hack
+            circuit2 = Circuit.concatenate([reference.compressed(), circuit]) # TODO: Fucking dirty hack
             G2 = Collocation.compute_gradient(
                 backend=backend,
                 nmeasurement=nmeasurement,

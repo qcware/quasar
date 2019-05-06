@@ -1,34 +1,34 @@
 import numpy as np
-import tomcat
+import quasar
 
 if __name__ == '__main__':
 
-    backend = tomcat.QuasarSimulatorBackend()
-    # backend = tomcat.QiskitSimulatorBackend()
+    backend = quasar.QuasarSimulatorBackend()
+    # backend = quasar.QiskitSimulatorBackend()
 
     datapath = '../../data/aiem/bchl-a-8-stack/tc'
     filenames = ['%s/%d/exciton.dat' % (datapath, _) for _ in range(1, 8+1)]
     # charges = [0.0]*8
-    N = 8
-    nstate = 5
+    N = 4
+    nstate = 3
     # connectivity = 'linear'
     connectivity = 'cyclic'
     cis_circuit_type = 'mark2'
     vqe_circuit_type = 'mark1'
 
-    aiem_monomer = tomcat.AIEMMonomer.from_tc_exciton_files(
+    aiem_monomer = quasar.AIEMMonomer.from_tc_exciton_files(
         filenames=filenames,
         N=N,
         connectivity=connectivity,
         )
 
-    aiem_monomer_grad = tomcat.AIEMMonomerGrad.from_tc_exciton_files(
+    aiem_monomer_grad = quasar.AIEMMonomerGrad.from_tc_exciton_files(
         filenames=filenames,
         N=N,
         connectivity=connectivity,
         )
 
-    aiem = tomcat.AIEM.from_options(
+    aiem = quasar.AIEM.from_options(
         backend=backend,
         nstate=nstate,
         aiem_monomer=aiem_monomer,
