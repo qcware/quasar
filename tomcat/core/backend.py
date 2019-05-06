@@ -1,5 +1,5 @@
 import numpy as np
-from ..quasar import quasar
+from ..quasar import Circuit, Gate
 from .pauli import Pauli
 
 """ File backend.py contains many utility classes the standardize the
@@ -266,7 +266,7 @@ class Backend(object):
             pauli_dm['1'] = 1.0
         for index in pauli_dm.indices(1):
             A = index[0]
-            P = quasar.Circuit.compute_pauli_1(wfn=statevector, A=A)
+            P = Circuit.compute_pauli_1(wfn=statevector, A=A)
             for dA, DA in zip([1, 2, 3], ['X', 'Y', 'Z']):
                 key = '%s%d' % (DA, A)
                 if key in pauli_dm:
@@ -274,7 +274,7 @@ class Backend(object):
         for index in pauli_dm.indices(2):
             A = index[0]
             B = index[1]
-            P = quasar.Circuit.compute_pauli_2(wfn=statevector, A=A, B=B)
+            P = Circuit.compute_pauli_2(wfn=statevector, A=A, B=B)
             for dA, DA in zip([1, 2, 3], ['X', 'Y', 'Z']):
                 for dB, DB in zip([1, 2, 3], ['X', 'Y', 'Z']):
                     key = '%s%d*%s%d' % (DA, A, DB, B)
@@ -468,7 +468,7 @@ class QiskitBackend(Backend):
                 
         return qc
 
-    def native_circuit_measurements(
+    def native_circuit_measurement(
         self,
         circuit,
         ):
@@ -489,6 +489,7 @@ class QiskitSimulatorBackend(QiskitBackend):
 
         import qiskit
         self.backend = qiskit.BasicAer.get_backend('statevector_simulator')
+        self.qasm_backend = qiskit.BasicAer.get_backend('qasm_simulator')
         
     def __str__(self):
         return 'Qiskit Simulator Backend (Basic Aer Statevector)'
@@ -510,7 +511,6 @@ class QiskitSimulatorBackend(QiskitBackend):
         circuit_native = self.native_circuit(circuit)
         wfn_native = qiskit.execute(circuit_native, self.backend).result().get_statevector()
         wfn = self.statevector_bit_reversal_permutation(wfn_native)
-    
         # NOTE: Incredible hack: Qiskit does not apply Rz(theta), instead
         # applies u1(theta):
         # 
@@ -527,22 +527,17 @@ class QiskitSimulatorBackend(QiskitBackend):
             if gate.name == 'Rz':
                 phase_rz *= np.exp(-1.0j * gate.params['theta'])
         wfn *= phase_rz
-    
         return wfn
 
-    def run_measurements(
+    def run_measurement(
         self,
         circuit,
         nmeasurement,
         ):
-
+    
         import qiskit
-        measurements_native = qiskit.execute(
-            self.native_circuit_measurement(circuit),
-            backend=self.backend,
-            measurements=measurements,
-            ).result().get_counts()
-
+        circuit_native = self.native_circuit_measurement(circuit)
+        measurements_native = qiskit.execute(circuit_native, backend=self.qasm_backend, shots=nmeasurement).result().get_counts()
         results = Measurement()
         for k, v in measurements_native.items():
             results[Ket(k, base=2)] = v
@@ -555,7 +550,7 @@ def test_statevector_order(
     ):
 
     for I in range(N):
-        circuit = quasar.Circuit(N=N)
+        circuit = Circuit(N=N)
         circuit.add_gate(T=0, key=I, gate=quasar.Gate.X)
         wfn1 = backend1.run_statevector(circuit)
         wfn2 = backend2.run_statevector(circuit)
@@ -564,11 +559,10 @@ def test_statevector_order(
 
 if __name__ == '__main__':
 
-    import quasar
-    circuit = quasar.Circuit(N=3)
-    circuit.add_gate(T=0, key=0, gate=quasar.Gate.H)
-    circuit.add_gate(T=1, key=(0,1), gate=quasar.Gate.CNOT)
-    circuit.add_gate(T=2, key=(1,2), gate=quasar.Gate.CNOT)
+    circuit = Circuit(N=3)
+    circuit.add_gate(T=0, key=0, gate=Gate.H)
+    circuit.add_gate(T=1, key=(0,1), gate=Gate.CX)
+    circuit.add_gate(T=2, key=(1,2), gate=Gate.CX)
     print(circuit)
 
     backend = QiskitSimulatorBackend()

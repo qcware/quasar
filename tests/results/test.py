@@ -14,9 +14,9 @@ if __name__ == '__main__':
     # circuit.add_gate(T=0, key=2, gate=tomcat.Gate.X)
     # print(circuit)
 
-    backend = tomcat.QiskitAerBackend() 
-    print(backend.emit_circuit(circuit))
-    counts = backend.run_shots(circuit, shots=8192)
+    backend = tomcat.QiskitSimulatorBackend() 
+    print(backend.native_circuit(circuit))
+    counts = backend.run_measurement(circuit, nmeasurement=8192)
     print(counts)
 
     ket = list(counts.keys())[0]
