@@ -258,10 +258,11 @@ class Backend(object):
         ): 
 
         if not self.has_statevector: raise RuntimeError('Backend does not have statevector')
-        statevector = self.run_statevector(circuit)
 
         if pauli.max_order > 2: 
             raise NotImplemented
+
+        statevector = self.run_statevector(circuit)
 
         pauli_dm = Pauli.zeros_like(pauli)
         if '1' in pauli_dm:
@@ -292,8 +293,49 @@ class Backend(object):
         nmeasurement,
         ):
     
-        if not self.has_statevector: raise RuntimeError('Backend does not have measurement')
-        raise NotImplemented
+        if not self.has_measurement: raise RuntimeError('Backend does not have measurement')
+
+        # Commuting group
+        if Backend.is_all_z(pauli):
+            groups = Backend.z_commuting_group(pauli)
+        else:
+            groups = Backend.linear_xz_commuting_group(pauli)
+        # Else exception will be raised if unknown commuting group
+
+        # Modified circuits for basis transformations
+        circuits = []
+        for group in groups.keys():
+            basis = Circuit(N=circuit.N)
+            for A, char in enumerate(group):
+                if char in ['I', 'Z']: continue
+                elif char == 'X': basis.add_gate(T=0, key=A, gate=Gate.H)
+                else: raise RuntimeError('Unknown basis: %s' % char)
+            circuits.append(Circuit.concatenate([circuit, basis]))
+    
+        # Measurements in commuting group (quantum heavy)
+        results = [self.run_measurement(
+            circuit=_,
+            nmeasurement=nmeasurement) for _ in circuits]
+            
+        # Counts for pauli strings
+        counts = { _ : 0 for _ in pauli.strings }
+        ns = { _ : 0 for _ in pauli.strings }
+        for group, result in zip(groups.keys(), results):
+            strings = groups[group]
+            for string in strings:
+                indices = string.indices
+                ns[string] += nmeasurement
+                for ket, count in result.items():
+                    parity = sum(ket[_] for _ in indices) % 2
+                    counts[string] += (-count) if parity else (+count)
+                
+        # Pauli density matrix values
+        values = np.array([counts[_] / float(ns[_]) for _ in pauli.strings])
+        pauli_dm = Pauli(
+            strings=pauli.strings,
+            values=values,
+            )
+        return pauli_dm
 
     @staticmethod
     def bit_reversal_permutation(N):
@@ -312,7 +354,14 @@ class Backend(object):
         return statevector
 
     @staticmethod
-    def z_commuting_groups(pauli):
+    def is_all_z(pauli):
+        for string in pauli.strings:
+            if any(_ != 'Z' for _ in string.chars):
+                return False
+        return True
+
+    @staticmethod
+    def z_commuting_group(pauli):
 
         groups = {}
         groups[tuple(['Z']*pauli.N)] = []
@@ -340,7 +389,7 @@ class Backend(object):
         return groups
 
     @staticmethod
-    def linear_xz_commuting_groups(pauli):
+    def linear_xz_commuting_group(pauli):
 
         groups = {}
         groups[tuple(['X']*pauli.N)] = []

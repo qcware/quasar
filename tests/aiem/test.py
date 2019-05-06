@@ -59,5 +59,7 @@ if __name__ == '__main__':
             H2[I,J] = aiem.vqe_D2[I,J].dot(aiem.hamiltonian_pauli)
     print(np.max(np.abs(H2 - np.diag(aiem.vqe_E))))
         
-
+    backend = quasar.QiskitSimulatorBackend()
+    pauli_dm = backend.compute_pauli_dm(circuit=aiem.cis_circuits[0], pauli=aiem.hamiltonian_pauli, nmeasurement=1025)
     
+    print(pauli_dm.content_str)
