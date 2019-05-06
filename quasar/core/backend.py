@@ -120,7 +120,7 @@ class Backend(object):
 
         Backend subclasses should OVERLOAD this method.
         """ 
-        raise NotImplemented
+        raise NotImplementedError
 
     @property
     def has_measurement(self):
@@ -131,7 +131,7 @@ class Backend(object):
 
         Backend subclasses should OVERLOAD this method.
         """ 
-        raise NotImplemented
+        raise NotImplementedError
 
     def __str__(self):
         """ A 1-line string representation of this Backend
@@ -141,7 +141,7 @@ class Backend(object):
         
         Backend subclasses should OVERLOAD this method.
         """ 
-        raise NotImplemented
+        raise NotImplementedError
 
     def native_circuit(
         self,
@@ -157,7 +157,7 @@ class Backend(object):
 
         Backend subclasses should OVERLOAD this method.
         """
-        raise NotImplemented
+        raise NotImplementedError
 
     def run_statevector(
         self,
@@ -181,7 +181,7 @@ class Backend(object):
 
         Backend subclasses should OVERLOAD this method.
         """
-        raise NotImplemented
+        raise NotImplementedError
 
     def run_measurement(
         self,
@@ -202,7 +202,7 @@ class Backend(object):
     
         Backend subclasses should OVERLOAD this method.
         """
-        raise NotImplemented
+        raise NotImplementedError
 
     def compute_pauli_dm(
         self,
@@ -260,7 +260,7 @@ class Backend(object):
         if not self.has_statevector: raise RuntimeError('Backend does not have statevector')
 
         if pauli.max_order > 2: 
-            raise NotImplemented
+            raise NotImplementedError
 
         statevector = self.run_statevector(circuit)
 

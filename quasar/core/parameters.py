@@ -4,17 +4,17 @@ class ParameterGroup(object):
 
     @property
     def nparam(self):
-        raise NotImplemented
+        raise NotImplementedError
 
     @property
     def nraw(self):
-        raise NotImplemented
+        raise NotImplementedError
 
     def compute_raw(self, params):
-        raise NotImplemented
+        raise NotImplementedError
 
     def compute_chain_rule1(self, params, Graw):
-        raise NotImplemented
+        raise NotImplementedError
 
 class IdentityParameterGroup(ParameterGroup):
 

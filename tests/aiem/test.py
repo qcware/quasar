@@ -28,7 +28,12 @@ if __name__ == '__main__':
         connectivity=connectivity,
         )
 
+    optimizer = quasar.BFGSOptimizer.from_options(
+        g_convergence=1.0E-4,
+        )
+
     aiem = quasar.AIEM.from_options(
+        optimizer=optimizer,
         backend=backend,
         nstate=nstate,
         aiem_monomer=aiem_monomer,
