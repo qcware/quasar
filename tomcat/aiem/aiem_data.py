@@ -247,6 +247,8 @@ class AIEMMonomer(AIEMConnectivity):
         if N > len(filenames):
             raise RuntimeError('N > len(filenames)')
     
+        if charges: raise NotImplemented
+        
         if charges is None:
             charges = np.zeros((N,))
 

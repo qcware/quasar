@@ -40,15 +40,15 @@ class AIEM(object):
             allowed_types=[Backend],
             doc='Quantum simulator or hardware backend')
         opt.add_option(
-            key='shots',
+            key='nmeasurement',
             value=None,
             allowed_types=[int],
-            doc='Number of shots per observable, or None for infinite sampling (backend must support statevector simulation)')
+            doc='Number of nmeasurement per observable, or None for infinite sampling (backend must support statevector simulation)')
         opt.add_option(
-            key='shots_subspace',
+            key='nmeasurement_subspace',
             value=None,
             allowed_types=[int],
-            doc='Number of shots per observable for final subspace Hamiltonian observation, or None for infinite sampling (backend must support statevector simulation)')
+            doc='Number of nmeasurement per observable for final subspace Hamiltonian observation, or None for infinite sampling (backend must support statevector simulation)')
 
         # > Problem Description < #
 
@@ -97,7 +97,7 @@ class AIEM(object):
             value='mark1',
             required=True,
             allowed_types=[str],
-            allowed_values=['mark1'],
+            allowed_values=['mark1', 'mark2'],
             doc='SA-VQE Entangler circuit recipe (2nd priority)')
 
         # > Variational Quantum Algorithm Optimizer < #
@@ -152,12 +152,12 @@ class AIEM(object):
         return QuasarSimulatorBackend()
 
     @property
-    def shots(self):
-        return self.options['shots']
+    def nmeasurement(self):
+        return self.options['nmeasurement']
 
     @property
-    def shots_subspace(self):
-        return self.options['shots_subspace']
+    def nmeasurement_subspace(self):
+        return self.options['nmeasurement_subspace']
 
     @property
     def N(self):
@@ -210,6 +210,7 @@ class AIEM(object):
     @property
     def vqe_circuit_function(self):
         if self.options['vqe_circuit_type'] == 'mark1' : return AIEM.build_vqe_circuit_mark1
+        if self.options['vqe_circuit_type'] == 'mark2' : return AIEM.build_vqe_circuit_mark2
         else: raise RuntimeError('Unknown vqe_circuit_type: %s' % self.options['vqe_circuit_type'])
     
     @property
@@ -230,8 +231,8 @@ class AIEM(object):
     
             print('Quantum Resources:')
             print('  %-14s = %s' % ('Backend', self.backend))
-            print('  %-14s = %s' % ('Shots', self.shots))
-            print('  %-14s = %s' % ('Shots Subspace', self.shots_subspace))
+            print('  %-14s = %s' % ('Shots', self.nmeasurement))
+            print('  %-14s = %s' % ('Shots Subspace', self.nmeasurement_subspace))
             print('')
 
             print('AIEM Problem:') 
@@ -284,7 +285,7 @@ class AIEM(object):
             print('%-5s: %11s' % ('State', 'Match'))
             Ecis2 = self.verify_cis(
                 backend=self.backend_quasar_simulator,
-                shots=None,
+                nmeasurement=None,
                 )[0]
             for I in range(self.nstate):
                 dEcis = Ecis2[I] - self.cis_E[I]
@@ -335,7 +336,7 @@ class AIEM(object):
         self.vqe_parameters, self.vqe_circuit, self.vqe_history = self.optimizer.optimize(
             print_level=self.print_level,
             backend=self.backend,
-            shots=self.shots,
+            nmeasurement=self.nmeasurement,
             hamiltonian=self.hamiltonian_pauli,
             reference_circuits=self.cis_circuits,
             reference_weights=self.vqe_weights,
@@ -748,7 +749,7 @@ class AIEM(object):
     def verify_cis(
         self,
         backend,
-        shots,
+        nmeasurement,
         ):
 
         Es = []
@@ -756,7 +757,7 @@ class AIEM(object):
         for I, circuit in enumerate(self.cis_circuits):
             E, D = Collocation.compute_energy_and_pauli_dm(
                 backend=backend,
-                shots=shots,
+                nmeasurement=nmeasurement,
                 hamiltonian=self.hamiltonian_pauli,
                 circuit=circuit,
                 )
@@ -784,10 +785,12 @@ class AIEM(object):
             B = A + 1
             circuit_even.add_gate(T=0,  key=A, gate=quasar.Gate.Ry(theta=0.0))
             circuit_even.add_gate(T=0,  key=B, gate=quasar.Gate.Ry(theta=0.0))
-            circuit_even.add_gate(T=1,  key=(A,B), gate=quasar.Gate.CNOT)
+            # circuit_even.add_gate(T=1,  key=(A,B), gate=quasar.Gate.CNOT)
+            circuit_even.add_gate(T=1,  key=(A,B), gate=quasar.Gate.CZ)
             circuit_even.add_gate(T=2,  key=A, gate=quasar.Gate.Ry(theta=0.0))
             circuit_even.add_gate(T=2,  key=B, gate=quasar.Gate.Ry(theta=0.0))
-            circuit_even.add_gate(T=3,  key=(A,B), gate=quasar.Gate.CNOT)
+            # circuit_even.add_gate(T=3,  key=(A,B), gate=quasar.Gate.CNOT)
+            circuit_even.add_gate(T=3,  key=(A,B), gate=quasar.Gate.CZ)
             circuit_even.add_gate(T=4,  key=A, gate=quasar.Gate.Ry(theta=0.0))
             circuit_even.add_gate(T=4,  key=B, gate=quasar.Gate.Ry(theta=0.0))
 
@@ -804,16 +807,67 @@ class AIEM(object):
                     continue 
             circuit_odd.add_gate(T=0,  key=A, gate=quasar.Gate.Ry(theta=0.0))
             circuit_odd.add_gate(T=0,  key=B, gate=quasar.Gate.Ry(theta=0.0))
-            circuit_odd.add_gate(T=1,  key=(A,B), gate=quasar.Gate.CNOT)
+            # circuit_odd.add_gate(T=1,  key=(A,B), gate=quasar.Gate.CNOT)
+            circuit_odd.add_gate(T=1,  key=(A,B), gate=quasar.Gate.CZ)
             circuit_odd.add_gate(T=2,  key=A, gate=quasar.Gate.Ry(theta=0.0))
             circuit_odd.add_gate(T=2,  key=B, gate=quasar.Gate.Ry(theta=0.0))
-            circuit_odd.add_gate(T=3,  key=(A,B), gate=quasar.Gate.CNOT)
+            # circuit_odd.add_gate(T=3,  key=(A,B), gate=quasar.Gate.CNOT)
+            circuit_odd.add_gate(T=3,  key=(A,B), gate=quasar.Gate.CZ)
             circuit_odd.add_gate(T=4,  key=A, gate=quasar.Gate.Ry(theta=0.0))
             circuit_odd.add_gate(T=4,  key=B, gate=quasar.Gate.Ry(theta=0.0))
 
         # Remove redundant Ry gates if requested
         if nonredundant and hamiltonian.N > 2:
             circuit_odd = circuit_odd.subset(Ts=range(1,5))
+
+        circuit = quasar.Circuit.concatenate([circuit_even, circuit_odd])
+
+        return circuit
+
+    @staticmethod
+    def build_vqe_circuit_mark2(hamiltonian, nonredundant=True):
+        
+        """ From https://arxiv.org/pdf/1203.0722.pdf """
+
+        # Validity checks
+        if hamiltonian.N % 2: 
+            raise RuntimeError('Currently only set up for N even')
+        if not hamiltonian.is_linear and not hamiltonian.is_cyclic:
+            raise RuntimeError('Hamiltonian must be linear or cyclic')
+
+        # 2-body circuit (even)
+        circuit_even = quasar.Circuit(N=hamiltonian.N)
+        for A in range(hamiltonian.N):
+            if A % 2: continue
+            B = A + 1
+            circuit_even.add_gate(T=0,  key=A, gate=quasar.Gate.Ry(theta=0.0))
+            circuit_even.add_gate(T=0,  key=B, gate=quasar.Gate.Ry(theta=0.0))
+            # circuit_even.add_gate(T=1,  key=(A,B), gate=quasar.Gate.CNOT)
+            circuit_even.add_gate(T=1,  key=(A,B), gate=quasar.Gate.CZ)
+            circuit_even.add_gate(T=2,  key=A, gate=quasar.Gate.Ry(theta=0.0))
+            circuit_even.add_gate(T=2,  key=B, gate=quasar.Gate.Ry(theta=0.0))
+
+        # 2-body circuit (odd)
+        circuit_odd = quasar.Circuit(N=hamiltonian.N)
+        for A in range(hamiltonian.N):
+            if (A + 1) % 2: continue
+            B = A + 1
+            # Handle or delete cyclic term
+            if A + 1 == hamiltonian.N:
+                if hamiltonian.is_cyclic and hamiltonian.N > 2:
+                    B = 0
+                else:
+                    continue 
+            circuit_odd.add_gate(T=0,  key=A, gate=quasar.Gate.Ry(theta=0.0))
+            circuit_odd.add_gate(T=0,  key=B, gate=quasar.Gate.Ry(theta=0.0))
+            # circuit_odd.add_gate(T=1,  key=(A,B), gate=quasar.Gate.CNOT)
+            circuit_odd.add_gate(T=1,  key=(A,B), gate=quasar.Gate.CZ)
+            circuit_odd.add_gate(T=2,  key=A, gate=quasar.Gate.Ry(theta=0.0))
+            circuit_odd.add_gate(T=2,  key=B, gate=quasar.Gate.Ry(theta=0.0))
+
+        # Remove redundant Ry gates if requested
+        if nonredundant and hamiltonian.N > 2:
+            circuit_odd = circuit_odd.subset(Ts=range(1,3))
 
         circuit = quasar.Circuit.concatenate([circuit_even, circuit_odd])
 
@@ -826,7 +880,7 @@ class AIEM(object):
         # Subspace hamiltonian
         H, D = AIEM.compute_subspace_hamiltonian(
             backend=self.backend,
-            shots=self.shots_subspace,
+            nmeasurement=self.nmeasurement_subspace,
             hamiltonian=self.hamiltonian_pauli,
             vqe_circuit=self.vqe_circuit,
             Cs=self.cis_C,
@@ -847,7 +901,7 @@ class AIEM(object):
     @staticmethod
     def compute_subspace_hamiltonian(
         backend,
-        shots,
+        nmeasurement,
         hamiltonian,
         vqe_circuit,
         Cs,
@@ -863,7 +917,7 @@ class AIEM(object):
             circuit = quasar.Circuit.concatenate([cis_circuit, vqe_circuit])
             E, D2 = Collocation.compute_energy_and_pauli_dm( 
                 backend=backend,
-                shots=shots,
+                nmeasurement=nmeasurement,
                 hamiltonian=hamiltonian,
                 circuit=circuit,
                 ) 
@@ -878,7 +932,7 @@ class AIEM(object):
                 circuitp = quasar.Circuit.concatenate([cis_circuitp, vqe_circuit])
                 Ep, Dp = Collocation.compute_energy_and_pauli_dm( 
                     backend=backend,
-                    shots=shots,
+                    nmeasurement=nmeasurement,
                     hamiltonian=hamiltonian,
                     circuit=circuitp,
                     ) 
@@ -887,7 +941,7 @@ class AIEM(object):
                 circuitm = quasar.Circuit.concatenate([cis_circuitm, vqe_circuit])
                 Em, Dm = Collocation.compute_energy_and_pauli_dm( 
                     backend=backend,
-                    shots=shots,
+                    nmeasurement=nmeasurement,
                     hamiltonian=hamiltonian,
                     circuit=circuitm,
                     ) 

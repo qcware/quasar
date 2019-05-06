@@ -9,7 +9,7 @@ class Collocation(object):
     @staticmethod
     def compute_energy_and_pauli_dm(
         backend,
-        shots,
+        nmeasurement,
         hamiltonian,
         circuit,
         ):
@@ -17,7 +17,7 @@ class Collocation(object):
         pauli_dm = backend.compute_pauli_dm(
             circuit=circuit,
             pauli=hamiltonian,
-            shots=shots,
+            nmeasurement=nmeasurement,
             )
         E = pauli_dm.dot(hamiltonian)
         return E, pauli_dm
@@ -25,7 +25,7 @@ class Collocation(object):
     @staticmethod
     def compute_sa_energy_and_pauli_dm(
         backend,
-        shots,
+        nmeasurement,
         hamiltonian,
         circuit,
         reference_circuits,
@@ -38,7 +38,7 @@ class Collocation(object):
             circuit2 = quasar.Circuit.concatenate([reference, circuit])
             E2, pauli_dm2 = Collocation.compute_energy_and_pauli_dm(
                 backend=backend,
-                shots=shots,
+                nmeasurement=nmeasurement,
                 hamiltonian=hamiltonian,
                 circuit=circuit2,
                 )
@@ -51,7 +51,7 @@ class Collocation(object):
     @staticmethod
     def compute_gradient(
         backend,
-        shots,
+        nmeasurement,
         hamiltonian,
         circuit,
         parameter_group,
@@ -66,7 +66,7 @@ class Collocation(object):
             circuit2.set_param_values(Zp)
             Ep = Collocation.compute_energy_and_pauli_dm(
                 backend=backend,
-                shots=shots,
+                nmeasurement=nmeasurement,
                 hamiltonian=hamiltonian,
                 circuit=circuit2,
                 )[0]
@@ -75,7 +75,7 @@ class Collocation(object):
             circuit2.set_param_values(Zm)
             Em = Collocation.compute_energy_and_pauli_dm(
                 backend=backend,
-                shots=shots,
+                nmeasurement=nmeasurement,
                 hamiltonian=hamiltonian,
                 circuit=circuit2,
                 )[0]
@@ -87,7 +87,7 @@ class Collocation(object):
     @staticmethod
     def compute_sa_gradient(
         backend,
-        shots,
+        nmeasurement,
         hamiltonian,
         circuit,
         parameter_group,
@@ -100,7 +100,7 @@ class Collocation(object):
             circuit2 = quasar.Circuit.concatenate([reference.compressed(), circuit]) # TODO: Fucking dirty hack
             G2 = Collocation.compute_gradient(
                 backend=backend,
-                shots=shots,
+                nmeasurement=nmeasurement,
                 hamiltonian=hamiltonian,
                 circuit=circuit2,
                 parameter_group=parameter_group,

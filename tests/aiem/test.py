@@ -8,22 +8,22 @@ if __name__ == '__main__':
 
     datapath = '../../data/aiem/bchl-a-8-stack/tc'
     filenames = ['%s/%d/exciton.dat' % (datapath, _) for _ in range(1, 8+1)]
-    charges = [0.0]*8
-    N = 4
-    nstate = 3
-    connectivity = 'linear'
+    # charges = [0.0]*8
+    N = 8
+    nstate = 5
+    # connectivity = 'linear'
+    connectivity = 'cyclic'
     cis_circuit_type = 'mark2'
+    vqe_circuit_type = 'mark1'
 
     aiem_monomer = tomcat.AIEMMonomer.from_tc_exciton_files(
         filenames=filenames,
-        charges=charges,
         N=N,
         connectivity=connectivity,
         )
 
     aiem_monomer_grad = tomcat.AIEMMonomerGrad.from_tc_exciton_files(
         filenames=filenames,
-        charges=charges,
         N=N,
         connectivity=connectivity,
         )
@@ -34,6 +34,7 @@ if __name__ == '__main__':
         aiem_monomer=aiem_monomer,
         aiem_monomer_grad=aiem_monomer_grad,
         cis_circuit_type=cis_circuit_type,
+        vqe_circuit_type=vqe_circuit_type,
         )
     aiem.compute_energy()
     
@@ -57,5 +58,6 @@ if __name__ == '__main__':
         for J in range(aiem.nstate):
             H2[I,J] = aiem.vqe_D2[I,J].dot(aiem.hamiltonian_pauli)
     print(np.max(np.abs(H2 - np.diag(aiem.vqe_E))))
+        
 
     

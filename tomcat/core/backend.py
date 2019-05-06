@@ -1,67 +1,267 @@
 import numpy as np
 from ..quasar import quasar
-from . import pauli
+from .pauli import Pauli
 
+""" File backend.py contains many utility classes the standardize the
+    input/output data for quantum circuits and many utility functions that
+    abstract the details of the quantum backend from the user.
+
+    It seems that there are two primary input data types for quantum circuits: 
+        (1) a circuit - the specification of the quantum circuit, starting from
+            the all-zero reference state. Here, we require that the input
+            circuit be a quasar.Circuit object.
+        (2) a many-body Pauli operator - the specification of the bases and
+            sparsity patterns of the relevant outputs of the quantum circuit.
+            Here, we require that the input Pauli operator be a Pauli object.
+
+    It seems that there are several primary output data types for NISQ-era
+    quantum circuit manipulations:
+        (1) the native circuit - the representation of the quantum circuit in
+            the native object representation of the backend API. This can be
+            useful for printing, inspection, etc. Here, the output type depends
+            on the quantum backend.
+        (2) the discrete quantum measurements - A set of kets |AB...Z> and the
+            corresponding count of observations. Here, we represent this by the
+            Measurement class, which is a dict of Ket : count pairs. Class Ket
+            wraps an int an makes it unambiguous as to the qubit ordering in
+            the ket.
+        (3) the simulated statevector - a 2**N-dimensional real or complex
+            vector of Hilbert-space amplitudes. Here, we use a np.ndarray of
+            shape (2**N,) in QUASAR order.
+        (4) a Pauli density matrix - a higher-level object formed by
+            infinite-sampling contraction of a simulated statevector or by
+            statistical expectation value of a many-body Pauli operator. Here,
+            we compute this ourselves using either a simulated statevector or a
+            set of Measurement objects computed in the "commuting group" space
+            for the relevant Pauli operator. This object is returned as a Pauli
+            object.
+
+    The point here is that you spin up a Backend object of a specific type
+    (such as a QuasarSimulatorBackend, QiskitSimulatorBackend,
+    QiskitHardwareBackend, etc), pass Quasar circuits and Pauli objects as
+    arguments into the backend object's functions, and receive output in the
+    Quasar/Tomcat output types and ordering conventions described above.
+""" 
+
+class Ket(int):
+
+    """ Class Ket represents a binary string labeling a ket like |1010>, with
+        the index order (endianness) fixed. 
+
+        >>> ket = Ket(5)
+        >>> print(ket.string(N=4))
+        >>> print(ket[0])
+        >>> print(ket[1])
+        >>> print(ket[2])
+        >>> print(ket[3])
+
+    """
+
+    def __getitem__(self, index):    
+        """ Returns the bit value at indicated qubit index. 
+        
+        Params:
+            index (int) - qubit index
+        Returns:
+            (int - 0 or 1) - value of bit at indicated qubit index
+        """
+        
+        return (self & (1 << index)) >> index
+
+    def string(self, N):
+        return ''.join('%d' % self[A] for A in range(N))
+    
+class Measurement(dict):
+
+    """ Class Measurement represents the output measurements (sometimes
+        referred to as "counts" or "shots") from repeated observations of a
+        quantum circuit.
+
+    """
+
+    def nmeasurement(self):
+        return sum(v for v in self.values())
+
+    def string(self, N):
+        s = ''  
+        for key in sorted(self.keys()):
+            s += '|%s>: %d\n' % (key.string(N=N), self[key])
+        return s
+        
 class Backend(object):
+
+    """ Class Backend represents a physical or simulated quantum circuit
+        resource, which might support statevector simulation and/or measurement. 
+
+        Class Backend declares an abstract set of API functions that must be
+        OVERLOADed by each specific Backend subclass, as well as some utility
+        functions that are common to all Backend subclasses.
+    """ 
 
     def __init__(
         self,
         ):
         pass
 
+        """ Constructor, initializes and holds quantum resource pointers such
+            as API keys.
+
+        Backend subclasses should OVERLOAD this method.
+        """
+
     @property
     def has_statevector(self):
-        return False
+        """ Does this Backend support run_statevector? 
+
+        Returns:
+            (bool) - True if run_statevector is supported else False.
+
+        Backend subclasses should OVERLOAD this method.
+        """ 
+        raise NotImplemented
 
     @property
-    def has_shots(self):
-        return self.has_statevector
+    def has_measurement(self):
+        """ Does this Backend support run_measurement? 
+
+        Returns:
+            (bool) - True if run_measurement is supported else False.
+
+        Backend subclasses should OVERLOAD this method.
+        """ 
+        raise NotImplemented
 
     def __str__(self):
+        """ A 1-line string representation of this Backend
+
+        Returns:
+            (str) - 1-line string representation of this Backend
+        
+        Backend subclasses should OVERLOAD this method.
+        """ 
         raise NotImplemented
 
-    # => Circuit Emission <= #
-
-    def emit_circuit(
+    def native_circuit(
         self,
         circuit,
         ):
+        """ Return the native object represenation of the input Quasar circuit. 
+        
+        Params:
+            circuit (quasar.Circuit) - Quasar circuit to translate to native
+                representation.
+        Returns:
+            (? - native datatype) - Native circuit object representation.
+
+        Backend subclasses should OVERLOAD this method.
+        """
         raise NotImplemented
 
-    def emit_circuit_shots(
+    def run_statevector(
         self,
         circuit,
         ):
+        """ Return the statevector after the action of circuit on the reference
+            ket. Generally this involves the translation of circuit to native
+            form, a call to the native statevector simulator (possibly
+            including high-performance components or noise channels), and then
+            a reordering/retyping step to return the statevector in Quasar
+            convention.
+
+            The output from this function is usually deterministic, though this
+            can change depending on the specific backend.
+
+        Params:
+            circuit (quasar.Circuit) - Quasar circuit to simulate.
+        Returns:
+            (np.ndarray of shape (2**N,), dtype determined by backend) - the
+                statevector in Quasar Hilbert space order.
+
+        Backend subclasses should OVERLOAD this method.
+        """
         raise NotImplemented
 
-    # => Statevector Simulation <= #
-
-    def simulate_statevector(
+    def run_measurement(
         self,
         circuit,
+        nmeasurement=1000,
         ):
+        """ Return a Measurement object with the results of repeated quantum
+            circuit preparation and measurement in the computational basis.
 
+            The output from this function is generally stochastic.
+
+        Params:
+            circuit (quasar.Circuit) - Quasar circuit to measure.
+            nmeasurement (int) - number of measurement
+        Returns:
+            (Measurement) - a Measurement object with the observed measurements
+                in the computational basis, nmeasurement total measurements.
+    
+        Backend subclasses should OVERLOAD this method.
+        """
         raise NotImplemented
 
-    def simulate_statevector_native(
+    def compute_pauli_dm(
         self,
-        circuit_native,
+        circuit,
+        pauli,
+        nmeasurement=None,
         ):
 
-        raise NotImplemented
+        """ Return a Pauli object representating the density matrix of the quantum circuit. 
 
-    # => Pauli Density Matrices <= #
+        Params:
+            circuit (quasar.Circuit) - Quasar circuit to measure.
+            pauli (Pauli) - Pauli object to use as a stencil for required Pauli
+                density matrix elements. The strings in 
+            nmeasurement (int or None) - integer number of measurements
+                (backend must support run_measurement) or None to indicate
+                infinite-sampling statevector contraction (backend must support
+                run_statevector).
+        Returns:
+            (Pauli) - Pauli object representing the Pauli density matrix.
+            
+        Note that the number of measurements for each Pauli string are
+        guaranteed to be *at least* nmeasurement, but more measurements may be
+        taken for certain Pauli strings. The reason for this is that generally
+        several versions of the quantum circuit must be constructed with
+        one-qubit basis-transformation gates applied at the end (e.g., H to
+        measure in the X basis), and then each version is sampled nmeasurement
+        times. However, some Pauli strings might appear in multiple versions of
+        the circuit, and we will take advantage of this to provide increased
+        statistical convergence of these operators. For example, consider a
+        2-qubit circuit with all X/Z Pauli density matrices requested: XA, ZA,
+        XB, ZB, XX, XZ, ZX, and ZZ. This set of Pauli operators falls in the
+        linear X/Z commuting group of XX, XZ, ZX, and ZZ, so 4x versions of
+        circuit are prepared and measured nmeasurement times each. This
+        provides nmeasurement observations for the Pauli density matrix
+        elements XX, XZ, ZX, and ZZ, but 2*nmeasurement observations for the
+        Pauli density matrix elements XA, ZA, XB, and ZB.
+        """
 
-    def compute_pauli_dm_from_statevector_ideal(
+        if nmeasurement is None:
+            return self.compute_pauli_dm_from_statevector(circuit, pauli)
+        else:
+            return self.compute_pauli_dm_from_measurement(circuit, pauli, nmeasurement)
+
+        return pauli_dm
+
+    # => Utility Methods (Users should generally not call these) <= #
+
+    def compute_pauli_dm_from_statevector(
         self,
-        statevector,
-        pauli2,
+        circuit,
+        pauli,
         ): 
 
-        if pauli2.max_order > 2: 
+        if not self.has_statevector: raise RuntimeError('Backend does not have statevector')
+        statevector = self.run_statevector(circuit)
+
+        if pauli.max_order > 2: 
             raise NotImplemented
 
-        pauli_dm = pauli.Pauli.zeros_like(pauli2)
+        pauli_dm = Pauli.zeros_like(pauli)
         if '1' in pauli_dm:
             pauli_dm['1'] = 1.0
         for index in pauli_dm.indices(1):
@@ -83,63 +283,15 @@ class Backend(object):
 
         return pauli_dm
 
-    def compute_pauli_dm_from_statevector_shots(
+    def compute_pauli_dm_from_measurement(
         self,
-        statevector,
+        circuit,
         pauli,
-        shots,
-        ): 
-
+        nmeasurement,
+        ):
+    
+        if not self.has_statevector: raise RuntimeError('Backend does not have measurement')
         raise NotImplemented
-
-    # => Counts <= #
-
-    def compute_counts_from_statevector(
-        self,
-        statevector,
-        shots,
-        ):
-
-        p = (statevector.conj() * statevector).real
-        
-        
-    # => Key User-Facing Methods <= #
-
-    def compute_pauli_dm(
-        self,
-        circuit,
-        pauli,
-        shots=None,
-        ):
-
-        if shots is None:
-            # Ideal density matrix from
-            if not self.has_statevector: raise RuntimeError('Backend does not have statevector, must provide shots')
-            statevector = self.simulate_statevector(circuit)
-            pauli_dm = self.compute_pauli_dm_from_statevector_ideal(statevector, pauli)
-        elif self.has_statevector:
-            statevector = self.simulate_statevector(circuit)
-            pauli_dm = self.compute_pauli_dm_from_statevector_shots(statevector, pauli, shots)
-        else:
-            raise NotImplemented
-
-        return pauli_dm
-
-    def compute_counts(
-        self,
-        circuit,
-        shots,
-        ):
-
-        if self.has_statevector:
-            statevector = self.simulate_statevector(circuit)
-            counts = self.compute_counts_from_statevector(statevector, shots)
-        else:
-            raise NotImplemented
-
-        return counts
-
-    # => Utility Methods <= #
 
     @staticmethod
     def bit_reversal_permutation(N):
@@ -157,6 +309,65 @@ class Backend(object):
         statevector = statevector_native[Backend.bit_reversal_permutation(N=N)]
         return statevector
 
+    @staticmethod
+    def z_commuting_groups(pauli):
+
+        groups = {}
+        groups[tuple(['Z']*pauli.N)] = []
+
+        for string in pauli.strings:
+            
+            # Do not do the identity operator
+            if string.order == 0: continue
+
+            # Add to all valid commuting groups
+            found = False
+            for group, strings2 in groups.items():
+                valid = True
+                for operator in string.operators:
+                    index = operator.index
+                    char = operator.char
+                    if group[index] != 'I' and group[index] != char:
+                        valid = False
+                        break
+                if not valid: continue
+                strings2.append(string)
+                found = True
+            if not found: raise RuntimeError('Invalid string - not in Z commuting groups: %s' % string)
+
+        return groups
+
+    @staticmethod
+    def linear_xz_commuting_groups(pauli):
+
+        groups = {}
+        groups[tuple(['X']*pauli.N)] = []
+        groups[tuple(['X', 'Z']*pauli.N)[:pauli.N]] = []
+        groups[tuple(['Z', 'X']*pauli.N)[:pauli.N]] = []
+        groups[tuple(['Z']*pauli.N)] = []
+
+        for string in pauli.strings:
+            
+            # Do not do the identity operator
+            if string.order == 0: continue
+
+            # Add to all valid commuting groups
+            found = False
+            for group, strings2 in groups.items():
+                valid = True
+                for operator in string.operators:
+                    index = operator.index
+                    char = operator.char
+                    if group[index] != 'I' and group[index] != char:
+                        valid = False
+                        break
+                if not valid: continue
+                strings2.append(string)
+                found = True
+            if not found: raise RuntimeError('Invalid string - not in linear XZ commuting groups: %s' % string)
+
+        return groups
+
 # => Quasar <= #
 
 class QuasarSimulatorBackend(Backend):
@@ -173,33 +384,23 @@ class QuasarSimulatorBackend(Backend):
     def has_statevector(self):
         return True
 
-    def emit_circuit(
+    @property
+    def has_measurement(self):
+        return False 
+
+    def native_circuit(
         self,
         circuit,
         ):
         return circuit.copy()
 
-    def emit_circuit_shots(
-        self,
-        circuit,
-        ):
-        return circuit.copy()
-
-    def simulate_statevector(
+    def run_statevector(
         self,
         circuit,
         ):
         return circuit.compressed().simulate()
 
-    def simulate_statevector_native(
-        self,
-        circuit_native,
-        ):
-        return circuit.simulate()
-
 # => Qiskit <= #
-
-import qiskit
 
 class QiskitBackend(Backend):
 
@@ -213,11 +414,12 @@ class QiskitBackend(Backend):
     def quasar_to_qiskit_angle(theta):
         return 2.0 * theta
 
-    def emit_circuit(
+    def native_circuit(
         self,
         circuit,
         ):
 
+        import qiskit
         q = qiskit.QuantumRegister(circuit.N)
         qc = qiskit.QuantumCircuit(q)
         for key, gate in circuit.gates.items():
@@ -266,12 +468,13 @@ class QiskitBackend(Backend):
                 
         return qc
 
-    def emit_circuit_shots(
+    def native_circuit_measurements(
         self,
         circuit,
         ):
 
-        qc = self.emit_circuit(circuit)
+        import qiskit
+        qc = self.native_circuit(circuit)
         q = qc.qregs[0]
         c = qiskit.ClassicalRegister(circuit.N)
         measure = qiskit.QuantumCircuit(q, c)
@@ -284,6 +487,7 @@ class QiskitSimulatorBackend(QiskitBackend):
         self,
         ):
 
+        import qiskit
         self.backend = qiskit.BasicAer.get_backend('statevector_simulator')
         
     def __str__(self):
@@ -293,14 +497,20 @@ class QiskitSimulatorBackend(QiskitBackend):
     def has_statevector(self):
         return True
 
-    def simulate_statevector(
+    @property
+    def has_measurement(self):
+        return True
+
+    def run_statevector(
         self,
         circuit,
         ):
 
-        circuit_native = self.emit_circuit(circuit)
-        wfn_native = self.simulate_statevector_native(circuit_native)
+        import qiskit
+        circuit_native = self.native_circuit(circuit)
+        wfn_native = qiskit.execute(circuit_native, self.backend).result().get_statevector()
         wfn = self.statevector_bit_reversal_permutation(wfn_native)
+    
         # NOTE: Incredible hack: Qiskit does not apply Rz(theta), instead
         # applies u1(theta):
         # 
@@ -317,29 +527,38 @@ class QiskitSimulatorBackend(QiskitBackend):
             if gate.name == 'Rz':
                 phase_rz *= np.exp(-1.0j * gate.params['theta'])
         wfn *= phase_rz
+    
         return wfn
 
-    def simulate_statevector_native(
+    def run_measurements(
         self,
-        circuit_native,
+        circuit,
+        nmeasurement,
         ):
 
-        return qiskit.execute(
-            circuit_native, 
-            self.backend,
-            ).result().get_statevector()
+        import qiskit
+        measurements_native = qiskit.execute(
+            self.native_circuit_measurement(circuit),
+            backend=self.backend,
+            measurements=measurements,
+            ).result().get_counts()
 
+        results = Measurement()
+        for k, v in measurements_native.items():
+            results[Ket(k, base=2)] = v
+        return results
+        
 def test_statevector_order(
-    N=5,
-    backend1=QuasarSimulatorBackend(),
-    backend2=QiskitSimulatorBackend(),
+    N,
+    backend1,
+    backend2,
     ):
 
     for I in range(N):
         circuit = quasar.Circuit(N=N)
         circuit.add_gate(T=0, key=I, gate=quasar.Gate.X)
-        wfn1 = backend1.simulate_statevector(circuit)
-        wfn2 = backend2.simulate_statevector(circuit)
+        wfn1 = backend1.run_statevector(circuit)
+        wfn2 = backend2.run_statevector(circuit)
         print(np.sum(wfn1*wfn2))
     
 
@@ -353,13 +572,11 @@ if __name__ == '__main__':
     print(circuit)
 
     backend = QiskitSimulatorBackend()
-    circuit2 = backend.emit_circuit(circuit)
-    print(circuit2)
-    circuit2 = backend.emit_circuit_shots(circuit)
+    circuit2 = backend.native_circuit(circuit)
     print(circuit2)
 
-    print(backend.simulate_statevector(circuit))
-    print(backend.simulate_statevector(circuit).dtype)
+    print(backend.run_statevector(circuit))
+    print(backend.run_statevector(circuit).dtype)
 
     test_statevector_order() 
 

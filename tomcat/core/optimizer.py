@@ -47,7 +47,7 @@ class BFGSOptimizer(Optimizer):
         self,
         print_level,
         backend,
-        shots,
+        nmeasurement,
         hamiltonian,
         reference_circuits,
         reference_weights,
@@ -74,7 +74,7 @@ class BFGSOptimizer(Optimizer):
             entangler_circuit2.set_param_values(Z2)
             return collocation.Collocation.compute_sa_energy_and_pauli_dm(
                 backend=backend,
-                shots=shots,
+                nmeasurement=nmeasurement,
                 hamiltonian=hamiltonian,
                 circuit=entangler_circuit2,
                 reference_circuits=reference_circuits,
@@ -86,7 +86,7 @@ class BFGSOptimizer(Optimizer):
             entangler_circuit2.set_param_values(Z2)
             return collocation.Collocation.compute_sa_gradient(
                 backend=backend,
-                shots=shots,
+                nmeasurement=nmeasurement,
                 hamiltonian=hamiltonian,
                 circuit=entangler_circuit2,
                 parameter_group=entangler_circuit_parameter_group,
@@ -166,7 +166,7 @@ class PowellOptimizer(Optimizer):
         self,
         print_level,
         backend,
-        shots,
+        nmeasurement,
         hamiltonian,
         reference_circuits,
         reference_weights,
@@ -194,7 +194,7 @@ class PowellOptimizer(Optimizer):
             entangler_circuit2.set_param_values(Z2)
             return collocation.Collocation.compute_sa_energy_and_pauli_dm(
                 backend=backend,
-                shots=shots,
+                nmeasurement=nmeasurement,
                 hamiltonian=hamiltonian,
                 circuit=entangler_circuit2,
                 reference_circuits=reference_circuits,
