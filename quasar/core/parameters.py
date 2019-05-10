@@ -16,6 +16,37 @@ class ParameterGroup(object):
     def compute_chain_rule1(self, params, Graw):
         raise NotImplementedError
 
+    @property
+    def active_raw(self):
+        raise NotImplementedError
+
+class FixedParameterGroup(ParameterGroup):
+
+    def __init__(
+        self,
+        params_raw,
+        ):
+
+        self._params_raw = params_raw
+
+    @property
+    def nparam(self):
+        return 0
+
+    @property
+    def nraw(self):
+        return len(self._params_raw)
+
+    def compute_raw(self, params):
+        return self._params_raw.copy()
+
+    def compute_chain_rule1(self, params, Graw):
+        return np.zeros((0,))
+        
+    @property
+    def active_raw(self):
+        return [False]*self.nraw
+
 class IdentityParameterGroup(ParameterGroup):
 
     def __init__(
@@ -38,6 +69,10 @@ class IdentityParameterGroup(ParameterGroup):
 
     def compute_chain_rule1(self, params, Graw):
         return Graw.copy()
+
+    @property
+    def active_raw(self):
+        return [True]*self.nraw
 
 class LinearParameterGroup(ParameterGroup):
 
@@ -65,6 +100,10 @@ class LinearParameterGroup(ParameterGroup):
     def compute_chain_rule1(self, params, Graw):
         return np.dot(self.transform.T, Graw)
 
+    @property
+    def active_raw(self):
+        return [True]*self.nraw
+    
 class CompositeParameterGroup(ParameterGroup):
 
     def __init__(
@@ -100,4 +139,10 @@ class CompositeParameterGroup(ParameterGroup):
             offset_raw += group.nraw
         return np.hstack(Gs)
         
+    @property
+    def active_raw(self):
+        active = []
+        for group in self.groups:
+            active += group.active_raw
+        return active
         

@@ -593,6 +593,41 @@ class QiskitSimulatorBackend(QiskitBackend):
         for k, v in measurements_native.items():
             results[Ket(k, base=2)] = v
         return results
+
+class QiskitHardwareBackend(QiskitBackend):
+
+    def __init__(
+        self,
+        backend_name='ibmq_20_tokyo',
+        ):
+
+        import qiskit
+        self.backend = qiskit.IBMQ.get_backend(backend_name)
+        
+    def __str__(self):
+        return 'Qiskit Hardware Backend (%s)' % self.backend
+
+    @property
+    def has_statevector(self):
+        return False
+
+    @property
+    def has_measurement(self):
+        return True
+
+    def run_measurement(
+        self,
+        circuit,
+        nmeasurement,
+        ):
+    
+        import qiskit
+        circuit_native = self.native_circuit_measurement(circuit)
+        measurements_native = qiskit.execute(circuit_native, backend=self.qasm_backend, shots=nmeasurement).result().get_counts()
+        results = Measurement()
+        for k, v in measurements_native.items():
+            results[Ket(k, base=2)] = v
+        return results
         
 def test_statevector_order(
     N,
@@ -606,8 +641,7 @@ def test_statevector_order(
         wfn1 = backend1.run_statevector(circuit)
         wfn2 = backend2.run_statevector(circuit)
         print(np.sum(wfn1*wfn2))
-    
-
+        
 if __name__ == '__main__':
 
     circuit = Circuit(N=3)

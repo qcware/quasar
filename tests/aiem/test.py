@@ -30,6 +30,7 @@ if __name__ == '__main__':
 
     optimizer = quasar.BFGSOptimizer.from_options(
         g_convergence=1.0E-4,
+        maxiter=0,
         )
 
     aiem = quasar.AIEM.from_options(

@@ -1,5 +1,7 @@
 import numpy as np
 from .circuit import Circuit
+from .parameters import FixedParameterGroup
+from .parameters import CompositeParameterGroup
 from . import pauli
 
 class Collocation(object):
@@ -61,6 +63,7 @@ class Collocation(object):
         Z = circuit2.param_values
         G = np.zeros_like(Z)
         for A in range(len(Z)):
+            if not parameter_group.active_raw[A]: continue
             Zp = Z.copy()
             Zp[A] += np.pi / 4.0
             circuit2.set_param_values(Zp)
@@ -97,13 +100,15 @@ class Collocation(object):
 
         G = np.zeros((parameter_group.nparam,))
         for reference, weight in zip(reference_circuits, reference_weights):
-            circuit2 = Circuit.concatenate([reference.compressed(), circuit]) # TODO: Fucking dirty hack
+            circuit2 = Circuit.concatenate([reference, circuit]) 
+            fixed_group = FixedParameterGroup(reference.param_values) 
+            composite_group = CompositeParameterGroup([fixed_group, parameter_group])
             G2 = Collocation.compute_gradient(
                 backend=backend,
                 nmeasurement=nmeasurement,
                 hamiltonian=hamiltonian,
                 circuit=circuit2,
-                parameter_group=parameter_group,
+                parameter_group=composite_group,
                 )
             G += weight * G2
         return G
