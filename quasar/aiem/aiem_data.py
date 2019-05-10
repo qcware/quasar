@@ -864,7 +864,7 @@ class AIEMPauli(AIEMConnectivity):
 class AIEMUtil(object):
 
     @staticmethod
-    def monomer_to_hamiltonian(
+    def monomer_to_operator_hamiltonian(
         monomer,
         ):
 
@@ -936,6 +936,72 @@ class AIEMUtil(object):
             )
 
     @staticmethod
+    def operator_to_monomer_grad(
+        monomer,
+        operator,
+        ):
+
+        connectivity = np.copy(monomer.connectivity)
+        dEH = np.copy(operator.EH)
+        dET = np.copy(operator.ET)
+        dEP = np.copy(operator.EP)
+        dMH = np.zeros((operator.N,3))
+        dMT = np.zeros((operator.N,3))
+        dMP = np.zeros((operator.N,3))
+        dR0 = np.zeros((operator.N,3))
+
+        tasks = [
+            (monomer.MH, monomer.MH, operator.VHH, dMH, dMH),
+            (monomer.MH, monomer.MT, operator.VHT, dMH, dMT),
+            (monomer.MH, monomer.MP, operator.VHP, dMH, dMP),
+            (monomer.MT, monomer.MH, operator.VTH, dMT, dMH),
+            (monomer.MT, monomer.MT, operator.VTT, dMT, dMT),
+            (monomer.MT, monomer.MP, operator.VTP, dMT, dMP),
+            (monomer.MP, monomer.MH, operator.VPH, dMP, dMH),
+            (monomer.MP, monomer.MT, operator.VPT, dMP, dMT),
+            (monomer.MP, monomer.MP, operator.VPP, dMP, dMP),
+            ]
+
+        for A, B in monomer.ABs:
+            R0A = monomer.R0[A,:]
+            R0B = monomer.R0[B,:]
+            RAB = R0B - R0A
+            DAB = np.sqrt(np.sum(RAB**2))
+            for MAs, MBs, GABs, dMAs, dMBs in tasks:
+                MA = MAs[A,:]
+                MB = MBs[B,:]
+                GAB = GABs[A,B]
+                # Dipole-Dipole
+                dMAs[A,:] += 1.0 * MB / DAB**3 * GAB
+                dMAs[A,:] -= 3.0 * RAB * np.sum(MB * RAB) / DAB**5 * GAB
+                dMBs[B,:] += 1.0 * MA / DAB**3 * GAB
+                dMBs[B,:] -= 3.0 * RAB * np.sum(MA * RAB) / DAB**5 * GAB
+                F = np.zeros((3,))
+                F -= 3.0 * RAB * np.sum(MA * MB) / DAB**5
+                F += 15.0 * RAB * np.sum(MA * RAB) * np.sum(MB * RAB) / DAB**7
+                F -= 3.0 * MA * np.sum(MB * RAB) / DAB**5
+                F -= 3.0 * MB * np.sum(MA * RAB) / DAB**5
+                dR0[B,:] += F * GAB
+                dR0[A,:] -= F * GAB
+
+        # Leading factor of 1/2
+        dMH *= 0.5
+        dMT *= 0.5
+        dMP *= 0.5
+        dR0 *= 0.5
+
+        return AIEMMonomer(
+            connectivity=connectivity,
+            EH=dEH,
+            ET=dET,
+            EP=dEP,
+            MH=dMH,
+            MT=dMT,
+            MP=dMP,
+            R0=dR0,
+            )
+
+    @staticmethod
     def operator_to_pauli(
         operator,
         ):
@@ -998,6 +1064,110 @@ class AIEMUtil(object):
             )
 
     @staticmethod
+    def pauli_to_operator_grad(
+        pauli,
+        ):
+
+        connectivity = np.copy(pauli.connectivity)
+        EH = np.zeros_like(pauli.X)
+        ET = np.zeros_like(pauli.X)
+        EP = np.zeros_like(pauli.X)
+        VHH = np.zeros_like(pauli.XX)
+        VHT = np.zeros_like(pauli.XX)
+        VHP = np.zeros_like(pauli.XX)
+        VTH = np.zeros_like(pauli.XX)
+        VTT = np.zeros_like(pauli.XX)
+        VTP = np.zeros_like(pauli.XX)
+        VPH = np.zeros_like(pauli.XX)
+        VPT = np.zeros_like(pauli.XX)
+        VPP = np.zeros_like(pauli.XX)
+
+        EH += 1.0 * pauli.E / 2.0
+        EP += 1.0 * pauli.E / 2.0
+        VHH += 1.0 * pauli.E / 4.0 * connectivity
+        VHP += 1.0 * pauli.E / 4.0 * connectivity
+        VPH += 1.0 * pauli.E / 4.0 * connectivity
+        VPP += 1.0 * pauli.E / 4.0 * connectivity 
+
+        ET += 1.0 * pauli.X
+        VTH += 1.0 * np.outer(pauli.X, np.ones((pauli.N,))) / 2.0 * connectivity
+        VTP += 1.0 * np.outer(pauli.X, np.ones((pauli.N,))) / 2.0 * connectivity
+        VHT += 1.0 * np.outer(np.ones((pauli.N,)), pauli.X) / 2.0 * connectivity
+        VPT += 1.0 * np.outer(np.ones((pauli.N,)), pauli.X) / 2.0 * connectivity
+
+        EH += 1.0 * pauli.Z / 2.0 
+        EP -= 1.0 * pauli.Z / 2.0 
+        VHH += 1.0 * np.outer(pauli.Z, np.ones((pauli.N,))) / 4.0 * connectivity
+        VHP += 1.0 * np.outer(pauli.Z, np.ones((pauli.N,))) / 4.0 * connectivity
+        VPH -= 1.0 * np.outer(pauli.Z, np.ones((pauli.N,))) / 4.0 * connectivity
+        VPP -= 1.0 * np.outer(pauli.Z, np.ones((pauli.N,))) / 4.0 * connectivity 
+        VHH += 1.0 * np.outer(np.ones((pauli.N,)), pauli.Z) / 4.0 * connectivity
+        VPH += 1.0 * np.outer(np.ones((pauli.N,)), pauli.Z) / 4.0 * connectivity
+        VHP -= 1.0 * np.outer(np.ones((pauli.N,)), pauli.Z) / 4.0 * connectivity
+        VPP -= 1.0 * np.outer(np.ones((pauli.N,)), pauli.Z) / 4.0 * connectivity 
+
+        VTT += 1.0 * pauli.XX
+
+        VTH += pauli.XZ / 2.0
+        VTP -= pauli.XZ / 2.0
+
+        VHT += pauli.ZX / 2.0
+        VPT -= pauli.ZX / 2.0
+
+        VHH += pauli.ZZ / 4.0
+        VHP -= pauli.ZZ / 4.0
+        VPH -= pauli.ZZ / 4.0
+        VPP += pauli.ZZ / 4.0 
+
+        # Symmetrize
+        VHH = 0.5 * (VHH + VHH.T)
+        VTT = 0.5 * (VTT + VTT.T)
+        VPP = 0.5 * (VPP + VPP.T)
+        VHT = 0.5 * (VHT + VTH.T)
+        VHP = 0.5 * (VHP + VPH.T)
+        VTP = 0.5 * (VTP + VPT.T)
+        VTH = VHT.T
+        VPH = VHP.T
+        VPT = VTP.T
+
+        return AIEMOperator(
+            connectivity=connectivity,
+            EH=EH, 
+            ET=ET, 
+            EP=EP, 
+            VHH=VHH, 
+            VHT=VHT, 
+            VHP=VHP, 
+            VTH=VTH, 
+            VTT=VTT, 
+            VTP=VTP, 
+            VPH=VPH, 
+            VPT=VPT, 
+            VPP=VPP, 
+            )
+
+    @staticmethod
+    def operator_energy(
+        operator_hamiltonian,
+        operator_dm, 
+        ):
+
+        E = 0.0
+        E += 1.0 * np.sum(operator_dm.EH * operator_hamiltonian.EH)
+        E += 1.0 * np.sum(operator_dm.ET * operator_hamiltonian.ET)
+        E += 1.0 * np.sum(operator_dm.EP * operator_hamiltonian.EP)
+        E += 0.5 * np.sum(operator_dm.VHH * operator_hamiltonian.VHH)
+        E += 0.5 * np.sum(operator_dm.VHT * operator_hamiltonian.VHT)
+        E += 0.5 * np.sum(operator_dm.VHP * operator_hamiltonian.VHP)
+        E += 0.5 * np.sum(operator_dm.VTH * operator_hamiltonian.VTH)
+        E += 0.5 * np.sum(operator_dm.VTT * operator_hamiltonian.VTT)
+        E += 0.5 * np.sum(operator_dm.VTP * operator_hamiltonian.VTP)
+        E += 0.5 * np.sum(operator_dm.VPH * operator_hamiltonian.VPH)
+        E += 0.5 * np.sum(operator_dm.VPT * operator_hamiltonian.VPT)
+        E += 0.5 * np.sum(operator_dm.VPP * operator_hamiltonian.VPP)
+        return E
+
+    @staticmethod
     def pauli_energy(
         pauli_hamiltonian,
         pauli_dm,
@@ -1014,6 +1184,25 @@ class AIEMUtil(object):
         E += 0.5 * np.sum(pauli_dm.ZX * pauli_hamiltonian.ZX)
         E += 0.5 * np.sum(pauli_dm.ZZ * pauli_hamiltonian.ZZ)
         return E
+
+    @staticmethod
+    def monomer_to_grad(
+        grad,
+        monomer,
+        ):
+
+        grad2 = [np.zeros((natom,3)) for natom in grad.natom]
+    
+        for A in range(monomer.N):
+            grad2[A] += monomer.EH[A] * grad.EH[A]
+            grad2[A] += monomer.ET[A] * grad.ET[A]
+            grad2[A] += monomer.EP[A] * grad.EP[A]
+            grad2[A] += np.einsum('i,ijk->jk', monomer.MH[A], grad.MH[A])
+            grad2[A] += np.einsum('i,ijk->jk', monomer.MT[A], grad.MT[A])
+            grad2[A] += np.einsum('i,ijk->jk', monomer.MP[A], grad.MP[A])
+            grad2[A] += np.einsum('i,ijk->jk', monomer.R0[A], grad.R0[A])
+
+        return grad2
 
     @staticmethod
     def monomer_to_operator_dipole(
@@ -1051,11 +1240,21 @@ class AIEMUtil(object):
             ) for _ in range(3)]
 
     # => Two-Hop Conversion Utility < #
+        
+    @staticmethod
+    def monomer_to_pauli_hamiltonian(monomer):
+        return AIEMUtil.operator_to_pauli(operator=AIEMUtil.monomer_to_operator_hamiltonian(monomer=monomer))
+
+    @staticmethod
+    def pauli_to_monomer_grad(monomer, pauli):
+        return AIEMUtil.operator_to_monomer_grad(monomer=monomer, operator=AIEMUtil.pauli_to_operator_grad(pauli=pauli))
 
     @staticmethod
     def monomer_to_pauli_dipole(monomer):
         return [AIEMUtil.operator_to_pauli(operator=_) for _ in AIEMUtil.monomer_to_operator_dipole(monomer=monomer)]
-        
+
+    # => Quasar2 Pauli Operator <= #
+
     @staticmethod
     def aiem_pauli_to_pauli(
         aiem,

@@ -190,7 +190,7 @@ class AIEM(object):
         # Possible custom Pauli Hamiltonian Representation
         if self.options['aiem_hamiltonian_pauli']:
             return self.options['aiem_hamiltonian_pauli']
-        return AIEMUtil.operator_to_pauli(AIEMUtil.monomer_to_hamiltonian(self.aiem_monomer))
+        return AIEMUtil.monomer_to_pauli_hamiltonian(monomer=self.aiem_monomer)
 
     @memoized_property
     def hamiltonian_pauli(self):
@@ -1207,6 +1207,68 @@ class AIEM(object):
         cis_wfns = np.array([self.compute_cis_wavefunction(I) for I in range(self.nstate)])
         return np.dot(vqe_wfns.conj(), cis_wfns.T).real
 
+    # => Gradients/Couplings <= #
+
+    def compute_fci_gradient(self, I=0):
+
+        aiem_pauli_dm = self.compute_fci_dm(I=0, relaxed=True)
+
+        return AIEM.compute_nuclear_gradient(
+            aiem_monomer=self.aiem_monomer,
+            aiem_monomer_grad=self.aiem_monomer_grad,
+            aiem_pauli_dm=aiem_pauli_dm,
+            )
+
+    def compute_fci_coupling(self, I=0, J=1):
+
+        aiem_pauli_dm = self.compute_fci_tdm(I=0, J=1, relaxed=True)
+
+        return AIEM.compute_nuclear_gradient(
+            aiem_monomer=self.aiem_monomer,
+            aiem_monomer_grad=self.aiem_monomer_grad,
+            aiem_pauli_dm=aiem_pauli_dm,
+            )
+
+    def compute_vqe_gradient(self, I=0, **kwargs):
+
+        aiem_pauli_dm = self.compute_vqe_dm(I=0, relaxed=True, **kwargs)
+
+        return AIEM.compute_nuclear_gradient(
+            aiem_monomer=self.aiem_monomer,
+            aiem_monomer_grad=self.aiem_monomer_grad,
+            aiem_pauli_dm=aiem_pauli_dm,
+            )
+
+    def compute_vqe_coupling(self, I=0, J=1, **kwargs):
+
+        aiem_pauli_dm = self.compute_vqe_tdm(I=0, J=1, relaxed=True, **kwargs)
+
+        return AIEM.compute_nuclear_gradient(
+            aiem_monomer=self.aiem_monomer,
+            aiem_monomer_grad=self.aiem_monomer_grad,
+            aiem_pauli_dm=aiem_pauli_dm,
+            )
+
+    def compute_cis_gradient(self, I=0):
+
+        aiem_pauli_dm = self.compute_cis_dm(I=0, relaxed=True)
+
+        return AIEM.compute_nuclear_gradient(
+            aiem_monomer=self.aiem_monomer,
+            aiem_monomer_grad=self.aiem_monomer_grad,
+            aiem_pauli_dm=aiem_pauli_dm,
+            )
+
+    def compute_cis_coupling(self, I=0, J=1):
+
+        aiem_pauli_dm = self.compute_cis_tdm(I=0, J=1, relaxed=True)
+
+        return AIEM.compute_nuclear_gradient(
+            aiem_monomer=self.aiem_monomer,
+            aiem_monomer_grad=self.aiem_monomer_grad,
+            aiem_pauli_dm=aiem_pauli_dm,
+            )
+
     # => Density Matrix Wrappers (AIEMPauli Basis) <= #
 
     def compute_fci_dm(self, I=0, relaxed=False):
@@ -1342,3 +1404,16 @@ class AIEM(object):
                 pauli_dm.ZZ[B,A] += D[3,3] * w
         return pauli_dm
         
+    # => Classical Gradient Utility <= #
+
+    @staticmethod   
+    def compute_nuclear_gradient(
+        aiem_monomer,
+        aiem_monomer_grad,
+        aiem_pauli_dm,
+        ):
+
+        aiem_monomer_dm = AIEMUtil.pauli_to_monomer_grad(monomer=aiem_monomer, pauli=aiem_pauli_dm)
+        grad = AIEMUtil.monomer_to_grad(grad=aiem_monomer_grad, monomer=aiem_monomer_dm)
+        return grad
+         
