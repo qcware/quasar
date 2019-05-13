@@ -4,5 +4,5 @@ from .backend import Ket, Measurement
 from .backend import QuasarSimulatorBackend, QiskitSimulatorBackend, QiskitHardwareBackend, Backend
 from .optimizer import PowellOptimizer, BFGSOptimizer
 from .collocation import Collocation
-from .optimizer import Optimizer, BFGSOptimizer, PowellOptimizer
+from .optimizer import Optimizer, BFGSOptimizer, PowellOptimizer, JacobiOptimizer
 from .parameters import ParameterGroup, FixedParameterGroup, IdentityParameterGroup, LinearParameterGroup, CompositeParameterGroup

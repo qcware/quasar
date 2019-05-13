@@ -31,6 +31,11 @@ if __name__ == '__main__':
         maxiter=100,
         )
 
+    optimizer = quasar.JacobiOptimizer.from_options(
+        g_convergence=1.0E-16,
+        jacobi_level=2,
+        )
+
     # optimizer = quasar.PowellOptimizer.from_options(
     #     ftol=1.0E-8,
     #     maxiter=100,
