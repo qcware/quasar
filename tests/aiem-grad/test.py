@@ -8,11 +8,10 @@ if __name__ == '__main__':
     datapath = '../../data/aiem/bchl-a-8-stack/tc'
     filenames = ['%s/%d/exciton.dat' % (datapath, _) for _ in range(1, 8+1)]
     N = 2
-    nstate = 3
+    nstate = 2
     # connectivity = 'linear'
     connectivity = 'cyclic'
-    cis_circuit_type = 'mark3'
-    vqe_circuit_type = 'mark1'
+    vqe_circuit_type = 'mark2x'
 
     aiem_monomer = quasar.AIEMMonomer.from_tc_exciton_files(
         filenames=filenames,
@@ -47,9 +46,8 @@ if __name__ == '__main__':
         nstate=nstate,
         aiem_monomer=aiem_monomer,
         aiem_monomer_grad=aiem_monomer_grad,
-        cis_circuit_type=cis_circuit_type,
-        # vqe_circuit_type=vqe_circuit_type,
-        vqe_circuit=vqe_circuit,
+        vqe_circuit_type=vqe_circuit_type,
+        # vqe_circuit=vqe_circuit,
         )
     aiem.compute_energy()
     

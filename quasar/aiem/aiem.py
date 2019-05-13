@@ -81,23 +81,16 @@ class AIEM(object):
         # > Quantum Circuit Specification/Recipe < #
 
         opt.add_option(
-            key='cis_circuit_type',
-            value='mark2',
-            required=True,
-            allowed_types=[str],
-            allowed_values=['mark1', 'mark2', 'mark3'],
-            doc='CIS state preparation circuit recipe')
-        opt.add_option(
             key='vqe_circuit',
             value=None,
             allowed_types=[Circuit],
             doc='Explicit SA-VQE Entangler circuit (1st priority)')
         opt.add_option(
             key='vqe_circuit_type',
-            value='mark1',
+            value='mark1x',
             required=True,
             allowed_types=[str],
-            allowed_values=['mark1', 'mark2'],
+            allowed_values=['mark1x', 'mark1z', 'mark2x', 'mark2z'],
             doc='SA-VQE Entangler circuit recipe (2nd priority)')
 
         # > Variational Quantum Algorithm Optimizer < #
@@ -198,20 +191,11 @@ class AIEM(object):
         return AIEMUtil.aiem_pauli_to_pauli(self.aiem_hamiltonian_pauli, self_energy=False)
 
     @property
-    def cis_circuit_type(self):
-        return self.options['cis_circuit_type']
-
-    @property
-    def cis_circuit_function(self):
-        if self.cis_circuit_type == 'mark1': return AIEM.build_cis_circuit_mark1
-        elif self.cis_circuit_type == 'mark2': return AIEM.build_cis_circuit_mark2
-        elif self.cis_circuit_type == 'mark3': return AIEM.build_cis_circuit_mark3
-        else: raise RuntimeError('Unknown cis_circuit_type: %s' % self.cis_circuit_type)
-
-    @property
     def vqe_circuit_function(self):
-        if self.options['vqe_circuit_type'] == 'mark1' : return AIEM.build_vqe_circuit_mark1
-        if self.options['vqe_circuit_type'] == 'mark2' : return AIEM.build_vqe_circuit_mark2
+        if self.options['vqe_circuit_type'] == 'mark1x' : return AIEM.build_vqe_circuit_mark1x
+        elif self.options['vqe_circuit_type'] == 'mark1z' : return AIEM.build_vqe_circuit_mark1z
+        elif self.options['vqe_circuit_type'] == 'mark2x' : return AIEM.build_vqe_circuit_mark2x
+        elif self.options['vqe_circuit_type'] == 'mark2z' : return AIEM.build_vqe_circuit_mark2z
         else: raise RuntimeError('Unknown vqe_circuit_type: %s' % self.options['vqe_circuit_type'])
 
     @property
@@ -270,12 +254,7 @@ class AIEM(object):
 
         # > CIS Circuits < #
 
-        if self.print_level:
-            print('CIS Circuits:')
-            print('  %16s = %s' % ('cis_circuit_type', self.cis_circuit_type))
-            print('')
-
-        self.cis_circuits = [self.cis_circuit_function(
+        self.cis_circuits = [AIEM.build_cis_circuit(
             thetas=thetas,
             ) for thetas in self.cis_angles]
 
@@ -381,7 +360,7 @@ class AIEM(object):
 
         # > VQE Circuits < #
 
-        self.vqe_circuits = [self.cis_circuit_function(
+        self.vqe_circuits = [AIEM.build_cis_circuit(
             thetas=thetas,
             ) for thetas in self.vqe_angles]
 
@@ -715,38 +694,9 @@ class AIEM(object):
         return np.dot(J.T, ds)
 
     # => CIS State Preparation Quantum Circuit <= #
-            
-    @staticmethod
-    def build_cis_circuit_mark1(thetas):
-        N = len(thetas)
-        circuit = Circuit(N=N)
-        circuit.add_gate(T=0, key=0, gate=Gate.Ry(theta=thetas[0]))
-        for I, theta in enumerate(thetas[1:]):
-            circuit.add_gate(T=2*I, key=(I+1), gate=Gate.Ry(theta=-theta/2.0)) 
-            circuit.add_gate(T=2*I+1, key=(I, I+1), gate=Gate.CZ)
-            circuit.add_gate(T=2*I+2, key=(I+1), gate=Gate.Ry(theta=+theta/2.0)) 
-        circuit2 = Circuit(N=N)
-        T = 0
-        for A in range(N-2, -1, -1):
-            for B in range(N-1, A, -1):
-                circuit2.add_gate(T=T, key=(B,A), gate=Gate.CNOT)
-                T += 1
-        return Circuit.concatenate([circuit, circuit2])
 
     @staticmethod
-    def build_cis_circuit_mark2(thetas):
-        N = len(thetas)
-        circuit = Circuit(N=N)
-        circuit.add_gate(T=0, key=0, gate=Gate.Ry(theta=thetas[0]))
-        for I, theta in enumerate(thetas[1:]):
-            circuit.add_gate(T=2*I, key=(I+1), gate=Gate.Ry(theta=-theta/2.0)) 
-            circuit.add_gate(T=2*I+1, key=(I, I+1), gate=Gate.CZ)
-            circuit.add_gate(T=2*I+2, key=(I+1), gate=Gate.Ry(theta=+theta/2.0)) 
-            circuit.add_gate(T=2*I+(3 if I+2 == N else 4), key=(I+1, I), gate=Gate.CX)
-        return circuit
-
-    @staticmethod
-    def build_cis_circuit_mark3(thetas):
+    def build_cis_circuit(thetas):
         N = len(thetas)
         circuit = Circuit(N=N)
         circuit.add_gate(T=0, key=0, gate=Gate.Ry(theta=thetas[0]))
@@ -781,7 +731,7 @@ class AIEM(object):
     # => VQE Entangler Circuit Recipes <= #
 
     @staticmethod
-    def build_vqe_circuit_mark1(hamiltonian, nonredundant=True):
+    def build_vqe_circuit_mark1(hamiltonian, basis='x', nonredundant=True):
         
         """ From https://arxiv.org/pdf/1203.0722.pdf """
 
@@ -790,6 +740,8 @@ class AIEM(object):
             raise RuntimeError('Currently only set up for N even')
         if not hamiltonian.is_linear and not hamiltonian.is_cyclic:
             raise RuntimeError('Hamiltonian must be linear or cyclic')
+        if basis not in ['x', 'z']:
+            raise RuntimeError('Unknown basis: %s' % basis)
 
         # 2-body circuit (even)
         circuit_even = Circuit(N=hamiltonian.N)
@@ -798,12 +750,10 @@ class AIEM(object):
             B = A + 1
             circuit_even.add_gate(T=0,  key=A, gate=Gate.Ry(theta=0.0))
             circuit_even.add_gate(T=0,  key=B, gate=Gate.Ry(theta=0.0))
-            # circuit_even.add_gate(T=1,  key=(A,B), gate=Gate.CNOT)
-            circuit_even.add_gate(T=1,  key=(A,B), gate=Gate.CZ)
+            circuit_even.add_gate(T=1,  key=(A,B), gate=Gate.CX if basis == 'x' else Gate.CZ)
             circuit_even.add_gate(T=2,  key=A, gate=Gate.Ry(theta=0.0))
             circuit_even.add_gate(T=2,  key=B, gate=Gate.Ry(theta=0.0))
-            # circuit_even.add_gate(T=3,  key=(A,B), gate=Gate.CNOT)
-            circuit_even.add_gate(T=3,  key=(A,B), gate=Gate.CZ)
+            circuit_even.add_gate(T=3,  key=(A,B), gate=Gate.CX if basis == 'x' else Gate.CZ)
             circuit_even.add_gate(T=4,  key=A, gate=Gate.Ry(theta=0.0))
             circuit_even.add_gate(T=4,  key=B, gate=Gate.Ry(theta=0.0))
 
@@ -820,12 +770,10 @@ class AIEM(object):
                     continue 
             circuit_odd.add_gate(T=0,  key=A, gate=Gate.Ry(theta=0.0))
             circuit_odd.add_gate(T=0,  key=B, gate=Gate.Ry(theta=0.0))
-            # circuit_odd.add_gate(T=1,  key=(A,B), gate=Gate.CNOT)
-            circuit_odd.add_gate(T=1,  key=(A,B), gate=Gate.CZ)
+            circuit_odd.add_gate(T=1,  key=(A,B), gate=Gate.CX if basis == 'x' else Gate.CZ)
             circuit_odd.add_gate(T=2,  key=A, gate=Gate.Ry(theta=0.0))
             circuit_odd.add_gate(T=2,  key=B, gate=Gate.Ry(theta=0.0))
-            # circuit_odd.add_gate(T=3,  key=(A,B), gate=Gate.CNOT)
-            circuit_odd.add_gate(T=3,  key=(A,B), gate=Gate.CZ)
+            circuit_odd.add_gate(T=3,  key=(A,B), gate=Gate.CX if basis == 'x' else Gate.CZ)
             circuit_odd.add_gate(T=4,  key=A, gate=Gate.Ry(theta=0.0))
             circuit_odd.add_gate(T=4,  key=B, gate=Gate.Ry(theta=0.0))
 
@@ -838,15 +786,25 @@ class AIEM(object):
         return circuit
 
     @staticmethod
-    def build_vqe_circuit_mark2(hamiltonian, nonredundant=True):
+    def build_vqe_circuit_mark1x(hamiltonian, **kwargs):
+        return AIEM.build_vqe_circuit_mark1(hamiltonian, basis='x', **kwargs)
+
+    @staticmethod
+    def build_vqe_circuit_mark1z(hamiltonian, **kwargs):
+        return AIEM.build_vqe_circuit_mark1(hamiltonian, basis='z', **kwargs)
+
+    @staticmethod
+    def build_vqe_circuit_mark2(hamiltonian, basis='x', nonredundant=True):
         
-        """ From https://arxiv.org/pdf/1203.0722.pdf """
+        """ From https://arxiv.org/pdf/1203.0722.pdf, but cut down """
 
         # Validity checks
         if hamiltonian.N % 2: 
             raise RuntimeError('Currently only set up for N even')
         if not hamiltonian.is_linear and not hamiltonian.is_cyclic:
             raise RuntimeError('Hamiltonian must be linear or cyclic')
+        if basis not in ['x', 'z']:
+            raise RuntimeError('Unknown basis: %s' % basis)
 
         # 2-body circuit (even)
         circuit_even = Circuit(N=hamiltonian.N)
@@ -855,8 +813,7 @@ class AIEM(object):
             B = A + 1
             circuit_even.add_gate(T=0,  key=A, gate=Gate.Ry(theta=0.0))
             circuit_even.add_gate(T=0,  key=B, gate=Gate.Ry(theta=0.0))
-            # circuit_even.add_gate(T=1,  key=(A,B), gate=Gate.CNOT)
-            circuit_even.add_gate(T=1,  key=(A,B), gate=Gate.CZ)
+            circuit_even.add_gate(T=1,  key=(A,B), gate=Gate.CX if basis == 'x' else Gate.CZ)
             circuit_even.add_gate(T=2,  key=A, gate=Gate.Ry(theta=0.0))
             circuit_even.add_gate(T=2,  key=B, gate=Gate.Ry(theta=0.0))
 
@@ -873,8 +830,7 @@ class AIEM(object):
                     continue 
             circuit_odd.add_gate(T=0,  key=A, gate=Gate.Ry(theta=0.0))
             circuit_odd.add_gate(T=0,  key=B, gate=Gate.Ry(theta=0.0))
-            # circuit_odd.add_gate(T=1,  key=(A,B), gate=Gate.CNOT)
-            circuit_odd.add_gate(T=1,  key=(A,B), gate=Gate.CZ)
+            circuit_odd.add_gate(T=1,  key=(A,B), gate=Gate.CX if basis == 'x' else Gate.CZ)
             circuit_odd.add_gate(T=2,  key=A, gate=Gate.Ry(theta=0.0))
             circuit_odd.add_gate(T=2,  key=B, gate=Gate.Ry(theta=0.0))
 
@@ -885,6 +841,14 @@ class AIEM(object):
         circuit = Circuit.concatenate([circuit_even, circuit_odd])
 
         return circuit
+
+    @staticmethod
+    def build_vqe_circuit_mark2x(hamiltonian, **kwargs):
+        return AIEM.build_vqe_circuit_mark2(hamiltonian, basis='x', **kwargs)
+
+    @staticmethod
+    def build_vqe_circuit_mark2z(hamiltonian, **kwargs):
+        return AIEM.build_vqe_circuit_mark2(hamiltonian, basis='z', **kwargs)
 
     # => MC-VQE Subspace Hamiltonian <= #
 
@@ -897,7 +861,6 @@ class AIEM(object):
             hamiltonian=self.hamiltonian_pauli,
             vqe_circuit=self.vqe_circuit,
             Cs=self.cis_C,
-            cis_circuit_function=self.cis_circuit_function,
             )
 
         # Subspace eigensolve
@@ -918,7 +881,6 @@ class AIEM(object):
         hamiltonian,
         vqe_circuit,
         Cs,
-        cis_circuit_function,
         ):
     
         H = np.zeros((Cs.shape[1],)*2)
@@ -926,7 +888,7 @@ class AIEM(object):
         for I in range(Cs.shape[1]):
             C = Cs[:,I]
             thetas = AIEM.compute_cis_angles(cs=C)
-            cis_circuit = cis_circuit_function(thetas=thetas)
+            cis_circuit = AIEM.build_cis_circuit(thetas=thetas)
             circuit = Circuit.concatenate([cis_circuit, vqe_circuit])
             E, D2 = Collocation.compute_energy_and_pauli_dm( 
                 backend=backend,
@@ -941,7 +903,7 @@ class AIEM(object):
                 Cp = (Cs[:,I] + Cs[:,J]) / np.sqrt(2.0)
                 Cm = (Cs[:,I] - Cs[:,J]) / np.sqrt(2.0)
                 thetasp = AIEM.compute_cis_angles(cs=Cp)
-                cis_circuitp = cis_circuit_function(thetas=thetasp)
+                cis_circuitp = AIEM.build_cis_circuit(thetas=thetasp)
                 circuitp = Circuit.concatenate([cis_circuitp, vqe_circuit])
                 Ep, Dp = Collocation.compute_energy_and_pauli_dm( 
                     backend=backend,
@@ -950,7 +912,7 @@ class AIEM(object):
                     circuit=circuitp,
                     ) 
                 thetasm = AIEM.compute_cis_angles(cs=Cm)
-                cis_circuitm = cis_circuit_function(thetas=thetasm)
+                cis_circuitm = AIEM.build_cis_circuit(thetas=thetasm)
                 circuitm = Circuit.concatenate([cis_circuitm, vqe_circuit])
                 Em, Dm = Collocation.compute_energy_and_pauli_dm( 
                     backend=backend,
@@ -1322,7 +1284,6 @@ class AIEM(object):
             hamiltonian=self.aiem_hamiltonian_pauli,
             cis_Cs=cis_Cs,
             cis_ws=cis_ws,
-            cis_circuit_function=self.cis_circuit_function,
             )
 
     def compute_cis_tdm(self, I=0, J=1, relaxed=False):
@@ -1339,24 +1300,48 @@ class AIEM(object):
             hamiltonian=self.aiem_hamiltonian_pauli,
             cis_Cs=cis_Cs,
             cis_ws=cis_ws,
-            cis_circuit_function=self.cis_circuit_function,
             )
 
     def compute_vqe_dm(self, I=0, relaxed=False):
 
-        # if relaxed: raise NotImplemented # TODO
-
-        pauli = AIEMUtil.pauli_to_aiem_pauli(self.vqe_D2[I,I])
-        pauli.E = 1.0 # TODO: Not consistent placement
-        return pauli
+        if relaxed:
+            vqe_Cs = [self.vqe_C[:, I]]
+            vqe_ws = [1.0]
+            return MCVQE.compute_vqe_relaxed_dm(
+                hamiltonian=self.aiem_pauli,
+                vqe_entangler_circuit=self.vqe_entangler_circuit,
+                vqe_Cs=vqe_Cs,
+                vqe_ws=vqe_ws,
+                cis_Cs=self.cis_C,
+                vqe_hessian=self.vqe_hessian,
+                vqe_hessian_cis=self.vqe_hessian_cis,
+                **kwargs)
+        else:
+            pauli = AIEMUtil.pauli_to_aiem_pauli(self.vqe_D2[I,I])
+            pauli.E = 1.0 # TODO: Not consistent placement
+            return pauli
 
     def compute_vqe_tdm(self, I=0, J=1, relaxed=False):
 
         if I == J: raise RuntimeError('Can only compute tdm for I != J') 
 
-        # if relaxed: raise NotImplemented # TODO
+        if relaxed:
+            vqe_Cp = (self.vqe_C[:, I] + self.vqe_C[:, J]) / np.sqrt(2.0)
+            vqe_Cm = (self.vqe_C[:, I] - self.vqe_C[:, J]) / np.sqrt(2.0)
+            vqe_Cs = [vqe_Cp, vqe_Cm]
+            vqe_ws = [0.5, -0.5]
+            return MCVQE.compute_vqe_relaxed_dm(
+                hamiltonian=self.aiem_pauli,
+                vqe_entangler_circuit=self.vqe_entangler_circuit,
+                vqe_Cs=vqe_Cs,
+                vqe_ws=vqe_ws,
+                cis_Cs=self.cis_C,
+                vqe_hessian=self.vqe_hessian,
+                vqe_hessian_cis=self.vqe_hessian_cis,
+                **kwargs)
 
-        return AIEMUtil.pauli_to_aiem_pauli(self.vqe_D2[I,J])
+        else:
+            return AIEMUtil.pauli_to_aiem_pauli(self.vqe_D2[I,J])
 
     # => Unrelaxed Density Matrices <= #        
 
@@ -1392,13 +1377,12 @@ class AIEM(object):
         hamiltonian,
         cis_Cs,
         cis_ws,
-        cis_circuit_function,
         ):
 
         pauli_dm = AIEMPauli.zeros_like(hamiltonian)
         for C, w in zip(cis_Cs, cis_ws):
             thetas = AIEM.compute_cis_angles(cs=C)
-            cis_circuit = cis_circuit_function(thetas=thetas)
+            cis_circuit = AIEM.build_cis_circuit(thetas=thetas)
             circuit = cis_circuit.compressed()
             wfn = circuit.simulate()
             pauli_dm.E += 1.0 * w
@@ -1419,6 +1403,111 @@ class AIEM(object):
                 pauli_dm.ZZ[B,A] += D[3,3] * w
         return pauli_dm
         
+    # => Relaxed Pauli Density Matrices (w.r.t. Hamiltonian) <= #
+
+    @staticmethod
+    def compute_vqe_relaxed_dm(
+        hamiltonian,
+        vqe_circuit,
+        vqe_Cs,
+        vqe_ws,
+        cis_Cs,
+        vqe_hessian,
+        vqe_hessian_cis,
+        include_vqe_response=True,
+        include_cis_response=True,
+        ):
+
+        # => RHSs <= #
+
+        G_vqe = np.zeros_like(vqe_circuit.param_values)
+        G1_cis = np.zeros_like(cis_Cs)
+        for vqe_C, vqe_w in zip(vqe_Cs, vqe_ws):
+
+            # > VQE Generator State Prep Circuit < #
+
+            thetas = AIEM.compute_cis_angles(cs=vqe_C)
+            cis_circuit = build_cis_circuit(thetas=thetas)
+    
+            # > CP-SA-VQE RHS < #
+
+            G_vqe += vqe_w * MCVQE.compute_vqe_energy_grad(
+                hamiltonian=hamiltonian,
+                cis_circuit=cis_circuit,
+                vqe_entangler_circuit=vqe_entangler_circuit,
+                )
+            
+            # > CP-CIS RHS #1 < #
+
+            G1_cis += vqe_w * MCVQE.compute_vqe_energy_cis_gradient(
+                hamiltonian=hamiltonian,
+                vqe_C=vqe_C,
+                vqe_entangler_circuit=vqe_entangler_circuit,
+                cis_Cs=cis_Cs,
+                )
+
+        # => CP-SA-VQE <= #
+
+        # RHS
+        G_vqe *= -1.0
+
+        # Solution
+        # TODO: Conditioning parameters
+        h_vqe, U_vqe = np.linalg.eigh(vqe_hessian)
+        hinv_vqe = 1.0 / h_vqe
+        hinv_vqe[np.abs(h_vqe) < 1.0E-10] = 0.0
+        G2_vqe = np.dot(G_vqe, U_vqe)
+        K2_vqe = G2_vqe * hinv_vqe
+        K_vqe = np.dot(U_vqe, K2_vqe) 
+
+        # Response density matrix
+        cis_angles = [MCVQE.compute_cis_angles(cs=cis_Cs[:,T]) for T in range(cis_Cs.shape[1])]
+        cis_circuits = [MCVQE.build_cis_circuit(thetas=thetas) for thetas in cis_angles]
+        pauli_dm_vqe = MCVQE.compute_sa_vqe_response_pauli_dm(
+            hamiltonian=hamiltonian,
+            cis_circuits=cis_circuits,
+            vqe_entangler_circuit=vqe_entangler_circuit,
+            lagrangian=K_vqe,
+            )
+
+        # => CP-CIS <= #
+
+        # RHS #1
+        # See above
+        
+        # RHS #2
+        G2_cis = np.einsum('i,ijk->jk', K_vqe, vqe_hessian_cis)
+
+        # Total RHS
+        G_cis = G1_cis + G2_cis
+        G_cis *= -1.0
+    
+        # Solution
+        # TODO: Conditioning parameters
+        K_cis = MCVQE.compute_cp_cis(
+            hamiltonian=hamiltonian,
+            cis_Cs=cis_Cs,
+            RHS=G_cis,
+            )
+
+        # Response density matrix
+        pauli_dm_cis = MCVQE.compute_cis_response_pauli_dm(
+            hamiltonian=hamiltonian,
+            cis_Cs=cis_Cs,
+            cis_Xs=K_cis,
+            )
+
+        # => Assembly <= #
+
+        pauli_dm_total = AIEMPauli.zeros_like(pauli_dm_0)
+        pauli_dm_total = AIEMPauli.axpby(a=1.0, b=1.0, x=pauli_dm_0, y=pauli_dm_total)
+        if include_vqe_response:
+            pauli_dm_total = AIEMPauli.axpby(a=1.0, b=1.0, x=pauli_dm_vqe, y=pauli_dm_total)
+        if include_cis_response:
+            pauli_dm_total = AIEMPauli.axpby(a=1.0, b=1.0, x=pauli_dm_cis, y=pauli_dm_total)
+
+        return pauli_dm_total
+
     # => Classical Gradient Utility <= #
 
     @staticmethod   
