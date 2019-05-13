@@ -27,7 +27,7 @@ if __name__ == '__main__':
         )
 
     optimizer = quasar.BFGSOptimizer.from_options(
-        g_convergence=1.0E-7,
+        g_convergence=1.0E-18,
         maxiter=100,
         )
 
@@ -46,10 +46,13 @@ if __name__ == '__main__':
         nstate=nstate,
         aiem_monomer=aiem_monomer,
         aiem_monomer_grad=aiem_monomer_grad,
-        vqe_circuit_type=vqe_circuit_type,
-        # vqe_circuit=vqe_circuit,
+        # vqe_circuit_type=vqe_circuit_type,
+        vqe_circuit=vqe_circuit,
         )
     aiem.compute_energy()
+
+    include_vqe_response = True
+    include_cis_response = True
     
-    # quasar.AIEMGradCheck.test_fd_gradient_pauli(aiem=aiem)
-    quasar.AIEMGradCheck.test_fd_gradient_monomer(aiem=aiem)
+    quasar.AIEMGradCheck.test_fd_gradient_pauli(aiem=aiem, include_vqe_response=include_vqe_response, include_cis_response=include_cis_response)
+    quasar.AIEMGradCheck.test_fd_gradient_monomer(aiem=aiem, include_vqe_response=include_vqe_response, include_cis_response=include_cis_response)

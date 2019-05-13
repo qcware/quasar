@@ -208,6 +208,21 @@ class AIEMMonomer(AIEMConnectivity):
 
         return prop
 
+    def save_ed_npzfile(
+        self,
+        npzfile,
+        ):
+
+        np.savez(npzfile,
+            EH=self.EH,
+            ET=self.ET,
+            EP=self.EP,
+            MH=self.MH,
+            MT=self.MT,
+            MP=self.MP,
+            R0=self.R0,
+            )
+
     @staticmethod
     def from_tc_exciton_files(
         filenames,

@@ -1319,6 +1319,14 @@ class AIEM(object):
         pauli = AIEMUtil.pauli_to_aiem_pauli(self.vqe_D2[I,I])
         pauli.E = 1.0 # TODO: Not consistent placement
 
+        print('Pauli DM 0:')
+        print(pauli.X)
+        print(pauli.Z)
+        print(pauli.XX)
+        print(pauli.XZ)
+        print(pauli.ZX)
+        print(pauli.ZZ)
+
         if relaxed:
             vqe_Cs = [self.vqe_C[:, I]]
             vqe_ws = [1.0]
@@ -1326,7 +1334,15 @@ class AIEM(object):
                 vqe_Cs=vqe_Cs,
                 vqe_ws=vqe_ws,
                 **kwargs)
-            pauli += pauli_r
+            pauli = AIEMPauli.axpby(a=1.0, b=1.0, x=pauli, y=pauli_r)
+
+        print('Pauli DM:')
+        print(pauli.X)
+        print(pauli.Z)
+        print(pauli.XX)
+        print(pauli.XZ)
+        print(pauli.ZX)
+        print(pauli.ZZ)
     
         return pauli
 
@@ -1345,7 +1361,7 @@ class AIEM(object):
                 vqe_Cs=vqe_Cs,
                 vqe_ws=vqe_ws,
                 **kwargs)
-            pauli += pauli_r
+            pauli = AIEMPauli.axpby(a=1.0, b=1.0, x=pauli, y=pauli_r)
 
         return pauli
 
@@ -1443,11 +1459,11 @@ class AIEM(object):
                 circuit=circuit,
                 parameter_group=parameter_group,
                 )
-            
+
             # > CP-CIS RHS #1 < #
 
             # NOTE: Requires explicit knowledge of CIS state prep circuit
-            cis_angle_jacobian = np.zeros((2*self.N+1, self.N))
+            cis_angle_jacobian = np.zeros((2*self.N-1, self.N))
             cis_angle_jacobian[0,0] = 1.0
             for A in range(self.N-1):
                 cis_angle_jacobian[2*A+1, A+1] = -0.5
@@ -1455,13 +1471,19 @@ class AIEM(object):
             cis_group = LinearParameterGroup(cis_angle_jacobian)
             vqe_group = FixedParameterGroup(self.vqe_circuit.param_values)
             parameter_group = CompositeParameterGroup([cis_group, vqe_group])
-            G1_cis += vqe_w * Collocation.compute_gradient(
+            G1_cis_theta = Collocation.compute_gradient(
                 backend=self.backend,
                 nmeasurement=self.nmeasurement_deriv,
                 hamiltonian=self.hamiltonian_pauli,
                 circuit=circuit,
                 parameter_group=parameter_group,
                 )
+            G1_cis_gen = AIEM.contract_cis_angles_jacobian(
+                    cs=vqe_C,
+                    ds=G1_cis_theta,
+                    )
+            V = np.dot(self.cis_C.T, vqe_C)
+            G1_cis += vqe_w * np.outer(G1_cis_gen, V)
 
         # => CP-SA-VQE <= #
 
@@ -1478,12 +1500,16 @@ class AIEM(object):
         K_vqe = np.dot(U_vqe, K2_vqe) 
 
         # Response density matrix
-        pauli_dm_vqe = AIEM.compute_sa_vqe_response_pauli_dm(
-            hamiltonian=hamiltonian,
-            cis_circuits=cis_circuits,
-            vqe_circuit=vqe_circuit,
+        pauli_dm_vqe2 = AIEM.compute_sa_vqe_response_pauli_dm(
+            backend=self.backend,
+            nmeasurement=self.nmeasurement_deriv,
+            hamiltonian=self.hamiltonian_pauli,
+            vqe_circuit=self.vqe_circuit,
+            cis_circuits=self.cis_circuits,
+            cis_weights=self.cis_weights,
             lagrangian=K_vqe,
             )
+        pauli_dm_vqe = AIEMUtil.pauli_to_aiem_pauli(pauli_dm_vqe2)
 
         # => CP-CIS <= #
 
@@ -1511,6 +1537,29 @@ class AIEM(object):
             cis_Cs=self.cis_C,
             cis_Xs=K_cis,
             )
+
+        print('G_vqe:', G_vqe)
+        print('K_vqe:', K_vqe)
+        print('G1_cis:', G1_cis)
+        print('G2_cis:', G2_cis)
+        print('G_cis:', G_cis)
+        print('K_cis:', K_cis)
+
+        print('Pauli DM VQE:')
+        print(pauli_dm_vqe.X)
+        print(pauli_dm_vqe.Z)
+        print(pauli_dm_vqe.XX)
+        print(pauli_dm_vqe.XZ)
+        print(pauli_dm_vqe.ZX)
+        print(pauli_dm_vqe.ZZ)
+
+        print('Pauli DM CIS:')
+        print(pauli_dm_cis.X)
+        print(pauli_dm_cis.Z)
+        print(pauli_dm_cis.XX)
+        print(pauli_dm_cis.XZ)
+        print(pauli_dm_cis.ZX)
+        print(pauli_dm_cis.ZZ)
 
         # => Assembly <= #
 
@@ -1567,7 +1616,7 @@ class AIEM(object):
             backend=backend,
             nmeasurement=nmeasurement,
             hamiltonian=hamiltonian,
-            circuit=vqe_circuit,
+            circuit=vqe_circuit2,
             reference_circuits=cis_circuits,
             reference_weights=cis_weights,
             )
@@ -1579,7 +1628,7 @@ class AIEM(object):
                 backend=backend,
                 nmeasurement=nmeasurement,
                 hamiltonian=hamiltonian,
-                circuit=vqe_circuit,
+                circuit=vqe_circuit2,
                 reference_circuits=cis_circuits,
                 reference_weights=cis_weights,
                 )
@@ -1590,7 +1639,7 @@ class AIEM(object):
                 backend=backend,
                 nmeasurement=nmeasurement,
                 hamiltonian=hamiltonian,
-                circuit=vqe_circuit,
+                circuit=vqe_circuit2,
                 reference_circuits=cis_circuits,
                 reference_weights=cis_weights,
                 )
@@ -1607,7 +1656,7 @@ class AIEM(object):
                     backend=backend,
                     nmeasurement=nmeasurement,
                     hamiltonian=hamiltonian,
-                    circuit=vqe_circuit,
+                    circuit=vqe_circuit2,
                     reference_circuits=cis_circuits,
                     reference_weights=cis_weights,
                     )
@@ -1620,7 +1669,7 @@ class AIEM(object):
                     backend=backend,
                     nmeasurement=nmeasurement,
                     hamiltonian=hamiltonian,
-                    circuit=vqe_circuit,
+                    circuit=vqe_circuit2,
                     reference_circuits=cis_circuits,
                     reference_weights=cis_weights,
                     )
@@ -1633,7 +1682,7 @@ class AIEM(object):
                     backend=backend,
                     nmeasurement=nmeasurement,
                     hamiltonian=hamiltonian,
-                    circuit=vqe_circuit,
+                    circuit=vqe_circuit2,
                     reference_circuits=cis_circuits,
                     reference_weights=cis_weights,
                     )
@@ -1646,7 +1695,7 @@ class AIEM(object):
                     backend=backend,
                     nmeasurement=nmeasurement,
                     hamiltonian=hamiltonian,
-                    circuit=vqe_circuit,
+                    circuit=vqe_circuit2,
                     reference_circuits=cis_circuits,
                     reference_weights=cis_weights,
                     )
@@ -1683,7 +1732,7 @@ class AIEM(object):
 
         # NOTE: Requires explicit knowledge of CIS state prep circuit
         N = vqe_circuit.N
-        cis_angle_jacobian = np.zeros((2*N+1, N))
+        cis_angle_jacobian = np.zeros((2*N-1, N))
         cis_angle_jacobian[0,0] = 1.0
         for A in range(N-1):
             cis_angle_jacobian[2*A+1, A+1] = -0.5
@@ -1772,4 +1821,67 @@ class AIEM(object):
             hamiltonian=hamiltonian,
             D=D,
             )
+
+    @staticmethod
+    def compute_vqe_response_pauli_dm(
+        backend,
+        nmeasurement,
+        hamiltonian,
+        vqe_circuit,
+        cis_circuit,
+        lagrangian,
+        ):
+
+        thetas = vqe_circuit.param_values
+        pauli_dm = Pauli.zeros_like(hamiltonian)
+        vqe_circuit2 = vqe_circuit.copy()
+        for A in range(len(thetas)):
+            thetap = thetas.copy()
+            thetap[A] += np.pi / 4.0
+            vqe_circuit2.set_param_values(thetap)
+            circuit = Circuit.concatenate([cis_circuit, vqe_circuit2])
+            Ep, pauli_dmp = Collocation.compute_energy_and_pauli_dm(
+                backend=backend,
+                nmeasurement=nmeasurement,
+                hamiltonian=hamiltonian,
+                circuit=circuit,
+                )
+            thetam = thetas.copy()
+            thetam[A] -= np.pi / 4.0
+            vqe_circuit2.set_param_values(thetam)
+            circuit = Circuit.concatenate([cis_circuit, vqe_circuit2])
+            Em, pauli_dmm = Collocation.compute_energy_and_pauli_dm(
+                backend=backend,
+                nmeasurement=nmeasurement,
+                hamiltonian=hamiltonian,
+                circuit=circuit,
+                )
+            pauli_dm += lagrangian[A] * pauli_dmp
+            pauli_dm -= lagrangian[A] * pauli_dmm
+        return pauli_dm
+
+    @staticmethod
+    def compute_sa_vqe_response_pauli_dm(
+        backend,
+        nmeasurement,
+        hamiltonian,
+        vqe_circuit,
+        cis_circuits,
+        cis_weights,
+        lagrangian,
+        ):
+
+        pauli_dm = Pauli.zeros_like(hamiltonian)
+        for cis_circuit, cis_weight in zip(cis_circuits, cis_weights):
+            pauli_dm2 = AIEM.compute_vqe_response_pauli_dm(
+                backend=backend,
+                nmeasurement=nmeasurement,
+                hamiltonian=hamiltonian,
+                vqe_circuit=vqe_circuit,
+                cis_circuit=cis_circuit,
+                lagrangian=lagrangian,
+                )
+            pauli_dm += cis_weight * pauli_dm2
+        return pauli_dm
+
 
