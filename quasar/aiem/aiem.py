@@ -10,6 +10,9 @@ from ..core import Optimizer
 from ..core import BFGSOptimizer
 from ..core import PowellOptimizer
 from ..core import IdentityParameterGroup
+from ..core import FixedParameterGroup
+from ..core import CompositeParameterGroup
+from ..core import LinearParameterGroup
 from .aiem_data import AIEMMonomer
 from .aiem_data import AIEMMonomerGrad
 from .aiem_data import AIEMPauli
@@ -43,12 +46,17 @@ class AIEM(object):
             key='nmeasurement',
             value=None,
             allowed_types=[int],
-            doc='Number of nmeasurement per observable, or None for infinite sampling (backend must support statevector simulation)')
+            doc='Number of measurements per observable, or None for infinite sampling (backend must support statevector simulation)')
         opt.add_option(
             key='nmeasurement_subspace',
             value=None,
             allowed_types=[int],
-            doc='Number of nmeasurement per observable for final subspace Hamiltonian observation, or None for infinite sampling (backend must support statevector simulation)')
+            doc='Number of measurements per observable for final subspace Hamiltonian observation, or None for infinite sampling (backend must support statevector simulation)')
+        opt.add_option(
+            key='nmeasurement_deriv',
+            value=None,
+            allowed_types=[int],
+            doc='Number of measurements per observable for analytical derivative response considerations.')
 
         # > Problem Description < #
 
@@ -58,7 +66,7 @@ class AIEM(object):
             allowed_types=[int],
             doc='Number of states to target')
         opt.add_option(
-            key='vqe_weights',
+            key='cis_weights',
             required=False,
             allowed_types=[np.ndarray],
             doc='Weights for SA-VQE optimization (optional - 1/nstate if not provided)')
@@ -153,6 +161,10 @@ class AIEM(object):
         return self.options['nmeasurement_subspace']
 
     @property
+    def nmeasurement_deriv(self):
+        return self.options['nmeasurement_deriv']
+
+    @property
     def N(self):
         return self.aiem_monomer.N
 
@@ -165,9 +177,9 @@ class AIEM(object):
         return self.options['nstate']    
 
     @memoized_property
-    def vqe_weights(self):
-        if self.options['vqe_weights']:
-            return self.options['vqe_weights']
+    def cis_weights(self):
+        if self.options['cis_weights']:
+            return self.options['cis_weights']
         return np.ones((self.nstate,)) / self.nstate
 
     @property
@@ -277,7 +289,7 @@ class AIEM(object):
         if self.print_level:
             print('SA-VQE Weights:\n')
             print('%-5s: %11s' % ('State', 'Weight'))
-            for I, w in enumerate(self.vqe_weights):
+            for I, w in enumerate(self.cis_weights):
                 print('%-5d: %11.3E' % (I, w))
             print('')
 
@@ -319,7 +331,7 @@ class AIEM(object):
             nmeasurement=self.nmeasurement,
             hamiltonian=self.hamiltonian_pauli,
             reference_circuits=self.cis_circuits,
-            reference_weights=self.vqe_weights,
+            reference_weights=self.cis_weights,
             entangler_circuit=self.vqe_circuit,
             entangler_circuit_parameter_group=self.vqe_parameter_group,
             guess_params=self.vqe_circuit.param_values,
@@ -1302,46 +1314,40 @@ class AIEM(object):
             cis_ws=cis_ws,
             )
 
-    def compute_vqe_dm(self, I=0, relaxed=False):
+    def compute_vqe_dm(self, I=0, relaxed=False, **kwargs):
+
+        pauli = AIEMUtil.pauli_to_aiem_pauli(self.vqe_D2[I,I])
+        pauli.E = 1.0 # TODO: Not consistent placement
 
         if relaxed:
             vqe_Cs = [self.vqe_C[:, I]]
             vqe_ws = [1.0]
-            return MCVQE.compute_vqe_relaxed_dm(
-                hamiltonian=self.aiem_pauli,
-                vqe_entangler_circuit=self.vqe_entangler_circuit,
+            pauli_r = self.compute_vqe_response_dm(
                 vqe_Cs=vqe_Cs,
                 vqe_ws=vqe_ws,
-                cis_Cs=self.cis_C,
-                vqe_hessian=self.vqe_hessian,
-                vqe_hessian_cis=self.vqe_hessian_cis,
                 **kwargs)
-        else:
-            pauli = AIEMUtil.pauli_to_aiem_pauli(self.vqe_D2[I,I])
-            pauli.E = 1.0 # TODO: Not consistent placement
-            return pauli
+            pauli += pauli_r
+    
+        return pauli
 
-    def compute_vqe_tdm(self, I=0, J=1, relaxed=False):
+    def compute_vqe_tdm(self, I=0, J=1, relaxed=False, **kwargs):
 
         if I == J: raise RuntimeError('Can only compute tdm for I != J') 
+
+        pauli = AIEMUtil.pauli_to_aiem_pauli(self.vqe_D2[I,J])
 
         if relaxed:
             vqe_Cp = (self.vqe_C[:, I] + self.vqe_C[:, J]) / np.sqrt(2.0)
             vqe_Cm = (self.vqe_C[:, I] - self.vqe_C[:, J]) / np.sqrt(2.0)
             vqe_Cs = [vqe_Cp, vqe_Cm]
             vqe_ws = [0.5, -0.5]
-            return MCVQE.compute_vqe_relaxed_dm(
-                hamiltonian=self.aiem_pauli,
-                vqe_entangler_circuit=self.vqe_entangler_circuit,
+            pauli_r = self.compute_vqe_response_dm(
                 vqe_Cs=vqe_Cs,
                 vqe_ws=vqe_ws,
-                cis_Cs=self.cis_C,
-                vqe_hessian=self.vqe_hessian,
-                vqe_hessian_cis=self.vqe_hessian_cis,
                 **kwargs)
+            pauli += pauli_r
 
-        else:
-            return AIEMUtil.pauli_to_aiem_pauli(self.vqe_D2[I,J])
+        return pauli
 
     # => Unrelaxed Density Matrices <= #        
 
@@ -1405,45 +1411,56 @@ class AIEM(object):
         
     # => Relaxed Pauli Density Matrices (w.r.t. Hamiltonian) <= #
 
-    @staticmethod
-    def compute_vqe_relaxed_dm(
-        hamiltonian,
-        vqe_circuit,
+    def compute_vqe_response_dm(
+        self,
         vqe_Cs,
         vqe_ws,
-        cis_Cs,
-        vqe_hessian,
-        vqe_hessian_cis,
         include_vqe_response=True,
         include_cis_response=True,
         ):
 
         # => RHSs <= #
 
-        G_vqe = np.zeros_like(vqe_circuit.param_values)
-        G1_cis = np.zeros_like(cis_Cs)
+        G_vqe = np.zeros_like(self.vqe_circuit.param_values)
+        G1_cis = np.zeros_like(self.cis_C)
         for vqe_C, vqe_w in zip(vqe_Cs, vqe_ws):
 
             # > VQE Generator State Prep Circuit < #
 
             thetas = AIEM.compute_cis_angles(cs=vqe_C)
-            cis_circuit = build_cis_circuit(thetas=thetas)
+            cis_circuit = AIEM.build_cis_circuit(thetas=thetas)
     
             # > CP-SA-VQE RHS < #
 
-            G_vqe += vqe_w * MCVQE.compute_vqe_energy_grad(
-                hamiltonian=hamiltonian,
-                cis_circuit=cis_circuit,
-                vqe_entangler_circuit=vqe_entangler_circuit,
+            cis_group = FixedParameterGroup(cis_circuit.param_values)
+            vqe_group = IdentityParameterGroup(self.vqe_circuit.nparam)
+            circuit = Circuit.concatenate([cis_circuit, self.vqe_circuit])  
+            parameter_group = CompositeParameterGroup([cis_group, vqe_group])
+            G_vqe += vqe_w * Collocation.compute_gradient(
+                backend=self.backend,
+                nmeasurement=self.nmeasurement_deriv,
+                hamiltonian=self.hamiltonian_pauli,
+                circuit=circuit,
+                parameter_group=parameter_group,
                 )
             
             # > CP-CIS RHS #1 < #
 
-            G1_cis += vqe_w * MCVQE.compute_vqe_energy_cis_gradient(
-                hamiltonian=hamiltonian,
-                vqe_C=vqe_C,
-                vqe_entangler_circuit=vqe_entangler_circuit,
-                cis_Cs=cis_Cs,
+            # NOTE: Requires explicit knowledge of CIS state prep circuit
+            cis_angle_jacobian = np.zeros((2*self.N+1, self.N))
+            cis_angle_jacobian[0,0] = 1.0
+            for A in range(self.N-1):
+                cis_angle_jacobian[2*A+1, A+1] = -0.5
+                cis_angle_jacobian[2*A+2, A+1] = +0.5
+            cis_group = LinearParameterGroup(cis_angle_jacobian)
+            vqe_group = FixedParameterGroup(self.vqe_circuit.param_values)
+            parameter_group = CompositeParameterGroup([cis_group, vqe_group])
+            G1_cis += vqe_w * Collocation.compute_gradient(
+                backend=self.backend,
+                nmeasurement=self.nmeasurement_deriv,
+                hamiltonian=self.hamiltonian_pauli,
+                circuit=circuit,
+                parameter_group=parameter_group,
                 )
 
         # => CP-SA-VQE <= #
@@ -1453,7 +1470,7 @@ class AIEM(object):
 
         # Solution
         # TODO: Conditioning parameters
-        h_vqe, U_vqe = np.linalg.eigh(vqe_hessian)
+        h_vqe, U_vqe = np.linalg.eigh(self.vqe_hessian)
         hinv_vqe = 1.0 / h_vqe
         hinv_vqe[np.abs(h_vqe) < 1.0E-10] = 0.0
         G2_vqe = np.dot(G_vqe, U_vqe)
@@ -1461,12 +1478,10 @@ class AIEM(object):
         K_vqe = np.dot(U_vqe, K2_vqe) 
 
         # Response density matrix
-        cis_angles = [MCVQE.compute_cis_angles(cs=cis_Cs[:,T]) for T in range(cis_Cs.shape[1])]
-        cis_circuits = [MCVQE.build_cis_circuit(thetas=thetas) for thetas in cis_angles]
-        pauli_dm_vqe = MCVQE.compute_sa_vqe_response_pauli_dm(
+        pauli_dm_vqe = AIEM.compute_sa_vqe_response_pauli_dm(
             hamiltonian=hamiltonian,
             cis_circuits=cis_circuits,
-            vqe_entangler_circuit=vqe_entangler_circuit,
+            vqe_circuit=vqe_circuit,
             lagrangian=K_vqe,
             )
 
@@ -1476,7 +1491,7 @@ class AIEM(object):
         # See above
         
         # RHS #2
-        G2_cis = np.einsum('i,ijk->jk', K_vqe, vqe_hessian_cis)
+        G2_cis = np.einsum('i,ijk->jk', K_vqe, self.vqe_hessian_cis)
 
         # Total RHS
         G_cis = G1_cis + G2_cis
@@ -1484,29 +1499,28 @@ class AIEM(object):
     
         # Solution
         # TODO: Conditioning parameters
-        K_cis = MCVQE.compute_cp_cis(
-            hamiltonian=hamiltonian,
-            cis_Cs=cis_Cs,
+        K_cis = AIEM.compute_cp_cis(
+            hamiltonian=self.aiem_hamiltonian_pauli,
+            cis_Cs=self.cis_C,
             RHS=G_cis,
             )
 
         # Response density matrix
-        pauli_dm_cis = MCVQE.compute_cis_response_pauli_dm(
-            hamiltonian=hamiltonian,
-            cis_Cs=cis_Cs,
+        pauli_dm_cis = AIEM.compute_cis_response_pauli_dm(
+            hamiltonian=self.aiem_hamiltonian_pauli,
+            cis_Cs=self.cis_C,
             cis_Xs=K_cis,
             )
 
         # => Assembly <= #
 
-        pauli_dm_total = AIEMPauli.zeros_like(pauli_dm_0)
-        pauli_dm_total = AIEMPauli.axpby(a=1.0, b=1.0, x=pauli_dm_0, y=pauli_dm_total)
+        pauli_dm_r = AIEMPauli.zeros_like(self.aiem_hamiltonian_pauli)
         if include_vqe_response:
-            pauli_dm_total = AIEMPauli.axpby(a=1.0, b=1.0, x=pauli_dm_vqe, y=pauli_dm_total)
+            pauli_dm_r = AIEMPauli.axpby(a=1.0, b=1.0, x=pauli_dm_vqe, y=pauli_dm_r)
         if include_cis_response:
-            pauli_dm_total = AIEMPauli.axpby(a=1.0, b=1.0, x=pauli_dm_cis, y=pauli_dm_total)
+            pauli_dm_r = AIEMPauli.axpby(a=1.0, b=1.0, x=pauli_dm_cis, y=pauli_dm_r)
 
-        return pauli_dm_total
+        return pauli_dm_r
 
     # => Classical Gradient Utility <= #
 
@@ -1520,4 +1534,242 @@ class AIEM(object):
         aiem_monomer_dm = AIEMUtil.pauli_to_monomer_grad(monomer=aiem_monomer, pauli=aiem_pauli_dm)
         grad = AIEMUtil.monomer_to_grad(grad=aiem_monomer_grad, monomer=aiem_monomer_dm)
         return grad
-         
+
+    # => Hessians <= #
+
+    @memoized_property
+    def vqe_hessian(self):
+
+        return AIEM.compute_sa_vqe_energy_hessian(
+            backend=self.backend,
+            nmeasurement=self.nmeasurement_deriv,
+            hamiltonian=self.hamiltonian_pauli,
+            vqe_circuit=self.vqe_circuit,
+            cis_circuits=self.cis_circuits,
+            cis_weights=self.cis_weights,
+            )
+
+    @staticmethod
+    def compute_sa_vqe_energy_hessian(
+        backend,
+        nmeasurement,
+        hamiltonian,
+        vqe_circuit,
+        cis_circuits,
+        cis_weights,
+        ):
+
+        thetas = vqe_circuit.param_values
+        H = np.zeros((len(thetas),)*2)
+        vqe_circuit2 = vqe_circuit.copy()
+        # Diagonal Terms
+        E, pauli_dm = Collocation.compute_sa_energy_and_pauli_dm(
+            backend=backend,
+            nmeasurement=nmeasurement,
+            hamiltonian=hamiltonian,
+            circuit=vqe_circuit,
+            reference_circuits=cis_circuits,
+            reference_weights=cis_weights,
+            )
+        for A in range(len(thetas)):
+            thetap = thetas.copy()
+            thetap[A] += np.pi / 2.0
+            vqe_circuit2.set_param_values(thetap)
+            Ep, pauli_dmp = Collocation.compute_sa_energy_and_pauli_dm(
+                backend=backend,
+                nmeasurement=nmeasurement,
+                hamiltonian=hamiltonian,
+                circuit=vqe_circuit,
+                reference_circuits=cis_circuits,
+                reference_weights=cis_weights,
+                )
+            thetam = thetas.copy()
+            thetam[A] -= np.pi / 2.0
+            vqe_circuit2.set_param_values(thetam)
+            Em, pauli_dmm = Collocation.compute_sa_energy_and_pauli_dm(
+                backend=backend,
+                nmeasurement=nmeasurement,
+                hamiltonian=hamiltonian,
+                circuit=vqe_circuit,
+                reference_circuits=cis_circuits,
+                reference_weights=cis_weights,
+                )
+            H[A,A] = Ep - 2.0 * E + Em
+        # Off-Diagonal Terms
+        for A in range(len(thetas)):
+            for B in range(A):
+                # ++
+                thetapp = thetas.copy()
+                thetapp[A] += np.pi / 4.0
+                thetapp[B] += np.pi / 4.0
+                vqe_circuit2.set_param_values(thetapp)
+                Epp, pauli_dmpp = Collocation.compute_sa_energy_and_pauli_dm(
+                    backend=backend,
+                    nmeasurement=nmeasurement,
+                    hamiltonian=hamiltonian,
+                    circuit=vqe_circuit,
+                    reference_circuits=cis_circuits,
+                    reference_weights=cis_weights,
+                    )
+                # +-
+                thetapm = thetas.copy()
+                thetapm[A] += np.pi / 4.0
+                thetapm[B] -= np.pi / 4.0
+                vqe_circuit2.set_param_values(thetapm)
+                Epm, pauli_dmpm = Collocation.compute_sa_energy_and_pauli_dm(
+                    backend=backend,
+                    nmeasurement=nmeasurement,
+                    hamiltonian=hamiltonian,
+                    circuit=vqe_circuit,
+                    reference_circuits=cis_circuits,
+                    reference_weights=cis_weights,
+                    )
+                # -+
+                thetamp = thetas.copy()
+                thetamp[A] -= np.pi / 4.0
+                thetamp[B] += np.pi / 4.0
+                vqe_circuit2.set_param_values(thetamp)
+                Emp, pauli_dmmp = Collocation.compute_sa_energy_and_pauli_dm(
+                    backend=backend,
+                    nmeasurement=nmeasurement,
+                    hamiltonian=hamiltonian,
+                    circuit=vqe_circuit,
+                    reference_circuits=cis_circuits,
+                    reference_weights=cis_weights,
+                    )
+                # --
+                thetamm = thetas.copy()
+                thetamm[A] -= np.pi / 4.0
+                thetamm[B] -= np.pi / 4.0
+                vqe_circuit2.set_param_values(thetamm)
+                Emm, pauli_dmmm = Collocation.compute_sa_energy_and_pauli_dm(
+                    backend=backend,
+                    nmeasurement=nmeasurement,
+                    hamiltonian=hamiltonian,
+                    circuit=vqe_circuit,
+                    reference_circuits=cis_circuits,
+                    reference_weights=cis_weights,
+                    )
+                H[A,B] = H[B,A] = Epp - Epm - Emp + Emm
+    
+        return H
+
+    @memoized_property
+    def vqe_hessian_cis(self):
+
+        return AIEM.compute_sa_vqe_energy_hessian_cis(
+            backend=self.backend,
+            nmeasurement=self.nmeasurement_deriv,
+            hamiltonian=self.hamiltonian_pauli,
+            vqe_circuit=self.vqe_circuit,
+            cis_Cs=self.cis_C,
+            cis_ws=self.cis_weights,
+            )
+
+    @staticmethod
+    def compute_sa_vqe_energy_hessian_cis(
+        backend,
+        nmeasurement,
+        hamiltonian,
+        vqe_circuit,
+        cis_Cs,
+        cis_ws,
+        ):
+
+        H = np.zeros((len(vqe_circuit.params), cis_Cs.shape[0], cis_Cs.shape[1]))
+
+        thetas = vqe_circuit.param_values
+        vqe_circuit2 = vqe_circuit.copy()
+
+        # NOTE: Requires explicit knowledge of CIS state prep circuit
+        N = vqe_circuit.N
+        cis_angle_jacobian = np.zeros((2*N+1, N))
+        cis_angle_jacobian[0,0] = 1.0
+        for A in range(N-1):
+            cis_angle_jacobian[2*A+1, A+1] = -0.5
+            cis_angle_jacobian[2*A+2, A+1] = +0.5
+        cis_group = LinearParameterGroup(cis_angle_jacobian)
+        vqe_group = FixedParameterGroup(vqe_circuit.param_values)
+        parameter_group = CompositeParameterGroup([cis_group, vqe_group])
+
+        for I in range(cis_Cs.shape[1]):
+            cis_C = cis_Cs[:,I]
+            thetas_cis = AIEM.compute_cis_angles(cs=cis_C)
+            cis_circuit = AIEM.build_cis_circuit(thetas=thetas_cis)
+
+            for A in range(len(thetas)):
+                # +
+                thetasp = thetas.copy()
+                thetasp[A] += np.pi / 4.0
+                vqe_circuit2.set_param_values(thetasp)
+                circuit = Circuit.concatenate([cis_circuit, vqe_circuit2])
+                dthetasp = Collocation.compute_gradient(
+                    backend=backend,
+                    nmeasurement=nmeasurement,
+                    hamiltonian=hamiltonian,
+                    circuit=circuit,
+                    parameter_group=parameter_group,
+                    )
+                dCsp = AIEM.contract_cis_angles_jacobian(
+                    cs=cis_C,
+                    ds=dthetasp,
+                    )
+                # -
+                thetasm = thetas.copy()
+                thetasm[A] -= np.pi / 4.0
+                vqe_circuit2.set_param_values(thetasm)
+                circuit = Circuit.concatenate([cis_circuit, vqe_circuit2])
+                dthetasm = Collocation.compute_gradient(
+                    backend=backend,
+                    nmeasurement=nmeasurement,
+                    hamiltonian=hamiltonian,
+                    circuit=circuit,
+                    parameter_group=parameter_group,
+                    )
+                dCsm = AIEM.contract_cis_angles_jacobian(
+                    cs=cis_C,
+                    ds=dthetasm,
+                    )
+                # Assembly
+                H[A,:,I] = (dCsp - dCsm) * cis_ws[I]
+
+        return H
+
+    @staticmethod
+    def compute_cp_cis(
+        hamiltonian,
+        cis_Cs,
+        RHS,
+        ):
+
+        H = AIEM.compute_cis_hamiltonian(hamiltonian=hamiltonian)
+        cis_Es = np.diag(np.dot(cis_Cs.T, np.dot(H, cis_Cs)))
+        X = np.zeros_like(RHS)
+        for I in range(cis_Cs.shape[1]):
+            E = cis_Es[I]
+            C = cis_Cs[:,I]
+            R = RHS[:,I]
+            Hbar = H.copy()
+            Hbar -= np.diag(E * np.ones((H.shape[0],)))
+            Hbar -= 2.0 * E * np.outer(C, C)
+            X[:,I] = np.linalg.solve(Hbar, R)    
+
+        return X
+
+    @staticmethod
+    def compute_cis_response_pauli_dm(
+        hamiltonian,
+        cis_Cs,
+        cis_Xs,
+        ):
+        
+        D = np.dot(cis_Xs, cis_Cs.T)
+        for I in range(cis_Cs.shape[1]):
+            D -= np.sum(cis_Xs[:,I] * cis_Cs[:,I]) * np.outer(cis_Cs[:,I], cis_Cs[:,I])
+        # Symmetrize
+        D = 0.5 * (D + D.T)
+        return AIEM.compute_cis_hamiltonian_grad(
+            hamiltonian=hamiltonian,
+            D=D,
+            )
+
