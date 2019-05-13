@@ -85,7 +85,7 @@ class AIEM(object):
             value='mark2',
             required=True,
             allowed_types=[str],
-            allowed_values=['mark1', 'mark2'],
+            allowed_values=['mark1', 'mark2', 'mark3'],
             doc='CIS state preparation circuit recipe')
         opt.add_option(
             key='vqe_circuit',
@@ -205,6 +205,7 @@ class AIEM(object):
     def cis_circuit_function(self):
         if self.cis_circuit_type == 'mark1': return AIEM.build_cis_circuit_mark1
         elif self.cis_circuit_type == 'mark2': return AIEM.build_cis_circuit_mark2
+        elif self.cis_circuit_type == 'mark3': return AIEM.build_cis_circuit_mark3
         else: raise RuntimeError('Unknown cis_circuit_type: %s' % self.cis_circuit_type)
 
     @property
@@ -212,7 +213,7 @@ class AIEM(object):
         if self.options['vqe_circuit_type'] == 'mark1' : return AIEM.build_vqe_circuit_mark1
         if self.options['vqe_circuit_type'] == 'mark2' : return AIEM.build_vqe_circuit_mark2
         else: raise RuntimeError('Unknown vqe_circuit_type: %s' % self.options['vqe_circuit_type'])
-    
+
     @property
     def optimizer(self):
         return self.options['optimizer']
@@ -742,6 +743,18 @@ class AIEM(object):
             circuit.add_gate(T=2*I+1, key=(I, I+1), gate=Gate.CZ)
             circuit.add_gate(T=2*I+2, key=(I+1), gate=Gate.Ry(theta=+theta/2.0)) 
             circuit.add_gate(T=2*I+(3 if I+2 == N else 4), key=(I+1, I), gate=Gate.CX)
+        return circuit
+
+    @staticmethod
+    def build_cis_circuit_mark3(thetas):
+        N = len(thetas)
+        circuit = Circuit(N=N)
+        circuit.add_gate(T=0, key=0, gate=Gate.Ry(theta=thetas[0]))
+        for I, theta in enumerate(thetas[1:]):
+            circuit.add_gate(T=3*I, key=(I+1), gate=Gate.Ry(theta=-theta/2.0)) 
+            circuit.add_gate(T=3*I+1, key=(I, I+1), gate=Gate.CZ)
+            circuit.add_gate(T=3*I+2, key=(I+1), gate=Gate.Ry(theta=+theta/2.0)) 
+            circuit.add_gate(T=3*I+3, key=(I+1, I), gate=Gate.CX)
         return circuit
 
     # => CIS Verification <= #
@@ -1331,15 +1344,17 @@ class AIEM(object):
 
     def compute_vqe_dm(self, I=0, relaxed=False):
 
-        if relaxed: raise NotImplemented
+        # if relaxed: raise NotImplemented # TODO
 
-        return AIEMUtil.pauli_to_aiem_pauli(self.vqe_D2[I,I])
+        pauli = AIEMUtil.pauli_to_aiem_pauli(self.vqe_D2[I,I])
+        pauli.E = 1.0 # TODO: Not consistent placement
+        return pauli
 
     def compute_vqe_tdm(self, I=0, J=1, relaxed=False):
 
-        if I == J: raise RuntimeError('Can only compute tdm for I != J')
+        if I == J: raise RuntimeError('Can only compute tdm for I != J') 
 
-        if relaxed: raise NotImplemented
+        # if relaxed: raise NotImplemented # TODO
 
         return AIEMUtil.pauli_to_aiem_pauli(self.vqe_D2[I,J])
 

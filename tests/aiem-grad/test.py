@@ -7,17 +7,18 @@ if __name__ == '__main__':
 
     datapath = '../../data/aiem/bchl-a-8-stack/tc'
     filenames = ['%s/%d/exciton.dat' % (datapath, _) for _ in range(1, 8+1)]
-    N = 4
+    N = 2
     nstate = 3
     # connectivity = 'linear'
     connectivity = 'cyclic'
-    cis_circuit_type = 'mark2'
+    cis_circuit_type = 'mark3'
     vqe_circuit_type = 'mark1'
 
     aiem_monomer = quasar.AIEMMonomer.from_tc_exciton_files(
         filenames=filenames,
         N=N,
         connectivity=connectivity,
+        zero_gauge=True,
         )
 
     aiem_monomer_grad = quasar.AIEMMonomerGrad.from_tc_exciton_files(
@@ -27,9 +28,18 @@ if __name__ == '__main__':
         )
 
     optimizer = quasar.BFGSOptimizer.from_options(
-        g_convergence=1.0E-4,
-        maxiter=0,
+        g_convergence=1.0E-7,
+        maxiter=100,
         )
+
+    # optimizer = quasar.PowellOptimizer.from_options(
+    #     ftol=1.0E-8,
+    #     maxiter=100,
+    #     )
+
+    vqe_circuit = quasar.Circuit(N=N)
+    for A in range(N):
+        vqe_circuit.add_gate(T=0, key=A, gate=quasar.Gate.Ry(theta=0.0))
 
     aiem = quasar.AIEM.from_options(
         optimizer=optimizer,
@@ -38,11 +48,10 @@ if __name__ == '__main__':
         aiem_monomer=aiem_monomer,
         aiem_monomer_grad=aiem_monomer_grad,
         cis_circuit_type=cis_circuit_type,
-        vqe_circuit_type=vqe_circuit_type,
+        # vqe_circuit_type=vqe_circuit_type,
+        vqe_circuit=vqe_circuit,
         )
     aiem.compute_energy()
     
-    print(aiem.compute_fci_gradient(I=0))
-    print(aiem.compute_fci_coupling(I=0, J=1))
-    print(aiem.compute_cis_gradient(I=0))
-    print(aiem.compute_cis_coupling(I=0, J=1))
+    # quasar.AIEMGradCheck.test_fd_gradient_pauli(aiem=aiem)
+    quasar.AIEMGradCheck.test_fd_gradient_monomer(aiem=aiem)

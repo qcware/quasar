@@ -5,3 +5,4 @@ from .aiem_data import AIEMOperator
 from .aiem_data import AIEMPauli
 from .aiem_data import AIEMUtil
 from .aiem import AIEM
+from .aiem_check import AIEMGradCheck
