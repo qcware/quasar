@@ -587,6 +587,41 @@ class AIEM(object):
             print('')
         print('')
 
+    # => MC-VQE Convergence History <= #
+
+    @memoized_property
+    def vqe_sa_energy_history(self):
+        Es = []
+        for params in self.vqe_history:
+            vqe_circuit2 = self.vqe_circuit.copy()
+            vqe_circuit2.set_param_values(params)
+            Es.append(Collocation.compute_sa_energy_and_pauli_dm(
+                backend=self.backend,
+                nmeasurement=self.nmeasurement, 
+                hamiltonian=self.hamiltonian_pauli,
+                circuit=self.vqe_circuit,
+                reference_circuits=self.cis_circuits,
+                reference_weights=self.cis_weights, 
+                )[0])
+        return np.array(Es) 
+
+    @memoized_property
+    def vqe_sa_energy_grad_history(self):
+        Gs = []
+        for params in self.vqe_history:
+            vqe_circuit2 = self.vqe_circuit.copy()
+            vqe_circuit2.set_param_values(params)
+            Gs.append(Collocation.compute_sa_gradient(
+                backend=self.backend,
+                nmeasurement=self.nmeasurement, 
+                hamiltonian=self.hamiltonian_pauli,
+                circuit=self.vqe_circuit,
+                parameter_group=self.vqe_parameter_group,
+                reference_circuits=self.cis_circuits,
+                reference_weights=self.cis_weights, 
+                ))
+        return np.array(Gs) 
+
     # => CIS Considerations (Classical) <= #
 
     @staticmethod

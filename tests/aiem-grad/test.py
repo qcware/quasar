@@ -61,3 +61,6 @@ if __name__ == '__main__':
     
     quasar.AIEMGradCheck.test_fd_gradient_pauli(aiem=aiem, include_vqe_response=include_vqe_response, include_cis_response=include_cis_response)
     quasar.AIEMGradCheck.test_fd_gradient_monomer(aiem=aiem, include_vqe_response=include_vqe_response, include_cis_response=include_cis_response)
+
+    print(aiem.vqe_sa_energy_history)
+    print(aiem.vqe_sa_energy_grad_history)
