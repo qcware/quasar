@@ -1,0 +1,160 @@
+==> MC-VQE+AIEM <==
+
+Quantum Resources:
+  Backend        = Quasar Simulator Backend (Statevector)
+  Shots          = None
+  Shots Subspace = None
+
+AIEM Problem:
+ N            = 2
+ Ncis         = 3
+ Nstate       = 2
+ Connectivity = linear
+
+CIS Verification:
+
+State:       Match
+0    :  -4.163E-17
+1    :   8.674E-18
+
+SA-VQE Weights:
+
+State:      Weight
+0    :   5.000E-01
+1    :   5.000E-01
+
+VQE Entangler Circuit:
+  vqe_circuit_type = custom
+  vqe_nparam       = 2
+
+Initial VQE params taken from input circuit.
+
+ > Jacobi Optimizer <
+
+MC-VQE Jacobi Iterations:
+
+Jacobi Level       = 2
+Jacobi Randomize   = False
+DIIS Type          = anderson
+DIIS Max Vectors   = 6
+DIIS Flush Vectors = 20
+
+Jacobi Tasks:
+(1, 0)
+
+Iter:                   Energy          dE          dG  Time[s]
+   0:  -5.0660024291555368E-02  -5.066E-02   1.080E-02    0.009
+   1:  -5.1082539646513714E-02  -4.225E-04   3.469E-18    0.096
+
+Jacobi Iterations Converged
+
+Finished VQE Circuit:
+
+T   : |0 |
+          
+|0> : -Ry-
+          
+|1> : -Ry-
+
+T   : |0 |
+
+Finished VQE Parameters:
+
+Index T     Qubits     Name       Gate      :                    Value
+0     0     (0,)       theta      Ry        :  -4.3247477732567423E-02
+1     0     (1,)       theta      Ry        :   6.5847835323688861E-02
+
+State Energies (Total):
+
+State:                      FCI                      VQE                      CIS                     dVQE                     dCIS
+0    :   1.5998981271672236E-03   3.0968514746332332E-03   2.6888626045680625E-03    1.496953347466010E-03   1.0889644774008389E-03
+1    :   7.2082338722221362E-02   7.2541703254744919E-02   7.3794722834726836E-02    4.593645325235568E-04   1.7123841125054745E-03
+
+State Energies (Normal):
+
+State:                      FCI                      VQE                      CIS                     dVQE                     dCIS
+0    :  -8.7301918884035573E-02  -8.5804965536569563E-02  -8.6212954406634734E-02    1.496953347466010E-03   1.0889644774008389E-03
+1    :  -1.6819478288981431E-02  -1.6360113756457875E-02  -1.5107094176475966E-02    4.593645325235568E-04   1.7123841125054658E-03
+
+Excitation Energies:
+
+State:                      FCI                      VQE                      CIS                     dVQE                     dCIS
+1    :   7.0482440595054138E-02   6.9444851780111685E-02   7.1105860230158774E-02   -1.037588814942453E-03   6.2341963510463561E-04
+
+Oscillator Strengths:
+
+State:                      FCI                      VQE                      CIS                     dVQE                     dCIS
+1    :   3.9666054763929690E-02   7.7285799475552572E-02   8.9250613172958584E-02    3.761974471162288E-02   4.9584558409028895E-02
+
+FCI Excitation Fractions:
+
+A  :  I=  0  I=  1  
+0  :  0.009  0.705  
+1  :  0.044  0.312  
+
+VQE Excitation Fractions:
+
+A  :  I=  0  I=  1  
+0  :  0.001  0.769  
+1  :  0.030  0.234  
+
+CIS Excitation Fractions:
+
+A  :  I=  0  I=  1  
+0  :  0.001  0.760  
+1  :  0.045  0.235  
+
+  Viper:    "That's pretty arrogant, considering the company you're in."
+  Maverick: "Yes, sir."
+  Viper:    "I like that in a pilot."
+
+==> End MC-VQE+AIEM <==
+
+==> Pauli Gradient Check <==
+
+Analytical vs. Finite Difference:
+
+h0 = 1e-07
+h1 = 1e-07
+h2 = 1e-07
+
+Method: FCI
+
+ I:           E           X           Z          XX          XZ          ZX          ZZ
+ 0:   2.876E-11   1.262E-10   1.743E-10   1.176E-10   6.550E-11   6.550E-11   7.600E-11
+ 1:   2.876E-11   4.920E-11   6.890E-11   3.848E-11   9.129E-11   9.129E-11   2.184E-12
+
+Method: VQE
+
+ I:           E           X           Z          XX          XZ          ZX          ZZ
+ 0:   2.876E-11   6.959E-02   1.044E-02   1.450E-02   4.045E-02   4.045E-02   1.643E-02
+ 1:   2.876E-11   6.959E-02   1.044E-02   1.450E-02   4.045E-02   4.045E-02   1.643E-02
+
+Method: CIS
+
+ I:           E           X           Z          XX          XZ          ZX          ZZ
+ 0:   2.876E-11   1.514E-10   1.541E-10   3.102E-11   1.514E-10   1.514E-10   9.637E-11
+ 1:   2.876E-11   6.180E-12   2.095E-11   1.625E-11   1.722E-11   1.722E-11   1.855E-11
+
+Method to Method (Analytical):
+
+Method: FCI-VQE
+
+ I:           E           X           Z          XX          XZ          ZX          ZZ
+ 0:   0.000E+00   4.037E-02   3.861E-02   2.020E-01   2.986E-02   2.986E-02   8.574E-03
+ 1:   0.000E+00   1.003E-01   3.000E-02   3.334E-03   1.076E-01   1.076E-01   3.173E-02
+
+Method: FCI-CIS
+
+ I:           E           X           Z          XX          XZ          ZX          ZZ
+ 0:   0.000E+00   4.665E-02   1.478E-02   1.637E-01   4.097E-02   4.097E-02   1.578E-02
+ 1:   0.000E+00   2.297E-01   1.536E-01   6.481E-02   2.432E-01   2.432E-01   3.731E-02
+
+Method: VQE-CIS
+
+ I:           E           X           Z          XX          XZ          ZX          ZZ
+ 0:   0.000E+00   2.267E-02   4.103E-02   3.836E-02   2.377E-02   2.377E-02   7.202E-03
+ 1:   0.000E+00   1.294E-01   1.236E-01   6.814E-02   1.435E-01   1.435E-01   5.577E-03
+
+==> End Pauli Gradient Check <==
+

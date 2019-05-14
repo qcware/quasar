@@ -1,0 +1,553 @@
+==> MC-VQE+AIEM <==
+
+Quantum Resources:
+  Backend        = Quasar Simulator Backend (Statevector)
+  Shots          = None
+  Shots Subspace = None
+
+AIEM Problem:
+ N            = 2
+ Ncis         = 3
+ Nstate       = 2
+ Connectivity = linear
+
+CIS Verification:
+
+State:       Match
+0    :  -4.163E-17
+1    :   8.674E-18
+
+SA-VQE Weights:
+
+State:      Weight
+0    :   5.000E-01
+1    :   5.000E-01
+
+VQE Entangler Circuit:
+  vqe_circuit_type = custom
+  vqe_nparam       = 2
+
+Initial VQE params taken from input circuit.
+
+ > Jacobi Optimizer <
+
+MC-VQE Jacobi Iterations:
+
+Jacobi Level       = 2
+Jacobi Randomize   = False
+DIIS Type          = anderson
+DIIS Max Vectors   = 6
+DIIS Flush Vectors = 20
+
+Jacobi Tasks:
+(1, 0)
+
+Iter:                   Energy          dE          dG  Time[s]
+   0:  -5.0660024291555368E-02  -5.066E-02   1.080E-02    0.010
+   1:  -5.1082539646513714E-02  -4.225E-04   3.469E-18    0.098
+
+Jacobi Iterations Converged
+
+Finished VQE Circuit:
+
+T   : |0 |
+          
+|0> : -Ry-
+          
+|1> : -Ry-
+
+T   : |0 |
+
+Finished VQE Parameters:
+
+Index T     Qubits     Name       Gate      :                    Value
+0     0     (0,)       theta      Ry        :  -4.3247477732567423E-02
+1     0     (1,)       theta      Ry        :   6.5847835323688861E-02
+
+State Energies (Total):
+
+State:                      FCI                      VQE                      CIS                     dVQE                     dCIS
+0    :  -2.6825781542973396E+03  -2.6825766573439923E+03  -2.6825770653328623E+03    1.496953347214003E-03   1.0889644772760221E-03
+1    :  -2.6825076718567448E+03  -2.6825072124922121E+03  -2.6825059594726322E+03    4.593645326167461E-04   1.7123841125794570E-03
+
+State Energies (Normal):
+
+State:                      FCI                      VQE                      CIS                     dVQE                     dCIS
+0    :  -8.7301918884035573E-02  -8.5804965536569563E-02  -8.6212954406634734E-02    1.496953347466010E-03   1.0889644774008389E-03
+1    :  -1.6819478288981431E-02  -1.6360113756457875E-02  -1.5107094176475966E-02    4.593645325235568E-04   1.7123841125054658E-03
+
+Excitation Energies:
+
+State:                      FCI                      VQE                      CIS                     dVQE                     dCIS
+1    :   7.0482440595054138E-02   6.9444851780111685E-02   7.1105860230158774E-02   -1.037588814942453E-03   6.2341963510463561E-04
+
+Oscillator Strengths:
+
+State:                      FCI                      VQE                      CIS                     dVQE                     dCIS
+1    :   3.9666054763929690E-02   7.7285799475552572E-02   8.9250613172958584E-02    3.761974471162288E-02   4.9584558409028895E-02
+
+FCI Excitation Fractions:
+
+A  :  I=  0  I=  1  
+0  :  0.009  0.705  
+1  :  0.044  0.312  
+
+VQE Excitation Fractions:
+
+A  :  I=  0  I=  1  
+0  :  0.001  0.769  
+1  :  0.030  0.234  
+
+CIS Excitation Fractions:
+
+A  :  I=  0  I=  1  
+0  :  0.001  0.760  
+1  :  0.045  0.235  
+
+  Viper:    "That's pretty arrogant, considering the company you're in."
+  Maverick: "Yes, sir."
+  Viper:    "I like that in a pilot."
+
+==> End MC-VQE+AIEM <==
+
+==> Nuclear Gradient Check <==
+
+Analytical vs. Finite Difference:
+
+monomer = 0
+atom = 20
+coordinate = x
+delta = 0.002
+
+Method: FCI
+
+ I:           E
+ 0:   5.333E-08
+ 1:   2.924E-08
+
+Method: VQE
+
+ I:           E
+ 0:   6.220E-08
+ 1:   2.390E-08
+
+Method: CIS
+
+ I:           E
+ 0:   5.450E-08
+ 1:   8.292E-09
+
+Method to Method (Analytical):
+
+Method: FCI-VQE
+
+ I:           E
+ 0:   5.669E-04
+ 1:   2.597E-04
+
+Method: FCI-CIS
+
+ I:           E
+ 0:   2.070E-04
+ 1:   1.711E-03
+
+Method: VQE-CIS
+
+ I:           E
+ 0:   3.599E-04
+ 1:   1.451E-03
+
+==> End Nuclear Gradient Check <==
+
+==> Nuclear Gradient Check <==
+
+Analytical vs. Finite Difference:
+
+monomer = 0
+atom = 20
+coordinate = y
+delta = 0.002
+
+Method: FCI
+
+ I:           E
+ 0:   5.581E-07
+ 1:   6.260E-07
+
+Method: VQE
+
+ I:           E
+ 0:   5.539E-07
+ 1:   6.261E-07
+
+Method: CIS
+
+ I:           E
+ 0:   5.545E-07
+ 1:   6.222E-07
+
+Method to Method (Analytical):
+
+Method: FCI-VQE
+
+ I:           E
+ 0:   3.239E-04
+ 1:   2.791E-04
+
+Method: FCI-CIS
+
+ I:           E
+ 0:   4.396E-05
+ 1:   1.620E-03
+
+Method: VQE-CIS
+
+ I:           E
+ 0:   3.679E-04
+ 1:   1.341E-03
+
+==> End Nuclear Gradient Check <==
+
+==> Nuclear Gradient Check <==
+
+Analytical vs. Finite Difference:
+
+monomer = 0
+atom = 20
+coordinate = z
+delta = 0.002
+
+Method: FCI
+
+ I:           E
+ 0:   3.754E-07
+ 1:   3.980E-07
+
+Method: VQE
+
+ I:           E
+ 0:   3.782E-07
+ 1:   4.007E-07
+
+Method: CIS
+
+ I:           E
+ 0:   3.753E-07
+ 1:   4.096E-07
+
+Method to Method (Analytical):
+
+Method: FCI-VQE
+
+ I:           E
+ 0:   8.397E-05
+ 1:   2.923E-06
+
+Method: FCI-CIS
+
+ I:           E
+ 0:   1.279E-04
+ 1:   2.386E-04
+
+Method: VQE-CIS
+
+ I:           E
+ 0:   4.393E-05
+ 1:   2.416E-04
+
+==> End Nuclear Gradient Check <==
+
+==> Nuclear Gradient Check <==
+
+Analytical vs. Finite Difference:
+
+monomer = 0
+atom = 41
+coordinate = x
+delta = 0.002
+
+Method: FCI
+
+ I:           E
+ 0:   1.982E-07
+ 1:   1.951E-07
+
+Method: VQE
+
+ I:           E
+ 0:   1.988E-07
+ 1:   1.954E-07
+
+Method: CIS
+
+ I:           E
+ 0:   1.984E-07
+ 1:   1.993E-07
+
+Method to Method (Analytical):
+
+Method: FCI-VQE
+
+ I:           E
+ 0:   4.384E-04
+ 1:   1.849E-04
+
+Method: FCI-CIS
+
+ I:           E
+ 0:   1.827E-04
+ 1:   1.251E-03
+
+Method: VQE-CIS
+
+ I:           E
+ 0:   2.557E-04
+ 1:   1.066E-03
+
+==> End Nuclear Gradient Check <==
+
+==> Nuclear Gradient Check <==
+
+Analytical vs. Finite Difference:
+
+monomer = 0
+atom = 41
+coordinate = y
+delta = 0.002
+
+Method: FCI
+
+ I:           E
+ 0:   5.481E-06
+ 1:   5.485E-06
+
+Method: VQE
+
+ I:           E
+ 0:   5.482E-06
+ 1:   5.481E-06
+
+Method: CIS
+
+ I:           E
+ 0:   5.483E-06
+ 1:   5.492E-06
+
+Method to Method (Analytical):
+
+Method: FCI-VQE
+
+ I:           E
+ 0:   9.649E-04
+ 1:   3.847E-04
+
+Method: FCI-CIS
+
+ I:           E
+ 0:   3.707E-04
+ 1:   2.906E-03
+
+Method: VQE-CIS
+
+ I:           E
+ 0:   5.942E-04
+ 1:   2.522E-03
+
+==> End Nuclear Gradient Check <==
+
+==> Nuclear Gradient Check <==
+
+Analytical vs. Finite Difference:
+
+monomer = 0
+atom = 41
+coordinate = z
+delta = 0.002
+
+Method: FCI
+
+ I:           E
+ 0:   6.631E-08
+ 1:   5.050E-08
+
+Method: VQE
+
+ I:           E
+ 0:   6.668E-08
+ 1:   4.958E-08
+
+Method: CIS
+
+ I:           E
+ 0:   6.746E-08
+ 1:   4.888E-08
+
+Method to Method (Analytical):
+
+Method: FCI-VQE
+
+ I:           E
+ 0:   5.150E-04
+ 1:   1.754E-04
+
+Method: FCI-CIS
+
+ I:           E
+ 0:   2.497E-04
+ 1:   1.339E-03
+
+Method: VQE-CIS
+
+ I:           E
+ 0:   2.652E-04
+ 1:   1.164E-03
+
+==> End Nuclear Gradient Check <==
+
+==> Nuclear Gradient Check <==
+
+Analytical vs. Finite Difference:
+
+monomer = 0
+atom = 16
+coordinate = x
+delta = 0.002
+
+Method: FCI
+
+ I:           E
+ 0:   9.699E-08
+ 1:   1.410E-07
+
+Method: VQE
+
+ I:           E
+ 0:   8.920E-08
+ 1:   1.370E-07
+
+Method: CIS
+
+ I:           E
+ 0:   9.452E-08
+ 1:   1.118E-07
+
+Method to Method (Analytical):
+
+Method: FCI-VQE
+
+ I:           E
+ 0:   1.585E-04
+ 1:   3.321E-04
+
+Method: FCI-CIS
+
+ I:           E
+ 0:   2.437E-04
+ 1:   1.729E-03
+
+Method: VQE-CIS
+
+ I:           E
+ 0:   4.022E-04
+ 1:   1.397E-03
+
+==> End Nuclear Gradient Check <==
+
+==> Nuclear Gradient Check <==
+
+Analytical vs. Finite Difference:
+
+monomer = 0
+atom = 16
+coordinate = y
+delta = 0.002
+
+Method: FCI
+
+ I:           E
+ 0:   1.913E-06
+ 1:   2.352E-06
+
+Method: VQE
+
+ I:           E
+ 0:   1.788E-06
+ 1:   2.243E-06
+
+Method: CIS
+
+ I:           E
+ 0:   1.894E-06
+ 1:   1.876E-06
+
+Method to Method (Analytical):
+
+Method: FCI-VQE
+
+ I:           E
+ 0:   8.780E-05
+ 1:   1.018E-03
+
+Method: FCI-CIS
+
+ I:           E
+ 0:   1.357E-03
+ 1:   5.292E-03
+
+Method: VQE-CIS
+
+ I:           E
+ 0:   1.269E-03
+ 1:   4.275E-03
+
+==> End Nuclear Gradient Check <==
+
+==> Nuclear Gradient Check <==
+
+Analytical vs. Finite Difference:
+
+monomer = 0
+atom = 16
+coordinate = z
+delta = 0.002
+
+Method: FCI
+
+ I:           E
+ 0:   1.180E-06
+ 1:   1.278E-06
+
+Method: VQE
+
+ I:           E
+ 0:   1.172E-06
+ 1:   1.275E-06
+
+Method: CIS
+
+ I:           E
+ 0:   1.176E-06
+ 1:   1.258E-06
+
+Method to Method (Analytical):
+
+Method: FCI-VQE
+
+ I:           E
+ 0:   6.921E-05
+ 1:   2.044E-04
+
+Method: FCI-CIS
+
+ I:           E
+ 0:   8.052E-05
+ 1:   5.763E-04
+
+Method: VQE-CIS
+
+ I:           E
+ 0:   1.497E-04
+ 1:   3.719E-04
+
+==> End Nuclear Gradient Check <==
+

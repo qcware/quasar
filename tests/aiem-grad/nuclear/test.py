@@ -137,9 +137,14 @@ def verify_grad_fd(
 
 if __name__ == '__main__':
 
+    import sys
+    include_vqe_response = True if sys.argv[1] == 'True' else False
+    include_cis_response = True if sys.argv[2] == 'True' else False
+    npzfile = sys.argv[3]
+
     backend = quasar.QuasarSimulatorBackend()
 
-    datapath = '../../data/aiem/bchl-a-2-stack-fd/tc'
+    datapath = '../../../data/aiem/bchl-a-2-stack-fd/tc'
     filenames = ['%s/%d/exciton.dat' % (datapath, _) for _ in range(1, 2+1)]
     N = 2
     nstate = 2
@@ -174,21 +179,55 @@ if __name__ == '__main__':
         aiem_monomer=aiem_monomer,
         aiem_monomer_grad=aiem_monomer_grad,
         vqe_circuit=vqe_circuit,
-        print_level=0,
         )
     aiem.compute_energy()
 
-    include_vqe_response = True
-    include_cis_response = True
+    # Mg O, N, C, H
+    # monomers = [0, 0, 0, 1, 1]
+    # atoms = [20, 41, 16, 22, 31]
+    monomers = [0, 0, 0]
+    atoms = [20, 41, 16]
+    
+    G_fci = []
+    G_vqe = []
+    G_cis = []
+    G_fci_fd = []
+    G_vqe_fd = []
+    G_cis_fd = []
 
-    verify_grad_fd(
-        aiem=aiem,
-        connectivity=connectivity,
-        datapath=datapath,
-        monomer=0,
-        atom=20,
-        coordinate='x',
-        delta=0.002,
-        include_vqe_response=include_vqe_response,
-        include_cis_response=include_cis_response,
+    for monomer, atom in zip(monomers, atoms):
+        for coordinate in ['x', 'y', 'z']:
+
+            G_fci2, G_vqe2, G_cis2, G_fci_fd2, G_vqe_fd2, G_cis_fd2 = verify_grad_fd(
+                aiem=aiem,
+                connectivity=connectivity,
+                datapath=datapath,
+                monomer=monomer,
+                atom=atom,
+                coordinate=coordinate,
+                delta=0.002,
+                include_vqe_response=include_vqe_response,
+                include_cis_response=include_cis_response,
+                )
+            G_fci.append(G_fci2)
+            G_vqe.append(G_vqe2)
+            G_cis.append(G_cis2)
+            G_fci_fd.append(G_fci_fd2)
+            G_vqe_fd.append(G_vqe_fd2)
+            G_cis_fd.append(G_cis_fd2)
+
+    G_fci = np.array(G_fci)
+    G_vqe = np.array(G_vqe)
+    G_cis = np.array(G_cis)
+    G_fci_fd = np.array(G_fci_fd)
+    G_vqe_fd = np.array(G_vqe_fd)
+    G_cis_fd = np.array(G_cis_fd)
+
+    np.savez(npzfile,
+        G_fci=G_fci,
+        G_vqe=G_vqe,
+        G_cis=G_cis,
+        G_fci_fd=G_fci_fd,
+        G_vqe_fd=G_vqe_fd,
+        G_cis_fd=G_cis_fd,
         )
