@@ -276,7 +276,6 @@ class AIEMGradCheck(object):
                     np.max(np.abs(G1.ZX - G2.ZX)),
                     np.max(np.abs(G1.ZZ - G2.ZZ)),
                     ))
-            print(G1.X, G2.X)
 
             print('')
 

@@ -1354,14 +1354,6 @@ class AIEM(object):
         pauli = AIEMUtil.pauli_to_aiem_pauli(self.vqe_D2[I,I])
         pauli.E = 1.0 # TODO: Not consistent placement
 
-        print('Pauli DM 0:')
-        print(pauli.X)
-        print(pauli.Z)
-        print(pauli.XX)
-        print(pauli.XZ)
-        print(pauli.ZX)
-        print(pauli.ZZ)
-
         if relaxed:
             vqe_Cs = [self.vqe_C[:, I]]
             vqe_ws = [1.0]
@@ -1371,14 +1363,6 @@ class AIEM(object):
                 **kwargs)
             pauli = AIEMPauli.axpby(a=1.0, b=1.0, x=pauli, y=pauli_r)
 
-        print('Pauli DM:')
-        print(pauli.X)
-        print(pauli.Z)
-        print(pauli.XX)
-        print(pauli.XZ)
-        print(pauli.ZX)
-        print(pauli.ZZ)
-    
         return pauli
 
     def compute_vqe_tdm(self, I=0, J=1, relaxed=False, **kwargs):
@@ -1572,29 +1556,6 @@ class AIEM(object):
             cis_Cs=self.cis_C,
             cis_Xs=K_cis,
             )
-
-        print('G_vqe:', G_vqe)
-        print('K_vqe:', K_vqe)
-        print('G1_cis:', G1_cis)
-        print('G2_cis:', G2_cis)
-        print('G_cis:', G_cis)
-        print('K_cis:', K_cis)
-
-        print('Pauli DM VQE:')
-        print(pauli_dm_vqe.X)
-        print(pauli_dm_vqe.Z)
-        print(pauli_dm_vqe.XX)
-        print(pauli_dm_vqe.XZ)
-        print(pauli_dm_vqe.ZX)
-        print(pauli_dm_vqe.ZZ)
-
-        print('Pauli DM CIS:')
-        print(pauli_dm_cis.X)
-        print(pauli_dm_cis.Z)
-        print(pauli_dm_cis.XX)
-        print(pauli_dm_cis.XZ)
-        print(pauli_dm_cis.ZX)
-        print(pauli_dm_cis.ZZ)
 
         # => Assembly <= #
 
