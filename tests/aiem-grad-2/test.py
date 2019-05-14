@@ -92,3 +92,5 @@ if __name__ == '__main__':
         grad,
         scale=100.0,
         )
+
+    print(np.sum(grad,0))

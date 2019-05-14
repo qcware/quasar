@@ -1233,7 +1233,7 @@ class AIEM(object):
 
     def compute_fci_gradient(self, I=0):
 
-        aiem_pauli_dm = self.compute_fci_dm(I=0, relaxed=True)
+        aiem_pauli_dm = self.compute_fci_dm(I=I, relaxed=True)
 
         return AIEM.compute_nuclear_gradient(
             aiem_monomer=self.aiem_monomer,
@@ -1243,7 +1243,7 @@ class AIEM(object):
 
     def compute_fci_coupling(self, I=0, J=1):
 
-        aiem_pauli_dm = self.compute_fci_tdm(I=0, J=1, relaxed=True)
+        aiem_pauli_dm = self.compute_fci_tdm(I=I, J=J, relaxed=True)
 
         return AIEM.compute_nuclear_gradient(
             aiem_monomer=self.aiem_monomer,
@@ -1253,7 +1253,7 @@ class AIEM(object):
 
     def compute_vqe_gradient(self, I=0, **kwargs):
 
-        aiem_pauli_dm = self.compute_vqe_dm(I=0, relaxed=True, **kwargs)
+        aiem_pauli_dm = self.compute_vqe_dm(I=I, relaxed=True, **kwargs)
 
         return AIEM.compute_nuclear_gradient(
             aiem_monomer=self.aiem_monomer,
@@ -1263,7 +1263,7 @@ class AIEM(object):
 
     def compute_vqe_coupling(self, I=0, J=1, **kwargs):
 
-        aiem_pauli_dm = self.compute_vqe_tdm(I=0, J=1, relaxed=True, **kwargs)
+        aiem_pauli_dm = self.compute_vqe_tdm(I=I, J=J, relaxed=True, **kwargs)
 
         return AIEM.compute_nuclear_gradient(
             aiem_monomer=self.aiem_monomer,
@@ -1273,7 +1273,7 @@ class AIEM(object):
 
     def compute_cis_gradient(self, I=0):
 
-        aiem_pauli_dm = self.compute_cis_dm(I=0, relaxed=True)
+        aiem_pauli_dm = self.compute_cis_dm(I=I, relaxed=True)
 
         return AIEM.compute_nuclear_gradient(
             aiem_monomer=self.aiem_monomer,
@@ -1283,7 +1283,7 @@ class AIEM(object):
 
     def compute_cis_coupling(self, I=0, J=1):
 
-        aiem_pauli_dm = self.compute_cis_tdm(I=0, J=1, relaxed=True)
+        aiem_pauli_dm = self.compute_cis_tdm(I=I, J=J, relaxed=True)
 
         return AIEM.compute_nuclear_gradient(
             aiem_monomer=self.aiem_monomer,

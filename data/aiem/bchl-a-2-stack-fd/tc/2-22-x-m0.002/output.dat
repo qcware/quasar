@@ -1,0 +1,229 @@
+Startfile from command line: input.dat
+
+
+       ***********************************************************
+       *                    TeraChem v1.9-2019.04-dev            *
+       *                 Hg Version: ea8c0cb1e6f8+               *
+       *                   Development Version                   *
+       *                Compiled without textures                *
+       *           Chemistry at the Speed of Graphics!           *
+       ***********************************************************
+       * This program may only be used in connection with        *
+       * a valid license from PetaChem, LLC. Use of this program *
+       * or results thereof indicates acceptance of all terms    *
+       * and conditions stated in the license and that a valid   *
+       * license agreement between the user and PetaChem, LLC    *
+       * exists. PetaChem, LLC does not warrant the correctness  *
+       * of results or their suitability for any purpose.        *
+       * Please email bugs, suggestions, and comments to         *
+       *                  help@petachem.com                      *
+       *                                                         *
+       ***********************************************************
+
+
+       ***********************************************************
+       *  Compiled by egh4         Mon Apr 29 00:47:43 PDT 2019  *
+       *  Supported architectures: sm_35 sm_52 sm_61             *
+       *  Cuda compilation tools, release 8.0, V8.0.44           *
+       ***********************************************************
+
+
+ Job started   Tue May 14 09:41:37 2019
+ On fire-12-04 (available memory: 382235 MB)
+
+######################################### RUNTIME INFO ##########################################
+terachem input.dat 
+
+NVRM version: NVIDIA UNIX x86_64 Kernel Module  384.27  Sun May 21 00:39:55 PDT 2017
+GCC version:  gcc version 4.8.5 20150623 (Red Hat 4.8.5-11) (GCC) 
+
+	linux-vdso.so.1 =>  (0x00007ffca75d4000)
+	libcurl.so.4 => /usr/lib64/libcurl.so.4 (0x00007f7b70be7000)
+	libdftbplus.so => /home/egh4/TeraChem_4_16_19/build/lib/libdftbplus.so (0x00007f7b706c7000)
+	libfsockets.so => /home/egh4/TeraChem_4_16_19/build/lib/libfsockets.so (0x00007f7b704c3000)
+	libxmlf90.so => /home/egh4/TeraChem_4_16_19/build/lib/libxmlf90.so (0x00007f7b7029d000)
+	libOpenMM.so => /global/software/OpenMM/7.1-intel-2016.0.109-CUDA-8.0.44/lib/libOpenMM.so (0x00007f7b6fcdb000)
+	libprotobuf.so.12 => /global/software/protobuf/3.2.0-intel-2016.0.109/lib/libprotobuf.so.12 (0x00007f7b6f771000)
+	libintbox.so.1 => /home/egh4/TeraChem_4_16_19/build/lib/libintbox.so.1 (0x00007f7b5b3ef000)
+	libthcbox.so.1 => /home/egh4/TeraChem_4_16_19/build/lib/libthcbox.so.1 (0x00007f7b5a173000)
+	libgridbox.so.1 => /home/egh4/TeraChem_4_16_19/build/lib/libgridbox.so.1 (0x00007f7b59d37000)
+	libdftbox.so.1 => /home/egh4/TeraChem_4_16_19/build/lib/libdftbox.so.1 (0x00007f7b59931000)
+	libcibox.so.1 => /home/egh4/TeraChem_4_16_19/build/lib/libcibox.so.1 (0x00007f7b595cb000)
+	libgpubox.so.1 => /home/egh4/TeraChem_4_16_19/build/lib/libgpubox.so.1 (0x00007f7b593c5000)
+	libcuda.so.1 => /usr/lib64/libcuda.so.1 (0x00007f7b585a9000)
+	libcudart.so.8.0 => /global/software/CUDA/8.0.44/lib64/libcudart.so.8.0 (0x00007f7b58343000)
+	libcublas.so.8.0 => /global/software/CUDA/8.0.44/lib64/libcublas.so.8.0 (0x00007f7b55993000)
+	libcufft.so.8.0 => /global/software/CUDA/8.0.44/lib64/libcufft.so.8.0 (0x00007f7b4cb44000)
+	libcusparse.so.8.0 => /global/software/CUDA/8.0.44/lib64/libcusparse.so.8.0 (0x00007f7b4a036000)
+	libcrypto.so.10 => /usr/lib64/libcrypto.so.10 (0x00007f7b49c4c000)
+	libssl.so.10 => /usr/lib64/libssl.so.10 (0x00007f7b499dd000)
+	libm.so.6 => /usr/lib64/libm.so.6 (0x00007f7b496db000)
+	libcilkrts.so.5 => /global/software/ifort/2016.0.109/compilers_and_libraries_2016.0.109/linux/compiler/lib/intel64/libcilkrts.so.5 (0x00007f7b4949a000)
+	libstdc++.so.6 => /usr/lib64/libstdc++.so.6 (0x00007f7b49190000)
+	libgcc_s.so.1 => /usr/lib64/libgcc_s.so.1 (0x00007f7b48f7a000)
+	libpthread.so.0 => /usr/lib64/libpthread.so.0 (0x00007f7b48d5e000)
+	libc.so.6 => /usr/lib64/libc.so.6 (0x00007f7b4899c000)
+	/lib64/ld-linux-x86-64.so.2 (0x00007f7b70e63000)
+	libdl.so.2 => /usr/lib64/libdl.so.2 (0x00007f7b48798000)
+	libidn.so.11 => /usr/lib64/libidn.so.11 (0x00007f7b48565000)
+	libssh2.so.1 => /usr/lib64/libssh2.so.1 (0x00007f7b4833a000)
+	libssl3.so => /usr/lib64/libssl3.so (0x00007f7b480ee000)
+	libsmime3.so => /usr/lib64/libsmime3.so (0x00007f7b47ec7000)
+	libnss3.so => /usr/lib64/libnss3.so (0x00007f7b47b9c000)
+	libnssutil3.so => /usr/lib64/libnssutil3.so (0x00007f7b4796f000)
+	libplds4.so => /usr/lib64/libplds4.so (0x00007f7b4776b000)
+	libplc4.so => /usr/lib64/libplc4.so (0x00007f7b47565000)
+	libnspr4.so => /usr/lib64/libnspr4.so (0x00007f7b47327000)
+	libgssapi_krb5.so.2 => /usr/lib64/libgssapi_krb5.so.2 (0x00007f7b470d9000)
+	libkrb5.so.3 => /usr/lib64/libkrb5.so.3 (0x00007f7b46df1000)
+	libk5crypto.so.3 => /usr/lib64/libk5crypto.so.3 (0x00007f7b46bbf000)
+	libcom_err.so.2 => /usr/lib64/libcom_err.so.2 (0x00007f7b469bb000)
+	liblber-2.4.so.2 => /usr/lib64/liblber-2.4.so.2 (0x00007f7b467ab000)
+	libldap-2.4.so.2 => /usr/lib64/libldap-2.4.so.2 (0x00007f7b46558000)
+	libz.so.1 => /usr/lib64/libz.so.1 (0x00007f7b46342000)
+	libmkl_intel_lp64.so => /global/software/imkl/11.3.0.109-iimpi-2016.0.109/mkl/lib/intel64/libmkl_intel_lp64.so (0x00007f7b45a03000)
+	libmkl_intel_thread.so => /global/software/imkl/11.3.0.109-iimpi-2016.0.109/mkl/lib/intel64/libmkl_intel_thread.so (0x00007f7b446ac000)
+	libmkl_core.so => /global/software/imkl/11.3.0.109-iimpi-2016.0.109/mkl/lib/intel64/libmkl_core.so (0x00007f7b42dc7000)
+	libiomp5.so => /global/software/imkl/11.3.0.109-iimpi-2016.0.109/lib/intel64/libiomp5.so (0x00007f7b42a85000)
+	libifport.so.5 => /global/software/ifort/2016.0.109/compilers_and_libraries_2016.0.109/linux/compiler/lib/intel64/libifport.so.5 (0x00007f7b42856000)
+	libifcoremt.so.5 => /global/software/ifort/2016.0.109/compilers_and_libraries_2016.0.109/linux/compiler/lib/intel64/libifcoremt.so.5 (0x00007f7b424c3000)
+	libimf.so => /global/software/imkl/11.3.0.109-iimpi-2016.0.109/lib/intel64/libimf.so (0x00007f7b41fcb000)
+	libsvml.so => /global/software/imkl/11.3.0.109-iimpi-2016.0.109/lib/intel64/libsvml.so (0x00007f7b4110c000)
+	libintlc.so.5 => /global/software/imkl/11.3.0.109-iimpi-2016.0.109/lib/intel64/libintlc.so.5 (0x00007f7b40eac000)
+	librt.so.1 => /usr/lib64/librt.so.1 (0x00007f7b40ca4000)
+	libirng.so => /global/software/imkl/11.3.0.109-iimpi-2016.0.109/lib/intel64/libirng.so (0x00007f7b40a9c000)
+	libnvidia-fatbinaryloader.so.384.27 => /usr/lib64/libnvidia-fatbinaryloader.so.384.27 (0x00007f7b40849000)
+	libkrb5support.so.0 => /usr/lib64/libkrb5support.so.0 (0x00007f7b40639000)
+	libkeyutils.so.1 => /usr/lib64/libkeyutils.so.1 (0x00007f7b40435000)
+	libresolv.so.2 => /usr/lib64/libresolv.so.2 (0x00007f7b4021a000)
+	libsasl2.so.3 => /usr/lib64/libsasl2.so.3 (0x00007f7b3fffd000)
+	libselinux.so.1 => /usr/lib64/libselinux.so.1 (0x00007f7b3fdd5000)
+	libcrypt.so.1 => /usr/lib64/libcrypt.so.1 (0x00007f7b3fb9e000)
+	libpcre.so.1 => /usr/lib64/libpcre.so.1 (0x00007f7b3f93d000)
+	libfreebl3.so => /usr/lib64/libfreebl3.so (0x00007f7b3f739000)
+#################################################################################################
+
+Cannot find license.dat file in the TeraChem installation directory /home/egh4/TeraChem_4_16_19/build
+
+
+TRYING THE NETWORK LICENSE...
+Connecting to license server '54.208.252.40' port '8877'...
+Connected!
+Checking your license...
+
+**************************************************************
+  Greetings, Martinez Group! You have 1000 licenses in total
+  IN USE: 11
+  AVAILABLE: 989
+**************************************************************
+
+Jobname: geom
+Scratch directory: ./scr.geom
+Random number seed: 2066018953
+
+XYZ coordinates geom.xyz
+Molden File Output: ./scr.geom/geom.molden
+Using basis set: 6-31gs
+dmrgstart not found
+cibox_start not found
+Spin multiplicity: 1
+DIIS will use up to 10 vectors.
+Condition number limit for the DIIS overlap matrix is            0
+WF convergence threshold: 1.00e-08
+Using DIIS algorithm to converge WF
+Maximum number of SCF iterations: 100
+Incremental fock with rebuild every 8 iterations
+Will switch to conventional Fock if diffuse functions are detected
+X-matrix tolerance: 1.00e-04
+PRECISION: DOUBLE
+DFT Functional requested: wpbe
+Method: wPBE
+  wPBE exchange functional:   1.0 
+  LR Hartree-Fock exchange:   1.0 
+  Range Correction Scaling:   0.300 
+  PBE correlation functional: 1.0 
+Wavefunction: RESTRICTED
+DFT grid type: 1
+Using dynamic DFT grids.
+Initial guess generated by maximum overlap
+
+********************************************
+***** SINGLE POINT ENERGY CALCULATIONS *****
+********************************************
+
+using 8 out of 8 CUDA devices
+   Device 0:      GeForce GTX 970,  4037MB, CC 5.2 -- CPU THREAD 0
+   Device 1:      GeForce GTX 970,  4037MB, CC 5.2 -- CPU THREAD 1
+   Device 2:      GeForce GTX 970,  4037MB, CC 5.2 -- CPU THREAD 2
+   Device 3:      GeForce GTX 970,  4037MB, CC 5.2 -- CPU THREAD 3
+   Device 4:      GeForce GTX 970,  4037MB, CC 5.2 -- CPU THREAD 4
+   Device 5:      GeForce GTX 970,  4037MB, CC 5.2 -- CPU THREAD 5
+   Device 6:      GeForce GTX 970,  4037MB, CC 5.2 -- CPU THREAD 6
+   Device 7:      GeForce GTX 970,  4037MB, CC 5.2 -- CPU THREAD 7
+-------------------------------------------------------------------
+Compiled with MAGMA support.  MAGMA parameters:
+    Matrices larger than 5000 square will be treated with MAGMA
+       (Change by setting the MagmaMinN environment variable)
+    Magma will use 1 out of 8 GPUs
+       (Change by setting the MagmaNGPUs environment variable)
+-------------------------------------------------------------------
+ CPU Memory Available: 48347.00 MegaWords 
+ GPU Memory Available: 248.67 MegaWords 
+ Maximum recommended basis set size: 5100 basis functions
+ (limited by GPU memory)
+-------------------------------------------------------------------
+Using d-functions. Configuring GPUs accordingly.
+0: CUBLAS initialized, available GPU memory: 2052MB
+1: CUBLAS initialized, available GPU memory: 2050MB
+2: CUBLAS initialized, available GPU memory: 2052MB
+3: CUBLAS initialized, available GPU memory: 2052MB
+4: CUBLAS initialized, available GPU memory: 2052MB
+5: CUBLAS initialized, available GPU memory: 2050MB
+6: CUBLAS initialized, available GPU memory: 2052MB
+7: CUBLAS initialized, available GPU memory: 2052MB
+
+
+Basis set:       6-31gs
+Total atoms:     44
+Total charge:    0
+Total electrons: 196 (98-alpha, 98-beta)
+Number electrons modeled by ECPs: 0
+Total orbitals:  456
+Total AO shells: 202 (117 S-shells; 57 P-shells; 28 D-shells; 0 F-shells; 0 G-shells)
+Spin multiplicity: 1
+Nuclear repulsion energy (QM atoms): 2596.879735851959 a.u.
+
+Setting up the DFT grid...
+time to set the grid = 0.04 s
+DFT grid points: 44010 (1000 points/atom)
+Setting up the DFT grid...
+time to set the grid = 0.07 s
+DFT grid points: 122824 (2791 points/atom)
+
+                      *** Start SCF Iterations ***
+
+ Iter     DIIS Error       Energy change      Electrons        XC Energy           Energy        Time(s)
+----------------------------------------------------------------------------------------------------------
+         >>> Purifying P... IDMP = 1.21e-14 <<<
+                >>> SWITCHING TO GRID 1 <<<
+   1     0.2634140098   -1334.4272427272   196.0056351853  -141.4312349034   -1334.4272427272     2.93  
+                >>> SWITCHING TO GRID 0 <<<
+   2     0.1643157864      -4.7550903016   195.9990493988  -148.6454938663   -1339.1823330287     2.49  
+   3     0.1290219876      -1.4284992181   195.9997066661  -146.5274103943   -1340.6108322468     2.42  
+   4     0.1025847892      -0.5201454405   195.9989728120  -146.1812470067   -1341.1309776873     2.36  
+   5     0.0141332174      -0.1450459362   195.9991069311  -146.3892713407   -1341.2760236235     2.29  
+   6     0.0069725077      -0.0096588186   195.9990896260  -146.4244027885   -1341.2856824421     2.15  
+                >>> SWITCHING TO GRID 1 <<<
+   7     0.0026348501      +0.0020753718   196.0048020542  -146.3995065162   -1341.2836070703     2.48  
+   8     0.0015484622      -0.0005160091   196.0047981167  -146.4044544543   -1341.2841230794     2.43  
+   9     0.0010338560      -0.0002750603   196.0047963022  -146.4055983686   -1341.2843981397     2.88  
+  10     0.0008102386      -0.0001015589   196.0047963857  -146.4059742399   -1341.2844996986     2.36  
+  11     0.0005836254      -0.0000461980   196.0047973291  -146.4057207071   -1341.2845458966     2.31  
+  12     0.0003219687      -0.0000613132   196.0047983513  -146.4057311890   -1341.2846072098     2.38  
+  13     0.0001653474      -0.0000093622   196.0047981949  -146.4058151426   -1341.2846165720     2.29  
+  14     0.0000473669      -0.0000044044   196.0047980824  -146.4060702360   -1341.2846209764     2.30  
+  15     0.0000298656      -0.0000003702   196.0047980235  -146.4059933187   -1341.2846213466     2.15  
+  16     0.0000158871      -0.0000000381   196.0047980739  -146.4059895526   -1341.2846213848     2.04  
+  17     0.0000061360      -0.0000000223   196.0047980616  -146.4060109264   -1341.2846214071     2.91  
+  18     0.0000024728      -0.0000000025   196.0047980705  -146.4059954240   -1341.2846214095     1.94  
+  19     0.0000011021      -0.0000000005   196.0047980730  -146.4060023023   -1341.2846214100     1.89  
