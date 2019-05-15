@@ -1,0 +1,5 @@
+pauli - tests of N=2 BChl-a dimer from data/aiem/bchl-a-2-stack-fd (Pauli DMs vs FD)
+monomer - tests of N=2 BChl-a dimer from data/aiem/bchl-a-2-stack-fd (monomer props vs FD)
+nuclear - tests of N=2 BChl-a dimer from data/aiem/bchl-a-2-stack-fd (nuclear gradients vs FD)
+viz - visualization of N=2 BChl-a dimer from data/aiem/bchl-a-2-stack-fd
+viz-2 - visualization of N=2 BChl-a dimer from data/aiem/bchl-a-2-stack (same as above, but easier to tarball input)
