@@ -183,10 +183,8 @@ if __name__ == '__main__':
     aiem.compute_energy()
 
     # Mg O, N, C, H
-    # monomers = [0, 0, 0, 1, 1]
-    # atoms = [20, 41, 16, 22, 31]
-    monomers = [0, 0, 0]
-    atoms = [20, 41, 16]
+    monomers = [0, 0, 0, 1, 1]
+    atoms = [20, 41, 16, 22, 31]
     
     G_fci = []
     G_vqe = []
