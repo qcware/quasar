@@ -110,6 +110,8 @@ A  :  I=  0  I=  1
 
 ==> End MC-VQE+AIEM <==
 
+[-0.08580497 -0.01636011]
+[0.0772858]
 VQE Gradient I = 1:
 
 Monomer 0:

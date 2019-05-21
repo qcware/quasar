@@ -149,11 +149,14 @@ class Pauli(object):
     def __init__(
         self,
         strings,
-        values,
+        values=None,
         ):
 
         self.strings = strings
-        self.values = values 
+        if values is None:
+            self.values = np.zeros((len(strings),))
+        else:
+            self.values = values 
         
         if not isinstance(self.strings, tuple): raise RuntimeError('strings must be tuple')
         if not isinstance(self.values, np.ndarray): raise RuntimeError('values must be np.ndarray')

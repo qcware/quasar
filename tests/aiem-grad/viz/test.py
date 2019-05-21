@@ -78,6 +78,8 @@ if __name__ == '__main__':
         vqe_circuit=vqe_circuit,
         )
     aiem.compute_energy()
+    print(aiem.vqe_E)
+    print(aiem.vqe_O)
 
     grad = aiem.compute_vqe_gradient(I=I, include_vqe_response=include_vqe_response, include_cis_response=include_cis_response)
     print('VQE Gradient I = %d:\n' % I)
