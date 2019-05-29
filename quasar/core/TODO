@@ -1,9 +1,0 @@
-# TODO: VQE
-# TODO: Jacobi Optimizer
-# TODO: Bounded Powell Optimizer
-# TODO: Cirq Backend
-# TODO: PyQuil Backend
-# TODO: Counts from Statevector
-# TODO: Counts from Hardware
-# TODO: Pauli from Hardware
-# TODO: Canonicalization of Pauli?
