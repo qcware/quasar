@@ -192,7 +192,44 @@ class Pauli(collections.OrderedDict):
         elif isinstance(other, Pauli):
 
             if self.nterm == 1 and other.nterm == 1:
-                return Pauli(collections.OrderedDict([(PauliString(list(self.keys())[0] + list(other.keys())[0]), list(self.values())[0]*list(other.values())[0])]))
+                value = list(self.values())[0] * list(other.values())[0]
+                strings1 = list(self.keys())[0]
+                strings2 = list(other.keys())[0]
+                indices1 = strings1.indices
+                indices2 = strings2.indices
+                operators = []
+                for string1 in strings1:
+                    if string1.index not in indices2:
+                        operators.append(string1)
+                    else:
+                        # Pauli products on same index
+                        string2 = strings2[indices2.index(string1.index)]
+                        char1 = string1.char
+                        char2 = string2.char
+                        if char1 == char2:
+                            continue # X*X, Y*Y, Z*Z = I
+                        elif (char1, char2) == ('X', 'Y'):
+                            value *= +1.j
+                            operators.append(PauliOperator(index=string1.index, char='Z'))
+                        elif (char1, char2) == ('Y', 'X'):
+                            value *= -1.j
+                            operators.append(PauliOperator(index=string1.index, char='Z'))
+                        elif (char1, char2) == ('Y', 'Z'):
+                            value *= +1.j
+                            operators.append(PauliOperator(index=string1.index, char='X'))
+                        elif (char1, char2) == ('Z', 'Y'):
+                            value *= -1.j
+                            operators.append(PauliOperator(index=string1.index, char='X'))
+                        elif (char1, char2) == ('Z', 'X'):
+                            value *= +1.j
+                            operators.append(PauliOperator(index=string1.index, char='Y'))
+                        elif (char1, char2) == ('X', 'Z'):
+                            value *= -1.j
+                            operators.append(PauliOperator(index=string1.index, char='Y'))
+                for string2 in strings2:
+                    if string2.index not in indices1:
+                        operators.append(string2)
+                return Pauli(collections.OrderedDict([(PauliString(tuple(operators)), value)]))
             else:
                 pauli = Pauli(collections.OrderedDict())
                 for k1, v1 in self.items():
