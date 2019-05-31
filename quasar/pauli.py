@@ -97,7 +97,7 @@ class Pauli(collections.OrderedDict):
 
         for k, v in self.items():
             if not isinstance(k, PauliString): raise RuntimeError('Key must be PauliString: %s' % k) 
-            if not isinstance(v, float): raise RuntimeError('Value must be float: %s' % v) 
+            if not isinstance(v, (float, complex)): raise RuntimeError('Value must be float or complex: %s' % v) 
 
     def __contains__(
         self,
@@ -122,7 +122,7 @@ class Pauli(collections.OrderedDict):
         ):
 
         if not isinstance(key, PauliString): raise RuntimeError('Key must be PauliString: %s' % key)
-        if not isinstance(value, float): raise RuntimeError('Value must be float: %s' % value)
+        if not isinstance(value, (float, complex)): raise RuntimeError('Value must be float or complex: %s' % value)
         return super(Pauli, self).__setitem__(key, value)
 
     def get(
@@ -132,7 +132,7 @@ class Pauli(collections.OrderedDict):
         ):
 
         if not isinstance(key, PauliString): raise RuntimeError('Key must be PauliString: %s' % key)
-        if default is not None and not isinstance(default, float): raise RuntimeError('default must be float: %s' % default)
+        if default is not None and not isinstance(default, (float, complex)): raise RuntimeError('default must be float or complex: %s' % default)
         return super(Pauli, self).get(key, default)
 
     def setdefault(
@@ -142,7 +142,7 @@ class Pauli(collections.OrderedDict):
         ):
 
         if not isinstance(key, PauliString): raise RuntimeError('Key must be PauliString: %s' % key)
-        if default is not None and not isinstance(default, float): raise RuntimeError('default must be float: %s' % default)
+        if default is not None and not isinstance(default, (float, complex)): raise RuntimeError('default must be float or complex: %s' % default)
         return super(Pauli, self).setdefault(key, default)
 
     def update(self, *args, **kwargs):
@@ -185,21 +185,28 @@ class Pauli(collections.OrderedDict):
 
     def __mul__(self, other):
         
-        if isinstance(other, float):
+        if isinstance(other, (float, complex)):
         
             return Pauli(collections.OrderedDict((k, other*v) for k, v in self.items()))
 
         elif isinstance(other, Pauli):
 
-            if self.nterm != 1 or other.nterm != 1: raise RuntimeError('Can only multiply single string Paulis')
-
-            return Pauli(collections.OrderedDict([(PauliString(list(self.keys())[0] + list(other.keys())[0]), list(self.values())[0]*list(other.values())[0])]))
+            if self.nterm == 1 and other.nterm == 1:
+                return Pauli(collections.OrderedDict([(PauliString(list(self.keys())[0] + list(other.keys())[0]), list(self.values())[0]*list(other.values())[0])]))
+            else:
+                pauli = Pauli(collections.OrderedDict())
+                for k1, v1 in self.items():
+                    pauli1 = Pauli(collections.OrderedDict([(k1, v1)]))
+                    for k2, v2 in other.items():
+                        pauli2 = Pauli(collections.OrderedDict([(k2, v2)]))
+                        pauli += pauli1 * pauli2 # You see that?!!
+                return pauli
 
         return NotImplemented
             
     def __rmul__(self, other):
         
-        if isinstance(other, float):
+        if isinstance(other, (float, complex)):
         
             return Pauli(collections.OrderedDict((k, other*v) for k, v in self.items()))
 
@@ -207,7 +214,7 @@ class Pauli(collections.OrderedDict):
 
     def __truediv__(self, other):
         
-        if isinstance(other, float):
+        if isinstance(other, (float, complex)):
         
             return Pauli(collections.OrderedDict((k, v/other) for k, v in self.items()))
 
@@ -222,7 +229,7 @@ class Pauli(collections.OrderedDict):
                 pauli2[k] = self.get(k, 0.0) + v
             return pauli2
 
-        elif isinstance(other, float):
+        elif isinstance(other, (float, complex)):
 
             pauli2 = self.copy()
             pauli2[PauliString.I] = self.get(PauliString.I, 0.0) + other
@@ -239,7 +246,7 @@ class Pauli(collections.OrderedDict):
                 pauli2[k] = self.get(k, 0.0) - v
             return pauli2
 
-        elif isinstance(other, float):
+        elif isinstance(other, (float, complex)):
 
             pauli2 = self.copy()
             pauli2[PauliString.I] = self.get(PauliString.I, 0.0) - other
@@ -255,7 +262,7 @@ class Pauli(collections.OrderedDict):
                 self[k] = self.get(k, 0.0) + v
             return self
 
-        elif isinstance(other, float):
+        elif isinstance(other, (float, complex)):
 
             self[PauliString.I] = self.get(PauliString.I, 0.0) + other
             return self
@@ -270,7 +277,7 @@ class Pauli(collections.OrderedDict):
                 self[k] = self.get(k, 0.0) - v
             return self
 
-        elif isinstance(other, float):
+        elif isinstance(other, (float, complex)):
 
             self[PauliString.I] = self.get(PauliString.I, 0.0) - other
             return self
@@ -281,7 +288,7 @@ class Pauli(collections.OrderedDict):
 
         if not isinstance(other, Pauli): raise TypeError('other must be Pauli')
 
-        return sum(v*other.get(k,0.0) for k, v in self.items())
+        return sum(v*other.get(k, 0.0) for k, v in self.items())
 
     @property
     def norm2(self):
@@ -291,9 +298,16 @@ class Pauli(collections.OrderedDict):
     def norminf(self):
         return np.max(np.abs(self.values()))
 
+    @staticmethod
+    def zero():
+        return Pauli(collections.OrderedDict())
+
     @staticmethod   
     def zeros_like(x):
         return Pauli(collections.OrderedDict((k, 0.0) for k, v in self.items()))
+
+    def sieved(self, cutoff=1.0E-14):
+        return Pauli(collections.OrderedDict((k, v) for k, v in self.items() if np.abs(v) > cutoff))
 
 class PauliStarter(object):
 
@@ -317,5 +331,5 @@ Pauli.I = Pauli(collections.OrderedDict([(PauliString.I, 1.0)]))
 Pauli.X = PauliStarter.X
 Pauli.Y = PauliStarter.Y
 Pauli.Z = PauliStarter.Z
-Paili.XYZ = (Pauli.X, Pauli.Y, Pauli.Z)
-Paili.IXYZ = (Pauli.I, Pauli.X, Pauli.Y, Pauli.Z)
+Pauli.XYZ = (Pauli.X, Pauli.Y, Pauli.Z)
+Pauli.IXYZ = (Pauli.I, Pauli.X, Pauli.Y, Pauli.Z)
