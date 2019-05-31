@@ -1,5 +1,5 @@
+import collections
 import numpy as np
-import itertools
 
 class PauliOperator(tuple):
 
@@ -87,135 +87,131 @@ class PauliString(tuple):
                 operators=tuple(PauliOperator.from_string(_) for _ in string.split('*')),
                 )
 
-    def __repr__(self):
-        return 'PauliString(%s)' % repr(self.operators)
-        
-
-class Pauli(object):
+class Pauli(collections.OrderedDict):
 
     def __init__(
         self,
-        strings,
-        values=None,
+        *args,
+        **kwargs,
         ):
 
-        self.strings = strings
-        if values is None:
-            self.values = np.zeros((len(strings),))
-        else:
-            self.values = values 
+        super(Pauli, self).__init__(*args, **kwargs)
+
+        for k, v in self.items():
+            if not isinstance(k, PauliString): raise RuntimeError('Key must be PauliString: %s' % k) 
+            if not isinstance(v, float): raise RuntimeError('Value must be float: %s' % v) 
+
+    def __contains__(
+        self,
+        key,
+        ):
+
+        if not isinstance(key, PauliString): raise RuntimeError('Key must be PauliString: %s' % key)
+        return super(Pauli, self).__contains__(key)
+
+    def __getitem__(
+        self,
+        key,
+        ):
+
+        if not isinstance(key, PauliString): raise RuntimeError('Key must be PauliString: %s' % key)
+        return super(Pauli, self).__getitem__(key)
+
+    def __setitem__(
+        self,
+        key,
+        value,
+        ):
+
+        if not isinstance(key, PauliString): raise RuntimeError('Key must be PauliString: %s' % key)
+        if not isinstance(value, float): raise RuntimeError('Value must be float: %s' % value)
+        return super(Pauli, self).__setitem__(key, value)
+
+    def get(
+        self,
+        key,
+        default=None,
+        ):
+
+        if not isinstance(key, PauliString): raise RuntimeError('Key must be PauliString: %s' % key)
+        if default is not None and not isinstance(default, float): raise RuntimeError('default must be float: %s' % default)
+        return super(Pauli, self).get(key, default)
+
+    def setdefault(
+        self,
+        key,
+        default=None,
+        ):
+
+        if not isinstance(key, PauliString): raise RuntimeError('Key must be PauliString: %s' % key)
+        if default is not None and not isinstance(default, float): raise RuntimeError('default must be float: %s' % default)
+        return super(Pauli, self).setdefault(key, default)
+
+    def update(self, *args, **kwargs):
+        raise RuntimeError('Pauli.update is not a well-defined operation, so we have poisoned this method of dict')
         
-        if not isinstance(self.strings, tuple): raise RuntimeError('strings must be tuple')
-        if not isinstance(self.values, np.ndarray): raise RuntimeError('values must be np.ndarray')
-
-        if len(self.strings) != self.nterm: raise RuntimeError('len(strings) must be nterm')
-        if self.values.shape != (self.nterm,): raise RuntimeError('values.shape must be (nterm,)')
-
-        if len(set(self.strings)) != len(self.strings): raise RuntimeError('strings are not unique')
-
-        self._index_map = { str(k) : k2 for k2, k in enumerate(self.strings) }
-
-    # => Attributes <= #
-
-    @property
-    def N(self):
-        return max(max(_.indices) for _ in self.strings if _.order > 0) + 1
-        
-    @property
-    def nterm(self):
-        return len(self.strings)
-
-    @property
-    def max_order(self):
-        return max(_.order for _ in self.strings)
-
-    def indices(self, order):
-        return tuple(sorted(set(_.indices for _ in self.strings if _.order==order))) 
-    
     # => String Representations <= #
 
     def __str__(self):
+        return '\n'.join(['%s*%s' % (value, string) for string, value in self.items()])
+
+    @property
+    def summary_str(self):
         s = 'Pauli:\n'
         s += '  %-10s = %d\n' % ('N', self.N)
         s += '  %-10s = %d\n' % ('nterm', self.nterm)
         s += '  %-10s = %d\n' % ('max_order', self.max_order)
         return s 
-
-    def __repr__(self):
-        return 'Pauli(%r, %r)' % (self.strings, self.values)
+    
+    # => Attributes <= #
 
     @property
-    def content_str(self):
-        return '\n'.join(['%s*%s' % (value, string) for string, value in zip(self.strings, self.values)])
+    def N(self):
+        return max(max(_.indices) for _ in self.keys() if _.order > 0) + 1
+        
+    @property
+    def nterm(self):
+        return len(self)
 
-    # => Dict-Type Views <= #
-
-    def __getitem__(self, key):
-        return self.values[self._index_map[str(key)]]
-
-    def __setitem__(self, key, value):
-        self.values[self._index_map[str(key)]] = value
-
-    def __contains__(self, key):
-        return self._index_map.__contains__(str(key))
-
-    @staticmethod
-    def equivalent_strings(x, y):
-        return x.strings == y.strings
+    @property
+    def max_order(self):
+        return max(_.order for _ in self.keys())
 
     # => Arithmetic <= #
 
     def __pos__(self):
-        return Pauli(
-            strings=self.strings,
-            values=+self.values,
-            )
+        return Pauli(collections.OrderedDict((k, v) for k, v in self.items()))
 
     def __neg__(self):
-        return Pauli(
-            strings=self.strings,
-            values=-self.values,
-            )
+        return Pauli(collections.OrderedDict((k, -v) for k, v in self.items()))
 
     def __mul__(self, other):
         
         if isinstance(other, float):
         
-            return Pauli(
-                strings=self.strings,
-                values=other*self.values,
-                )
+            return Pauli(collections.OrderedDict((k, other*v) for k, v in self.items()))
 
         elif isinstance(other, Pauli):
 
             if self.nterm != 1 or other.nterm != 1: raise RuntimeError('Can only multiply single string Paulis')
 
-            return Pauli(
-                strings=tuple([PauliString(self.strings[0] + other.strings[0])]),
-                values=self.values*other.values,
-                )
+            return Pauli(collections.OrderedDict([(PauliString(list(self.keys())[0] + list(other.keys())[0]), list(self.values())[0]*list(other.values())[0])]))
 
         return NotImplemented
             
     def __rmul__(self, other):
         
-        if isinstance(other, float): 
+        if isinstance(other, float):
         
-            return Pauli(
-                strings=self.strings,
-                values=other*self.values,
-                )
+            return Pauli(collections.OrderedDict((k, other*v) for k, v in self.items()))
 
         return NotImplemented
 
     def __truediv__(self, other):
         
-        if isinstance(other, float): 
+        if isinstance(other, float):
         
-            return Pauli(
-                strings=self.strings,
-                values=self.values/other,
-                )
+            return Pauli(collections.OrderedDict((k, v/other) for k, v in self.items()))
 
         return NotImplemented
 
@@ -223,21 +219,10 @@ class Pauli(object):
 
         if isinstance(other, Pauli):
 
-            strings = [_ for _ in self.strings]
-            values = [_ for _ in self.values]
-            
-            for string, value in zip(other.strings, other.values):
-                index = self._index_map.get(str(string), None)
-                if index is None:
-                    strings.append(string)
-                    values.append(value)        
-                else:
-                    values[index] += value
-            
-            return Pauli(
-                strings=tuple(strings),
-                values=np.array(values),
-                )
+            pauli2 = self.copy()
+            for k, v in other.items():
+                pauli2[k] = self.get(k, 0.0) + v
+            return pauli2
 
         return NotImplemented
 
@@ -245,21 +230,28 @@ class Pauli(object):
 
         if isinstance(other, Pauli):
 
-            strings = [_ for _ in self.strings]
-            values = [_ for _ in self.values]
-            
-            for string, value in zip(other.strings, other.values):
-                index = self._index_map.get(str(string), None)
-                if index is None:
-                    strings.append(string)
-                    values.append(-value)        
-                else:
-                    values[index] -= value
-            
-            return Pauli(
-                strings=tuple(strings),
-                values=np.array(values),
-                )
+            pauli2 = self.copy()
+            for k, v in other.items():
+                pauli2[k] = self.get(k, 0.0) - v
+            return pauli2
+
+        return NotImplemented
+
+    def __iadd__(self, other):
+
+        if isinstance(other, Pauli):
+            for k, v in other.items():
+                self[k] = self.get(k, 0.0) + v
+            return self
+
+        return NotImplemented
+
+    def __isub__(self, other):
+
+        if isinstance(other, Pauli):
+            for k, v in other.items():
+                self[k] = self.get(k, 0.0) - v
+            return self
 
         return NotImplemented
 
@@ -267,12 +259,7 @@ class Pauli(object):
 
         if not isinstance(other, Pauli): raise TypeError('other must be Pauli')
 
-        prod = 0.0
-        for string, value in zip(other.strings, other.values):
-            index = self._index_map.get(str(string), None)
-            if index is not None: prod += self.values[index] * value
-    
-        return prod
+        return sum(v*other.get(k,0.0) for k, v in self.items())
 
     @property
     def norm2(self):
@@ -280,17 +267,11 @@ class Pauli(object):
     
     @property
     def norminf(self):
-        return np.max(np.abs(self.values))
+        return np.max(np.abs(self.values()))
 
     @staticmethod   
     def zeros_like(x):
-
-        if not isinstance(x, Pauli): raise TypeError('x must be Pauli')
-    
-        return Pauli(
-            strings=x.strings,
-            values=np.zeros_like(x.values),
-            )
+        return Pauli(collections.OrderedDict((k, 0.0) for k, v in self.items()))
 
 class PauliStarter(object):
 
@@ -303,10 +284,7 @@ class PauliStarter(object):
         self.char = char
 
     def __getitem__(self, index):
-        return Pauli(
-            strings=tuple([PauliString((PauliOperator(index=index, char=self.char),))]),
-            values=np.array((1.0,)),
-            )
+        return Pauli(collections.OrderedDict([(PauliString((PauliOperator(index=index, char=self.char),)), 1.0)]))
 
 PauliStarter.X = PauliStarter('X')
 PauliStarter.Y = PauliStarter('Y')
