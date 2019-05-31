@@ -51,34 +51,30 @@ class PauliString(tuple):
     # => Attributes <= #
 
     @property
-    def operators(self):
-        return self
-
-    @property
     def order(self):
-        return len(self.operators)
+        return len(self)
 
     @property
     def indices(self):
-        return tuple([_.index for _ in self.operators])
+        return tuple([_.index for _ in self])
 
     @property
     def chars(self):
-        return tuple([_.char for _ in self.operators])
+        return tuple([_.char for _ in self])
 
     # => String Representations <= #
 
     def __str__(self):
-        if len(self.operators) == 0: return '1'
+        if len(self) == 0: return 'I'
         s = ''
-        for operator in self.operators[:-1]:
+        for operator in self[:-1]:
             s += '%s*' % str(operator)
-        s += str(self.operators[-1])
+        s += str(self[-1])
         return s
 
     @staticmethod
     def from_string(string):
-        if string == '1': 
+        if string == 'I': 
             return PauliString(
                 operators=tuple(),
                 )
@@ -86,6 +82,8 @@ class PauliString(tuple):
             return PauliString(
                 operators=tuple(PauliOperator.from_string(_) for _ in string.split('*')),
                 )
+
+PauliString.I = PauliString(tuple())
 
 class Pauli(collections.OrderedDict):
 
@@ -224,6 +222,12 @@ class Pauli(collections.OrderedDict):
                 pauli2[k] = self.get(k, 0.0) + v
             return pauli2
 
+        elif isinstance(other, float):
+
+            pauli2 = self.copy()
+            pauli2[PauliString.I] = self.get(PauliString.I, 0.0) + other
+            return pauli2 
+
         return NotImplemented
 
     def __sub__(self, other):
@@ -235,13 +239,25 @@ class Pauli(collections.OrderedDict):
                 pauli2[k] = self.get(k, 0.0) - v
             return pauli2
 
+        elif isinstance(other, float):
+
+            pauli2 = self.copy()
+            pauli2[PauliString.I] = self.get(PauliString.I, 0.0) - other
+            return pauli2 
+
         return NotImplemented
 
     def __iadd__(self, other):
 
         if isinstance(other, Pauli):
+
             for k, v in other.items():
                 self[k] = self.get(k, 0.0) + v
+            return self
+
+        elif isinstance(other, float):
+
+            self[PauliString.I] = self.get(PauliString.I, 0.0) + other
             return self
 
         return NotImplemented
@@ -249,8 +265,14 @@ class Pauli(collections.OrderedDict):
     def __isub__(self, other):
 
         if isinstance(other, Pauli):
+    
             for k, v in other.items():
                 self[k] = self.get(k, 0.0) - v
+            return self
+
+        elif isinstance(other, float):
+
+            self[PauliString.I] = self.get(PauliString.I, 0.0) - other
             return self
 
         return NotImplemented
@@ -289,7 +311,11 @@ class PauliStarter(object):
 PauliStarter.X = PauliStarter('X')
 PauliStarter.Y = PauliStarter('Y')
 PauliStarter.Z = PauliStarter('Z')
+PauliStarter.XYZ = (PauliStarter.X, PauliStarter.Y, PauliStarter.Z)
 
+Pauli.I = Pauli(collections.OrderedDict([(PauliString.I, 1.0)]))
 Pauli.X = PauliStarter.X
 Pauli.Y = PauliStarter.Y
 Pauli.Z = PauliStarter.Z
+Paili.XYZ = (Pauli.X, Pauli.Y, Pauli.Z)
+Paili.IXYZ = (Pauli.I, Pauli.X, Pauli.Y, Pauli.Z)
