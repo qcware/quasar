@@ -585,25 +585,25 @@ class Circuit(object):
         An example Circuit construction is,
 
         >>> circuit = Circuit(N=2)
-        >>> circuit.add_gate(T=0, key=0, Gate.H)
-        >>> circuit.add_gate(T=0, key=(1,), Gate.X)
-        >>> circuit.add_gate(T=1, key=(0,1), Gate.CNOT)
+        >>> circuit.add_gate(time=0, qubits=0, Gate.H)
+        >>> circuit.add_gate(time=0, qubits=(1,), Gate.X)
+        >>> circuit.add_gate(time=1, qubits=(0,1), Gate.CNOT)
         >>> print(circuit)
         
         A Circuit is always constructed with a fixed number of qubits N, but
-        the time window of the circuit is freely expandable from T=0 onward.
+        the time window of the circuit is freely expandable from time=0 onward.
         The Circuit starts empty, and is filled one gate at a time by the
         add_gate function.
     
         The Circuit attribute Ts (list of int) contains the sorted list of time
-        indices T with significant gates, and the Circuit attribute nmoment
+        indices T with significant gates, and the Circuit attribute ntime
         (int) contains the total number of time moments, including empty
         moments.
 
         The core data of a Circuit is the gates attribute, which contains an
-        OrderedDict of (T, key) : Gate pairs for significant gates. The (T, key)
-        compound key specifies the time moment of the gate T (int), and the qubit
-        connections in key (tuple of int). len(key) is always gate.N.
+        OrderedDict of (time, qubits) : Gate pairs for significant gates. The (time, qubits)
+        compound key specifies the time moment of the gate (int), and the
+        qubit indices (tuple of int). len(qubits) is always gate.N.
         """
 
     def __init__(
@@ -630,7 +630,7 @@ class Circuit(object):
     # > Simple Circuit characteristics < #
 
     @property
-    def nmoment(self):
+    def ntime(self):
         """ The total number of time moments in the circuit (including blank moments) """
         return self.Ts[-1] + 1 if len(self.Ts) else 0
 
@@ -653,8 +653,8 @@ class Circuit(object):
 
     def add_gate(
         self,
-        T,
-        key,
+        time,
+        qubits,
         gate,
         copy=True,
         ):
@@ -662,8 +662,8 @@ class Circuit(object):
         """ Add a gate to the circuit.
 
         Params:
-            T (int) - the time index to add the gate at
-            key (int or tuple of int) - the qubit index or indices to add the gate at
+            time (int) - the time index to add the gate at
+            qubits (int or tuple of int) - the qubit index or indices to add the gate at
             gate (Gate) - the gate to add 
             copy (bool) - copy the gate or not?
         Result:
@@ -673,58 +673,58 @@ class Circuit(object):
             self - for chaining
 
         For one body gate, can add as either of:
-            circuit.add_gate(T, A, gate)
-            circuit.add_gate(T, (A,), gate)
+            circuit.add_gate(time, A, gate)
+            circuit.add_gate(time, (A,), gate)
         For two body gate, must add as:
-            circuit.add_gate(T, (A, B), gate)
+            circuit.add_gate(time, (A, B), gate)
         """
 
-        # Make key a tuple regardless of input
-        key2 = (key,) if isinstance(key, int) else key
-        # Check that T >= 0
-        if T < 0: raise RuntimeError('Negative T: %d' % T)
-        # Check that key makes sense for gate.N
-        if len(key2) != gate.N: raise RuntimeError('%d key entries provided for %d-body gate' % (len(key2), gate.N))
+        # Make qubits a tuple regardless of input
+        qubits = (qubits,) if isinstance(qubits, int) else qubits
+        # Check that time >= 0
+        if time < 0: raise RuntimeError('Negative time: %d' % time)
+        # Check that qubits makes sense for gate.N
+        if len(qubits) != gate.N: raise RuntimeError('%d qubits entries provided for %d-body gate' % (len(qubits), gate.N))
         # Check that the requested circuit locations are open
-        for A in key2:
-            if (T,A) in self.TAs: 
-                raise RuntimeError('T=%d, A=%d circuit location is already occupied' % (T,A))
+        for A in qubits:
+            if (time,A) in self.TAs: 
+                raise RuntimeError('time=%d, A=%d circuit location is already occupied' % (time,A))
             if A >= self.N:
                 raise RuntimeError('No qubit location %d' % A)
         # Add gate to circuit
-        self.gates[(T, key2)] = gate.copy() if copy else gate
+        self.gates[(time, qubits)] = gate.copy() if copy else gate
         # Update memoization of TAs and Ts
-        for A in key2:
-            self.TAs.add((T,A))
-        if T not in self.Ts:
-            self.Ts = list(sorted(self.Ts + [T]))
+        for A in qubits:
+            self.TAs.add((time,A))
+        if time not in self.Ts:
+            self.Ts = list(sorted(self.Ts + [time]))
 
         return self
 
     def gate(
         self,
-        T,
-        key,
+        time,
+        qubits,
         ):
 
-        """ Return the gate at a given moment T and qubit indices key
+        """ Return the gate at a given moment time and qubit indices qubits
 
         Params:
-            T (int) - the time index of the gate
-            key (int or tuple of int) - the qubit index or indices of the gate
+            time (int) - the time index of the gate
+            qubits (int or tuple of int) - the qubit index or indices of the gate
         Returns:
             (Gate) - the gate at the specified circuit coordinates
 
         For one body gate, can use as either of:
-            gate = circuit.gate(T, A)
-            gate = circuit.gate(T, (A,))
+            gate = circuit.gate(time, A)
+            gate = circuit.gate(time, (A,))
         For two body gate, must use as:
-            gate = circuit.gate(T, (A, B))
+            gate = circuit.gate(time, (A, B))
         """
 
-        # Make key a tuple regardless of input
-        key2 = (key,) if isinstance(key, int) else key
-        return self.gates[(T, key2)]
+        # Make qubits a tuple regardless of input
+        qubits = (qubits,) if isinstance(qubits, int) else qubits
+        return self.gates[(time, qubits)]
 
     # => Copy/Subsets/Concatenation <= #
 
@@ -743,20 +743,20 @@ class Circuit(object):
 
         circuit = Circuit(N=self.N)
         for key, gate in self.gates.items():
-            T, key2 = key
-            circuit.add_gate(T=T, key=key2, gate=gate.copy())
+            T, qubits = key
+            circuit.add_gate(time=T, qubits=qubits, gate=gate.copy())
         return circuit
 
     def subset(
         self,
-        Ts,
+        times,
         copy=True,
         ):
 
-        """ Return a Circuit with a subset of time moments Ts.
+        """ Return a Circuit with a subset of time moments times.
 
         Params:
-            Ts (list of int) - ordered time moments to slice into time moments
+            times (list of int) - ordered time moments to slice into time moments
                 [0,1,2,...] in the returned circuit.
             copy (bool) - copy Gate elements to remove parameter dependencies
                 between self and returned circuit (True - default) or not
@@ -766,13 +766,13 @@ class Circuit(object):
         """
 
         circuit = Circuit(N=self.N)
-        for T2, Tref in enumerate(Ts):
-            if Tref >= self.nmoment: raise RuntimeError('T >= self.nmoment: %d' % Tref)
+        for T2, Tref in enumerate(times):
+            if Tref >= self.ntime: raise RuntimeError('time >= self.ntime: %d' % Tref)
         for key, gate in self.gates.items():
-            T, key2 = key
-            if T in Ts:
-                T2 = [T2 for T2, Tref in enumerate(Ts) if Tref == T][0]
-                circuit.add_gate(T=T2, key=key2, gate=gate.copy() if copy else gate)
+            T, qubits = key
+            if T in times:
+                T2 = [T2 for T2, Tref in enumerate(times) if Tref == T][0]
+                circuit.add_gate(time=T2, qubits=qubits, gate=gate.copy() if copy else gate)
         return circuit
 
     @staticmethod
@@ -800,21 +800,21 @@ class Circuit(object):
         Tstart = 0
         for circuit2 in circuits:   
             for key, gate in circuit2.gates.items():
-                T, key2 = key
-                circuit.add_gate(T=T+Tstart, key=key2, gate=gate.copy() if copy else gate)
-            Tstart += circuit2.nmoment
+                T, qubits = key
+                circuit.add_gate(time=T+Tstart, qubits=qubits, gate=gate.copy() if copy else gate)
+            Tstart += circuit2.ntime
         return circuit
 
     def deadjoin(
         self,
-        keys,
+        qubits,
         copy=True,
         ):
 
-        """ Return a circuit with a subset of spatial qubit keys.
+        """ Return a circuit with a subset of qubits.
 
         Params:
-            keys (list of int) - ordered qubit indices to slice in spatial
+            qubits (list of int) - ordered qubit indices to slice in spatial
                 indices into the [0,1,2...] indices in the returned circuit.
             copy (bool) - copy Gate elements to remove parameter dependencies
                 between self and returned circuit (True - default) or not
@@ -823,16 +823,16 @@ class Circuit(object):
             (Circuit) - the qubit-sliced circuit.
         """
 
-        for A2, Aref in enumerate(keys):
+        for A2, Aref in enumerate(qubits):
             if Aref >= self.N: raise RuntimeError('A >= self.A: %d' % Aref)
 
-        Amap = { v : k for k, v in enumerate(keys) }
+        Amap = { v : k for k, v in enumerate(qubits) }
 
-        circuit = Circuit(N=len(keys))
+        circuit = Circuit(N=len(qubits))
         for key, gate in self.gates.items():
-            T, key2 = key
-            if all(x in Amap for x in key2):
-                circuit.add_gate(T=T, key=tuple(Amap[x] for x in key2), gate=gate.copy() if copy else gate)
+            T, qubits = key
+            if all(x in Amap for x in qubits):
+                circuit.add_gate(time=T, qubits=tuple(Amap[x] for x in qubits), gate=gate.copy() if copy else gate)
         return circuit
 
     @staticmethod
@@ -856,8 +856,8 @@ class Circuit(object):
         Astart = 0
         for circuit2 in circuits:   
             for key, gate in circuit2.gates.items():
-                T, key2 = key
-                circuit.add_gate(T=T, key=tuple(x + Astart for x in key2), gate=gate.copy() if copy else gate)
+                T, qubits = key
+                circuit.add_gate(time=T, qubits=tuple(x + Astart for x in qubits), gate=gate.copy() if copy else gate)
             Astart += circuit2.N
         return circuit
     
@@ -881,8 +881,8 @@ class Circuit(object):
 
         circuit = Circuit(N=self.N)
         for key, gate in self.gates.items():
-            T, key2 = key
-            circuit.add_gate(T=self.nmoment-T-1, key=key2, gate=gate)
+            T, qubits = key
+            circuit.add_gate(time=self.ntime-T-1, qubits=qubits, gate=gate)
         return circuit
 
     def nonredundant(
@@ -903,8 +903,8 @@ class Circuit(object):
         circuit = Circuit(N=self.N)
         Tmap = { v : k for k, v in enumerate(sorted(self.Ts)) }
         for key, gate in self.gates.items():
-            T, key2 = key
-            circuit.add_gate(T=Tmap[T], key=key2, gate=gate)
+            T, qubits = key
+            circuit.add_gate(time=Tmap[T], qubits=qubits, gate=gate)
         return circuit
 
     def compressed(
@@ -929,14 +929,14 @@ class Circuit(object):
 
         # Jam consecutive 1-body gates (removes runs of 1-body gates)
         circuit1 = self.copy()
-        plan = [[0 for x in range(self.nmoment)] for y in range(self.N)]
+        plan = [[0 for x in range(self.ntime)] for y in range(self.N)]
         for key, gate in circuit1.gates.items():
-            T, key2 = key
+            T, qubits = key
             if gate.N == 1:
-                A, = key2
+                A, = qubits
                 plan[A][T] = 1
             elif gate.N == 2:
-                A, B = key2
+                A, B = qubits
                 plan[A][T] = 2
                 plan[B][T] = -2
             else:
@@ -954,25 +954,25 @@ class Circuit(object):
                 elif V == 1:
                     U = np.dot(circuit1.gates[T,(A,)].U, U)
                 # If 2-body gate or end of circuit encountered, place 1-body gate
-                if U is not None and (V == 2 or V == -2 or T == self.nmoment - 1):
-                    circuit2.add_gate(T=Tstar, key=(A,), gate=Gate.U1(U=U))
+                if U is not None and (V == 2 or V == -2 or T == self.ntime - 1):
+                    circuit2.add_gate(time=Tstar, qubits=(A,), gate=Gate.U1(U=U))
                     Tstar = None
                     U = None
         for key, gate in circuit1.gates.items():
-            T, key2 = key
+            T, qubits = key
             if gate.N == 2:
-                circuit2.add_gate(T=T, key=key2, gate=gate)
+                circuit2.add_gate(time=T, qubits=qubits, gate=gate)
 
         # Jam 1-body gates into 2-body gates if possible (not possible if 1-body gate wire)
         circuit1 = circuit2
-        plan = [[0 for x in range(self.nmoment)] for y in range(self.N)]
+        plan = [[0 for x in range(self.ntime)] for y in range(self.N)]
         for key, gate in circuit1.gates.items():
-            T, key2 = key
+            T, qubits = key
             if gate.N == 1:
-                A, = key2
+                A, = qubits
                 plan[A][T] = 1
             elif gate.N == 2:
-                A, B = key2
+                A, B = qubits
                 plan[A][T] = 2
                 plan[B][T] = -2
             else:
@@ -981,8 +981,8 @@ class Circuit(object):
         jammed_gates = {}                 
         for key, gate in circuit1.gates.items():
             if gate.N != 2: continue
-            T, key2 = key
-            A, B = key2
+            T, qubits = key
+            A, B = qubits
             U = np.copy(gate.U)
             # Left-side 1-body gates
             for T2 in range(T-1,-1,-1):
@@ -1000,37 +1000,37 @@ class Circuit(object):
                     jammed_gates[T2, (B,)] = gate1
                     break
             # Right-side 1-body gates (at circuit end)
-            if T+1 < self.nmoment and max(abs(plan[A][T2]) for T2 in range(T+1, self.nmoment)) == 1:
-                T2 = [T3 for T3, P in enumerate(plan[A][T+1:self.nmoment]) if P == 1][0] + T+1
+            if T+1 < self.ntime and max(abs(plan[A][T2]) for T2 in range(T+1, self.ntime)) == 1:
+                T2 = [T3 for T3, P in enumerate(plan[A][T+1:self.ntime]) if P == 1][0] + T+1
                 gate1 = circuit1.gates[T2, (A,)]
                 U = np.dot(np.kron(gate1.U, np.eye(2)), U)
                 jammed_gates[T2, (A,)] = gate1
-            if T+1 < self.nmoment and max(abs(plan[B][T2]) for T2 in range(T+1, self.nmoment)) == 1:
-                T2 = [T3 for T3, P in enumerate(plan[B][T+1:self.nmoment]) if P == 1][0] + T+1
+            if T+1 < self.ntime and max(abs(plan[B][T2]) for T2 in range(T+1, self.ntime)) == 1:
+                T2 = [T3 for T3, P in enumerate(plan[B][T+1:self.ntime]) if P == 1][0] + T+1
                 gate1 = circuit1.gates[T2, (B,)]
                 U = np.dot(np.kron(np.eye(2), gate1.U), U)
                 jammed_gates[T2, (B,)] = gate1
-            circuit2.add_gate(T=T, key=key2, gate=Gate.U2(U=U))
+            circuit2.add_gate(time=T, qubits=qubits, gate=Gate.U2(U=U))
         # Unjammed gates (should all be 1-body on 1-body wires) 
         for key, gate in circuit1.gates.items():
             if gate.N != 1: continue
-            T, key2 = key
+            T, qubits = key
             if key not in jammed_gates:
-                circuit2.add_gate(T=T, key=key2, gate=gate)
+                circuit2.add_gate(time=T, qubits=qubits, gate=gate)
 
         # Jam 2-body gates, if possible
         circuit1 = circuit2
         circuit2 = Circuit(N=self.N)
         jammed_gates = {}
-        for T in range(circuit1.nmoment):
+        for T in range(circuit1.ntime):
             circuit3 = circuit1.subset([T])
             for key, gate in circuit3.gates.items():
                 if gate.N != 2: continue
-                T4, key2 = key
-                if (T, key2) in jammed_gates: continue
-                A, B = key2
-                jams = [((T, key2), gate, False)]
-                for T2 in range(T+1, self.nmoment):
+                T4, qubits = key
+                if (T, qubits) in jammed_gates: continue
+                A, B = qubits
+                jams = [((T, qubits), gate, False)]
+                for T2 in range(T+1, self.ntime):
                     if (T2, (A, B)) in circuit1.gates:
                         jams.append(((T2, (A, B)), circuit1.gates[(T2, (A, B))], False))
                     elif (T2, (B, A)) in circuit1.gates:
@@ -1046,15 +1046,15 @@ class Circuit(object):
                     if trans:
                         U2 = np.reshape(np.einsum('ijkl->jilk', np.reshape(U2, (2,)*4)), (4,)*2)
                     U = np.dot(U2,U)
-                circuit2.add_gate(T=T, key=(A,B), gate=Gate.U2(U=U))
+                circuit2.add_gate(time=T, qubits=(A,B), gate=Gate.U2(U=U))
                 for key, gate, trans in jams:
                     jammed_gates[key] = gate
         # Unjammed gates (should all be 1-body on 1-body wires)
         for key, gate in circuit1.gates.items():
             if gate.N != 1: continue
-            T, key2 = key
+            T, qubits = key
             if key not in jammed_gates:
-                circuit2.add_gate(T=T, key=key2, gate=gate)
+                circuit2.add_gate(time=T, qubits=qubits, gate=gate)
 
         return circuit2.nonredundant()
 
@@ -1067,21 +1067,21 @@ class Circuit(object):
 
     @property
     def param_keys(self):
-        """ A list of (T, key, param_name) for all mutable parameters in the circuit.
+        """ A list of (time, qubits, param_name) for all mutable parameters in the circuit.
 
-        A global order of (T, key, param_name within gate) is used to guarantee
+        A global order of (time, qubits, param_name within gate) is used to guarantee
         a stable, lexical ordering of circuit parameters for a given circuit.
 
         Returns:
-            list of (int, tuple of int, str)) - ordered T moments, qubit
+            list of (int, tuple of int, str)) - ordered time moments, qubit
                 indices, and gate parameter names for all mutable parameters in
                 the circuit.
         """
         keys = []
         for key, gate in self.gates.items():
-            T, key2 = key
+            time, qubits = key
             for name, v in gate.params.items():
-                keys.append((T, key2, name))
+                keys.append((time, qubits, name))
         keys.sort(key = lambda x : (x[0], x[1]))
         return keys
         
@@ -1093,7 +1093,7 @@ class Circuit(object):
             (list of float) - ordered parameter values with order corresponding
                 to param_keys for all mutable parameters in the circuit.
         """
-        return [self.gates[(T, key)].params[name] for T, key, name in self.param_keys]
+        return [self.gates[(time, qubits)].params[name] for time, qubits, name in self.param_keys]
 
     def set_param_values(
         self,
@@ -1111,12 +1111,12 @@ class Circuit(object):
         """
 
         for k, v in zip(self.param_keys, values):
-            T, key, name = k
-            self.gates[(T, key)].set_param(key=name, param=v)
+            time, qubits, name = k
+            self.gates[(time, qubits)].set_param(key=name, param=v)
     
     @property
     def params(self):
-        """ An OrderedDict of (T, key, param_name) : param_value for all mutable parameters in the circuit. 
+        """ An OrderedDict of (time, qubits, param_name) : param_value for all mutable parameters in the circuit. 
             The order follows that of param_keys.
 
         Returns:
@@ -1141,8 +1141,8 @@ class Circuit(object):
         """
     
         for k, v in params.items():
-            T, key2, name = k
-            self.gates[(T, key2)].set_param(key=name, param=v)
+            time, qubits, name = k
+            self.gates[(time, qubits)].set_param(key=name, param=v)
 
     @property
     def param_str(self):
@@ -1155,12 +1155,12 @@ class Circuit(object):
                 specified by param_keys.
         """ 
         s = ''
-        s += '%-5s %-5s %-10s %-10s %-10s: %24s\n' % ('Index', 'T', 'Qubits', 'Name', 'Gate', 'Value')
+        s += '%-5s %-5s %-10s %-10s %-10s: %24s\n' % ('Index', 'Time', 'Qubits', 'Name', 'Gate', 'Value')
         I = 0
         for k, v in self.params.items():
-            T, key2, name = k
-            gate = self.gates[(T, key2)]
-            s += '%-5d %-5d %-10s %-10s %-10s: %24.16E\n' % (I, T, key2, name, gate.name, v)
+            time, qubits, name = k
+            gate = self.gates[(time, qubits)]
+            s += '%-5d %-5d %-10s %-10s %-10s: %24.16E\n' % (I, time, qubits, name, gate.name, v)
             I += 1
         return s
 
@@ -1199,7 +1199,7 @@ class Circuit(object):
 
         # Build moment strings
         moments = []
-        for T in range(self.nmoment):
+        for T in range(self.ntime):
             moments.append(self.ascii_diagram_moment(
                 T=T,
                 adjust_for_T=False if time_lines=='neither' else True,
@@ -1255,10 +1255,10 @@ class Circuit(object):
         # list (total seconds) of dict of A -> interstitial symbol
         seconds2 = [{}]
         for key, gate in circuit.gates.items():
-            T2, key2 = key
+            T2, qubits = key
             # Find the first second this gate fits within (or add a new one)
             for idx, second in enumerate(seconds):
-                fit = not any(A in second for A in range(min(key2), max(key2)+1))
+                fit = not any(A in second for A in range(min(qubits), max(qubits)+1))
                 if fit:
                     break
             if not fit:
@@ -1266,20 +1266,20 @@ class Circuit(object):
                 seconds2.append({})
                 idx += 1
             # Put the gate into that second
-            for A in range(min(key2), max(key2)+1):
+            for A in range(min(qubits), max(qubits)+1):
                 # Gate symbol
-                if A in key2:
+                if A in qubits:
                     if gate.N == 1:
                         seconds[idx][A] = gate.ascii_symbols[0]
                     elif gate.N == 2:
-                        Aind = [Aind for Aind, B in enumerate(key2) if A == B][0]
+                        Aind = [Aind for Aind, B in enumerate(qubits) if A == B][0]
                         seconds[idx][A] = gate.ascii_symbols[Aind]
                     else:
                         raise RuntimeError('Unknown N>2 gate')
                 else:
                     seconds[idx][A] = '|'
                 # Gate connector
-                if A != min(key2):
+                if A != min(qubits):
                     seconds2[idx][A] = '|'
 
         # + [1] for the - null character
@@ -1347,7 +1347,7 @@ class Circuit(object):
                 lines[A] += '\\lstick{|%d\\rangle}\n' % A
 
         # Moment contents
-        for T in range(self.nmoment):
+        for T in range(self.ntime):
             lines2 = self.latex_diagram_moment(
                 T=T,    
                 )
@@ -1387,10 +1387,10 @@ class Circuit(object):
         # list (total seconds) of dict of A -> gate symbol
         seconds = [{}]
         for key, gate in circuit.gates.items():
-            T2, key2 = key
+            T2, qubits = key
             # Find the first second this gate fits within (or add a new one)
             for idx, second in enumerate(seconds):
-                fit = not any(A in second for A in range(min(key2), max(key2)+1))
+                fit = not any(A in second for A in range(min(qubits), max(qubits)+1))
                 if fit:
                     break
             if not fit:
@@ -1398,10 +1398,10 @@ class Circuit(object):
                 idx += 1
             # Place gate lines in circuit
             if gate.N == 1:
-                A, = key2
+                A, = qubits
                 seconds[idx][A] = ' & \\gate{%s}\n' % gate.ascii_symbols[0]
             elif gate.N == 2:
-                A, B = key2
+                A, B = qubits
                 # Special cases
                 if gate.name == 'CNOT' or gate.name == 'CX':
                     seconds[idx][A] = ' & \\ctrl{%d}\n' % (B-A) 
@@ -1455,7 +1455,7 @@ class Circuit(object):
                 changed by this operation.
         """
 
-        for T, wfn in self.simulate_steps(wfn, dtype=dtype):
+        for time, wfn in self.simulate_steps(wfn, dtype=dtype):
             pass
 
         return wfn
@@ -1471,7 +1471,7 @@ class Circuit(object):
 
         This is often used as:
         
-        for T, wfn1 in simulate_steps(wfn=wfn0):
+        for time, wfn1 in simulate_steps(wfn=wfn0):
             print wfn1
 
         Note that to prevent repeated allocations of (2**N) arrays, this
@@ -1513,29 +1513,29 @@ class Circuit(object):
         wfn1 = np.copy(wfn)
         wfn2 = np.zeros_like(wfn1)
 
-        for T in range(self.nmoment):
-            circuit = self.subset([T])
+        for time in range(self.ntime):
+            circuit = self.subset([time])
             for key, gate in circuit.gates.items():
-                T2, key2 = key
+                time2, qubits = key
                 if gate.N == 1:
                     wfn2 = Circuit.apply_gate_1(
                         wfn1=wfn1,
                         wfn2=wfn2,
                         U=np.array(gate.U, dtype=dtype),
-                        A=key2[0],
+                        A=qubits[0],
                         )
                 elif gate.N == 2:
                     wfn2 = Circuit.apply_gate_2(
                         wfn1=wfn1,
                         wfn2=wfn2,
                         U=np.array(gate.U, dtype=dtype),
-                        A=key2[0],
-                        B=key2[1],
+                        A=qubits[0],
+                        B=qubits[1],
                         )
                 else:
                     raise RuntimeError('Cannot apply gates with N > 2: %s' % gate)
                 wfn1, wfn2 = wfn2, wfn1
-            yield T, wfn1
+            yield time, wfn1
 
     @staticmethod
     def apply_gate_1(
@@ -1844,29 +1844,29 @@ class Circuit(object):
         self,
         gate,
         qubits,
-        T=None, 
+        time=None, 
         time_placement='early',
         ):
 
-        if T is None:
+        if time is None:
             if time_placement == 'early':
-                Tmax = -1
-                for T2, A in self.TAs:
+                timemax = -1
+                for time2, A in self.TAs:
                     if A in qubits:
-                        Tmax = max(Tmax, T2)
-                T = Tmax + 1
+                        timemax = max(timemax, time2)
+                time = timemax + 1
             elif time_placement == 'late':
-                T = max(self.nmoment - 1, 0)
-                if any((T, A) in self.TAs for A in qubits):
-                    T += 1 
+                time = max(self.ntime - 1, 0)
+                if any((time, A) in self.TAs for A in qubits):
+                    time += 1 
             elif time_placement == 'next':
-                T = self.nmoment
+                time = self.ntime
             else:
                 raise RuntimeError('Unknown time_placement: %s. Allowed values are early, late, next' % time_placement)
 
         self.add_gate(
-            T=T,
-            key=qubits,
+            time=time,
+            qubits=qubits,
             gate=gate,
             )
     
@@ -1919,49 +1919,49 @@ class Circuit(object):
         self,
         circuit,
         qubits,
-        Ts=None,
-        T=None,
+        times=None,
+        time=None,
         time_placement='early', 
         copy=True,
         ):
 
-        if Ts is None:
-            if T is not None:
-                Ts = list(range(T,T+circuit.nmoment))
+        if times is None:
+            if time is not None:
+                times = list(range(time,time+circuit.ntime))
             else:
                 if time_placement == 'early':
-                    leads = [circuit.nmoment for _ in range(len(qubits))]
-                    for T2, A in circuit.TAs:
-                        leads[A] = min(leads[A], T2)
-                    Tmax = -1
-                    for T2, A in self.TAs:
+                    leads = [circuit.ntime for _ in range(len(qubits))]
+                    for time2, A in circuit.TAs:
+                        leads[A] = min(leads[A], time2)
+                    timemax = -1
+                    for time2, A in self.TAs:
                         if A in qubits:
-                            Tmax = max(Tmax, T2 - leads[qubits.index(A)])
-                    Tmax += 1
-                    Ts = list(range(Tmax, Tmax+circuit.nmoment))
+                            timemax = max(timemax, time2 - leads[qubits.index(A)])
+                    timemax += 1
+                    times = list(range(timemax, timemax+circuit.ntime))
                 elif time_placement == 'late':
-                    Tmax = max(self.nmoment - 1, 0)
-                    if any((Tmax, A) in self.TAs for A in qubits):
-                        Tmax += 1 
-                    Ts = list(range(Tmax, Tmax+circuit.nmoment))
+                    timemax = max(self.ntime - 1, 0)
+                    if any((timemax, A) in self.TAs for A in qubits):
+                        timemax += 1 
+                    times = list(range(timemax, timemax+circuit.ntime))
                 elif time_placement == 'next':
-                    Ts = list(range(self.nmoment, self.nmoment+circuit.nmoment))
+                    times = list(range(self.ntime, self.ntime+circuit.ntime))
                 else:
                     raise RuntimeError('Unknown time_placement: %s. Allowed values are early, late, next' % time_placement)
 
         for key, gate in circuit.gates.items():
-            T2, qubits2 = key
-            T3 = Ts[T2]
+            time2, qubits2 = key
+            time3 = times[time2]
             qubits3 = tuple(qubits[_] for _ in qubits2)
-            self.add_gate(T=T3, key=qubits3, gate=gate, copy=copy)
+            self.add_gate(time=time3, qubits=qubits3, gate=gate, copy=copy)
         
         return self
              
     def subcircuit(
         self,
         qubits,
-        Ts, 
+        times, 
         copy=True,
         ):
 
-        return self.subset(Ts=Ts, copy=copy).deadjoin(keys=qubits, copy=copy)
+        return self.subset(times=times, copy=copy).deadjoin(qubits=qubits, copy=copy)
