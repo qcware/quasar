@@ -582,16 +582,13 @@ class Circuit(object):
 
         An example Circuit construction is,
 
-        >>> circuit = Circuit(N=2)
-        >>> circuit.add_gate(time=0, qubits=0, Gate.H)
-        >>> circuit.add_gate(time=0, qubits=(1,), Gate.X)
-        >>> circuit.add_gate(time=1, qubits=(0,1), Gate.CX)
+        >>> circuit = Circuit(N=2).H(0).X(1).CX(0,1)
         >>> print(circuit)
         
         A Circuit is always constructed with a fixed number of qubits N, but
         the time window of the circuit is freely expandable from time=0 onward.
         The Circuit starts empty, and is filled one gate at a time by the
-        add_gate function.
+        add_gate function or by helper methods such as H, X, CX, etc.
     
         The Circuit attribute Ts (list of int) contains the sorted list of time
         indices T with significant gates, and the Circuit attribute ntime
@@ -599,10 +596,11 @@ class Circuit(object):
         moments.
 
         The core data of a Circuit is the gates attribute, which contains an
-        OrderedDict of (time, qubits) : Gate pairs for significant gates. The (time, qubits)
-        compound key specifies the time moment of the gate (int), and the
-        qubit indices (tuple of int). len(qubits) is always gate.N.
-        """
+        OrderedDict of (time, qubits) : Gate pairs for significant gates. The
+        (time, qubits) compound key specifies the time moment of the gate
+        (int), and the qubit indices (tuple of int). len(qubits) is always
+        gate.N.  
+    """
 
     def __init__(
         self,
@@ -651,34 +649,68 @@ class Circuit(object):
 
     def add_gate(
         self,
-        time,
-        qubits,
         gate,
+        qubits,
+        time=None, 
+        time_placement='early',
         copy=True,
         ):
 
-        """ Add a gate to the circuit.
+        """ Add a gate to self at specified qubits and time, updating self. The
+            qubits to add gate to are always explicitly specified. The time to
+            add gate to may be explicitly specified in the time argumet (1st
+            priority), or a recipe for determining the time placement can be
+            specified using the time_placement argument (2nd priority).
 
         Params:
-            time (int) - the time index to add the gate at
-            qubits (int or tuple of int) - the qubit index or indices to add the gate at
-            gate (Gate) - the gate to add 
+            qate (Gate) - the gate to add into self. 
+            qubits (tuple of int) - ordered qubit indices in self to add the
+                qubit indices of circuit into.
+            time (int) - time moment in self to add the gate into. If None, the
+                time_placement argument will be considered next.
+            time_placement (str - 'early', 'late', or 'next') - recipe to
+                determine time moment in self to add the gate into. The rules
+                are:
+                    'early' -  add the gate as early as possible, just after
+                        any existing gates on self's qubit wires.
+                    'late' - add the gate in the last open time moment in self,
+                        unless a conflict arises, in which case, add the gate
+                        in the next (new) time moment.
+                    'next' - add the gate in the next (new) time moment.
             copy (bool) - copy the gate or not?
         Result:
-            self is updated with the added gate. Checks are performed to ensure
-                that the addition is valid.
+            self is updated with the added gate. Checks are
+                performed to ensure that the addition is valid.
         Returns:
             self - for chaining
 
         For one body gate, can add as either of:
-            circuit.add_gate(time, A, gate)
-            circuit.add_gate(time, (A,), gate)
+            circuit.add_gate(gate, A, time)
+            circuit.add_gate(gate, (A,), time)
         For two body gate, must add as:
-            circuit.add_gate(time, (A, B), gate)
+            circuit.add_gate(gate, (A, B), time)
         """
 
         # Make qubits a tuple regardless of input
         qubits = (qubits,) if isinstance(qubits, int) else qubits
+
+        # Time determination
+        if time is None:
+            if time_placement == 'early':
+                timemax = -1
+                for time2, A in self.TAs:
+                    if A in qubits:
+                        timemax = max(timemax, time2)
+                time = timemax + 1
+            elif time_placement == 'late':
+                time = max(self.ntime - 1, 0)
+                if any((time, A) in self.TAs for A in qubits):
+                    time += 1 
+            elif time_placement == 'next':
+                time = self.ntime
+            else:
+                raise RuntimeError('Unknown time_placement: %s. Allowed values are early, late, next' % time_placement)
+
         # Check that time >= 0
         if time < 0: raise RuntimeError('Negative time: %d' % time)
         # Check that qubits makes sense for gate.N
@@ -701,15 +733,15 @@ class Circuit(object):
 
     def gate(
         self,
-        time,
         qubits,
+        time,
         ):
 
         """ Return the gate at a given moment time and qubit indices qubits
 
         Params:
-            time (int) - the time index of the gate
             qubits (int or tuple of int) - the qubit index or indices of the gate
+            time (int) - the time index of the gate
         Returns:
             (Gate) - the gate at the specified circuit coordinates
 
@@ -1168,71 +1200,6 @@ class Circuit(object):
              
     # > Gate Addition Sugar < #
 
-    def add_gate_sugar(
-        self,
-        gate,
-        qubits,
-        time=None, 
-        time_placement='early',
-        copy=True,
-        ):
-
-        """ Add a gate to self at specified qubits and time, updating self. The
-            qubits to add gate to are always explicitly specified. The time to
-            add gate to may be explicitly specified in the time argumet (1st
-            priority), or a recipe for determining the time placement can be
-            specified using the time_placement argument (2nd priority).
-
-            This is a sugar (helper) method that users should not generally
-            call. Typically, users should call one of the gate helper methods
-            such as self.X(qubit, ...), which then calls this method.
-
-        Params:
-            qate (Gate) - the gate to add into self. 
-            qubits (tuple of int) - ordered qubit indices in self to add the
-                qubit indices of circuit into.
-            time (int) - time moment in self to add the gate into. If None, the
-                time_placement argument will be considered next.
-            time_placement (str - 'early', 'late', or 'next') - recipe to
-                determine time moment in self to add the gate into. The rules
-                are:
-                    'early' -  add the gate as early as possible, just after
-                        any existing gates on self's qubit wires.
-                    'late' - add the gate in the last open time moment in self,
-                        unless a conflict arises, in which case, add the gate
-                        in the next (new) time moment.
-                    'next' - add the gate in the next (new) time moment.
-        Result:
-            self is updated with the added gate. Checks are
-                performed to ensure that the addition is valid.
-        Returns:
-            self - for chaining
-        """
-
-        if time is None:
-            if time_placement == 'early':
-                timemax = -1
-                for time2, A in self.TAs:
-                    if A in qubits:
-                        timemax = max(timemax, time2)
-                time = timemax + 1
-            elif time_placement == 'late':
-                time = max(self.ntime - 1, 0)
-                if any((time, A) in self.TAs for A in qubits):
-                    time += 1 
-            elif time_placement == 'next':
-                time = self.ntime
-            else:
-                raise RuntimeError('Unknown time_placement: %s. Allowed values are early, late, next' % time_placement)
-
-        self.add_gate(
-            time=time,
-            qubits=qubits,
-            gate=gate,
-            )
-    
-        return self
-
     def I(
         self,
         qubit,
@@ -1265,7 +1232,7 @@ class Circuit(object):
             self - for chaining
         """
 
-        return self.add_gate_sugar(
+        return self.add_gate(
             gate=Gate.I,
             qubits=(qubit,),
             **kwargs)
@@ -1301,7 +1268,7 @@ class Circuit(object):
             self - for chaining
         """
 
-        return self.add_gate_sugar(
+        return self.add_gate(
             gate=Gate.X,
             qubits=(qubit,),
             **kwargs)
@@ -1337,7 +1304,7 @@ class Circuit(object):
             self - for chaining
         """
 
-        return self.add_gate_sugar(
+        return self.add_gate(
             gate=Gate.Y,
             qubits=(qubit,),
             **kwargs)
@@ -1373,7 +1340,7 @@ class Circuit(object):
             self - for chaining
         """
 
-        return self.add_gate_sugar(
+        return self.add_gate(
             gate=Gate.Z,
             qubits=(qubit,),
             **kwargs)
@@ -1410,7 +1377,7 @@ class Circuit(object):
             self - for chaining
         """
 
-        return self.add_gate_sugar(
+        return self.add_gate(
             gate=Gate.H,
             qubits=(qubit,),
             **kwargs)
@@ -1446,7 +1413,7 @@ class Circuit(object):
             self - for chaining
         """
 
-        return self.add_gate_sugar(
+        return self.add_gate(
             gate=Gate.S,
             qubits=(qubit,),
             **kwargs)
@@ -1482,7 +1449,7 @@ class Circuit(object):
             self - for chaining
         """
 
-        return self.add_gate_sugar(
+        return self.add_gate(
             gate=Gate.T,
             qubits=(qubit,),
             **kwargs)
@@ -1518,7 +1485,7 @@ class Circuit(object):
             self - for chaining
         """
 
-        return self.add_gate_sugar(
+        return self.add_gate(
             gate=Gate.T,
             qubits=(qubit,),
             **kwargs)
@@ -1555,7 +1522,7 @@ class Circuit(object):
             self - for chaining
         """
 
-        return self.add_gate_sugar(
+        return self.add_gate(
             gate=Gate.Rx2,
             qubits=(qubit,),
             **kwargs)
@@ -1592,7 +1559,7 @@ class Circuit(object):
             self - for chaining
         """
 
-        return self.add_gate_sugar(
+        return self.add_gate(
             gate=Gate.Rx2T,
             qubits=(qubit,),
             **kwargs)
@@ -1629,7 +1596,7 @@ class Circuit(object):
         Returns:
             self - for chaining
         """
-        return self.add_gate_sugar(
+        return self.add_gate(
             gate=Gate.CX,
             qubits=(qubitA, qubitB),
             **kwargs)
@@ -1666,7 +1633,7 @@ class Circuit(object):
         Returns:
             self - for chaining
         """
-        return self.add_gate_sugar(
+        return self.add_gate(
             gate=Gate.CY,
             qubits=(qubitA, qubitB),
             **kwargs)
@@ -1703,7 +1670,7 @@ class Circuit(object):
         Returns:
             self - for chaining
         """
-        return self.add_gate_sugar(
+        return self.add_gate(
             gate=Gate.CZ,
             qubits=(qubitA, qubitB),
             **kwargs)
@@ -1740,7 +1707,7 @@ class Circuit(object):
         Returns:
             self - for chaining
         """
-        return self.add_gate_sugar(
+        return self.add_gate(
             gate=Gate.CS,
             qubits=(qubitA, qubitB),
             **kwargs)
@@ -1777,7 +1744,7 @@ class Circuit(object):
         Returns:
             self - for chaining
         """
-        return self.add_gate_sugar(
+        return self.add_gate(
             gate=Gate.SWAP,
             qubits=(qubitA, qubitB),
             **kwargs)
@@ -1815,7 +1782,7 @@ class Circuit(object):
         Returns:
             self - for chaining
         """
-        return self.add_gate_sugar(
+        return self.add_gate(
             gate=Gate.Rx(theta=theta),
             qubits=(qubit,),
             **kwargs)
@@ -1853,7 +1820,7 @@ class Circuit(object):
         Returns:
             self - for chaining
         """
-        return self.add_gate_sugar(
+        return self.add_gate(
             gate=Gate.Ry(theta=theta),
             qubits=(qubit,),
             **kwargs)
@@ -1891,7 +1858,7 @@ class Circuit(object):
         Returns:
             self - for chaining
         """
-        return self.add_gate_sugar(
+        return self.add_gate(
             gate=Gate.Rz(theta=theta),
             qubits=(qubit,),
             **kwargs)
@@ -1940,7 +1907,7 @@ class Circuit(object):
         Returns:
             self - for chaining
         """
-        return self.add_gate_sugar(
+        return self.add_gate(
             gate=Gate.SO4(A=A, B=B, C=C, D=D, E=E, F=F),
             qubits=(qubitA, qubitB),
             **kwargs)
@@ -1989,7 +1956,7 @@ class Circuit(object):
         Returns:
             self - for chaining
         """
-        return self.add_gate_sugar(
+        return self.add_gate(
             gate=Gate.SO42(
                 thetaIY=thetaIY, 
                 thetaYI=thetaYI, 
@@ -2035,7 +2002,7 @@ class Circuit(object):
         Returns:
             self - for chaining
         """
-        return self.add_gate_sugar(
+        return self.add_gate(
             gate=Gate.CF(theta=theta),
             qubits=(qubitA, qubitB),
             **kwargs)
@@ -2074,7 +2041,7 @@ class Circuit(object):
         Returns:
             self - for chaining
         """
-        return self.add_gate_sugar(
+        return self.add_gate(
             gate=Gate.U1(U=U),
             qubits=(qubitA, qubitB),
             **kwargs)
@@ -2113,7 +2080,7 @@ class Circuit(object):
         Returns:
             self - for chaining
         """
-        return self.add_gate_sugar(
+        return self.add_gate(
             gate=Gate.U2(U=U),
             qubits=(qubitA, qubitB),
             **kwargs)
