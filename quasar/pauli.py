@@ -328,12 +328,16 @@ class Pauli(collections.OrderedDict):
         return sum(v*other.get(k, 0.0) for k, v in self.items())
 
     @property
+    def conj(self):
+        return Pauli(collections.OrderedDict((k, np.conj(v)) for k, v in self.items()))
+
+    @property
     def norm2(self):
         return np.sqrt(self.dot(self))
     
     @property
     def norminf(self):
-        return np.max(np.abs(self.values()))
+        return np.max(np.abs(list(self.values())))
 
     @staticmethod
     def zero():
@@ -341,7 +345,7 @@ class Pauli(collections.OrderedDict):
 
     @staticmethod   
     def zeros_like(x):
-        return Pauli(collections.OrderedDict((k, 0.0) for k, v in self.items()))
+        return Pauli(collections.OrderedDict((k, 0.0) for k, v in x.items()))
 
     def sieved(self, cutoff=1.0E-14):
         return Pauli(collections.OrderedDict((k, v) for k, v in self.items() if np.abs(v) > cutoff))
