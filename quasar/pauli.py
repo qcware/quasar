@@ -350,6 +350,10 @@ class Pauli(collections.OrderedDict):
     def sieved(self, cutoff=1.0E-14):
         return Pauli(collections.OrderedDict((k, v) for k, v in self.items() if np.abs(v) > cutoff))
 
+    @staticmethod
+    def IXYZ():
+        return Pauli(collections.OrderedDict([(PauliString.I, 1.0)])), PauliStarter('X'), PauliStarter('Y'), PauliStarter('Z')
+
 class PauliStarter(object):
 
     def __init__(
@@ -362,15 +366,3 @@ class PauliStarter(object):
 
     def __getitem__(self, index):
         return Pauli(collections.OrderedDict([(PauliString((PauliOperator(index=index, char=self.char),)), 1.0)]))
-
-PauliStarter.X = PauliStarter('X')
-PauliStarter.Y = PauliStarter('Y')
-PauliStarter.Z = PauliStarter('Z')
-PauliStarter.XYZ = (PauliStarter.X, PauliStarter.Y, PauliStarter.Z)
-
-Pauli.I = Pauli(collections.OrderedDict([(PauliString.I, 1.0)]))
-Pauli.X = PauliStarter.X
-Pauli.Y = PauliStarter.Y
-Pauli.Z = PauliStarter.Z
-Pauli.XYZ = (Pauli.X, Pauli.Y, Pauli.Z)
-Pauli.IXYZ = (Pauli.I, Pauli.X, Pauli.Y, Pauli.Z)
