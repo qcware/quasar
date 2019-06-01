@@ -10,6 +10,7 @@ class PauliOperator(tuple):
         ):
 
         if not isinstance(qubit, int): raise RuntimeError('qubit must be int')
+        if qubit < 0: raise RuntimeError('qubit must be positive')
         if not isinstance(char, str): raise RuntimeError('char must be str')
         if char not in ['X', 'Y', 'Z']: raise RuntimeError('char must be one of X, Y, or Z')
 

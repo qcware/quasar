@@ -19,5 +19,11 @@ what = + X[0] * Y[1] * Z[2] * X[3] / 2.0 + X[0] * Y[1] * Z[2] * X[3] / 2.0
 what = + X[0] * Y[1] * Z[2] * X[3] / 2.0 - X[0] * Y[1] * Z[2] * X[3] / 2.0
 what = + X[0] * Y[1] * Z[2] * X[3] / 2.0 - Z[0] * Y[1] * Z[2] * X[3] / 2.0
 print(what)
-print(what.content_str)
+print(what.summary_str)
 print(what.dot(what))
+
+print(what)
+what += what
+print(what)
+what *= 2.0
+print(what)

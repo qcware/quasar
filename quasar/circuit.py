@@ -664,8 +664,10 @@ class Circuit(object):
 
         Params:
             qate (Gate) - the gate to add into self. 
-            qubits (tuple of int) - ordered qubit indices in self to add the
-                qubit indices of circuit into.
+            qubits (int or tuple of int) - ordered qubit indices in self to add the
+                qubit indices of circuit into. If a single int is provided (for
+                one-qubit gate addition), it is converted to a tuple with a
+                single int entry.
             time (int) - time moment in self to add the gate into. If None, the
                 time_placement argument will be considered next.
             time_placement (str - 'early', 'late', or 'next') - recipe to
@@ -1134,9 +1136,9 @@ class Circuit(object):
 
         Params:
             circuit (Circuit) - the circuit to add into self. 
-            qubits (list of int) - ordered qubit indices in self to add the
+            qubits (tuple of int) - ordered qubit indices in self to add the
                 qubit indices of circuit into.
-            times (list of int) - ordered time moments in self to add the time
+            times (tuple of int) - ordered time moments in self to add the time
                 moments of circuit into. If None, the time argument will be
                 considered next.
             time (int) - starting time moment in self to add the time moments
@@ -1162,6 +1164,9 @@ class Circuit(object):
         Returns:
             self - for chaining
         """
+
+        # Make qubits a tuple regardless of input
+        qubits = (qubits,) if isinstance(qubits, int) else qubits
 
         if times is None:
             if time is not None:
