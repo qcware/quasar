@@ -5,18 +5,18 @@ class PauliOperator(tuple):
 
     def __new__(
         self,
-        index,
+        qubit,
         char,
         ):
 
-        if not isinstance(index, int): raise RuntimeError('index must be int')
+        if not isinstance(qubit, int): raise RuntimeError('qubit must be int')
         if not isinstance(char, str): raise RuntimeError('char must be str')
         if char not in ['X', 'Y', 'Z']: raise RuntimeError('char must be one of X, Y, or Z')
 
-        return tuple.__new__(PauliOperator, (index, char))
+        return tuple.__new__(PauliOperator, (qubit, char))
 
     @property
-    def index(self):
+    def qubit(self):
         return self[0]
 
     @property
@@ -24,14 +24,14 @@ class PauliOperator(tuple):
         return self[1]
 
     def __str__(self):
-        return '%s%d' % (self.char, self.index)
+        return '%s%d' % (self.char, self.qubit)
 
     @staticmethod
     def from_string(string):
         char = string[0]
-        index = int(string[1:]) 
+        qubit = int(string[1:]) 
         return PauliOperator(
-            index=index,
+            qubit=qubit,
             char=char,
             )
 
@@ -44,7 +44,7 @@ class PauliString(tuple):
 
         if not isinstance(operators, tuple): raise RuntimeError('operators must be tuple')
         if not all(isinstance(_, PauliOperator) for _ in operators): raise RuntimeError('operators must all be Pauli Operator')
-        if len(set(operator.index for operator in operators)) != len(operators): raise RuntimeError('operators must all refer to unique qubit indices')
+        if len(set(operator.qubit for operator in operators)) != len(operators): raise RuntimeError('operators must all refer to unique qubits')
 
         return tuple.__new__(PauliString, operators)
 
@@ -55,8 +55,8 @@ class PauliString(tuple):
         return len(self)
 
     @property
-    def indices(self):
-        return tuple([_.index for _ in self])
+    def qubits(self):
+        return tuple([_.qubit for _ in self])
 
     @property
     def chars(self):
@@ -165,7 +165,7 @@ class Pauli(collections.OrderedDict):
 
     @property
     def N(self):
-        return max(max(_.indices) for _ in self.keys() if _.order > 0) + 1
+        return max(max(_.qubits) for _ in self.keys() if _.order > 0) + 1
         
     @property
     def nterm(self):
@@ -195,39 +195,39 @@ class Pauli(collections.OrderedDict):
                 value = list(self.values())[0] * list(other.values())[0]
                 strings1 = list(self.keys())[0]
                 strings2 = list(other.keys())[0]
-                indices1 = strings1.indices
-                indices2 = strings2.indices
+                qubits1 = strings1.qubits
+                qubits2 = strings2.qubits
                 operators = []
                 for string1 in strings1:
-                    if string1.index not in indices2:
+                    if string1.qubit not in qubits2:
                         operators.append(string1)
                     else:
-                        # Pauli products on same index
-                        string2 = strings2[indices2.index(string1.index)]
+                        # Pauli products on same qubit
+                        string2 = strings2[qubits2.index(string1.qubit)]
                         char1 = string1.char
                         char2 = string2.char
                         if char1 == char2:
                             continue # X*X, Y*Y, Z*Z = I
                         elif (char1, char2) == ('X', 'Y'):
                             value *= +1.j
-                            operators.append(PauliOperator(index=string1.index, char='Z'))
+                            operators.append(PauliOperator(qubit=string1.qubit, char='Z'))
                         elif (char1, char2) == ('Y', 'X'):
                             value *= -1.j
-                            operators.append(PauliOperator(index=string1.index, char='Z'))
+                            operators.append(PauliOperator(qubit=string1.qubit, char='Z'))
                         elif (char1, char2) == ('Y', 'Z'):
                             value *= +1.j
-                            operators.append(PauliOperator(index=string1.index, char='X'))
+                            operators.append(PauliOperator(qubit=string1.qubit, char='X'))
                         elif (char1, char2) == ('Z', 'Y'):
                             value *= -1.j
-                            operators.append(PauliOperator(index=string1.index, char='X'))
+                            operators.append(PauliOperator(qubit=string1.qubit, char='X'))
                         elif (char1, char2) == ('Z', 'X'):
                             value *= +1.j
-                            operators.append(PauliOperator(index=string1.index, char='Y'))
+                            operators.append(PauliOperator(qubit=string1.qubit, char='Y'))
                         elif (char1, char2) == ('X', 'Z'):
                             value *= -1.j
-                            operators.append(PauliOperator(index=string1.index, char='Y'))
+                            operators.append(PauliOperator(qubit=string1.qubit, char='Y'))
                 for string2 in strings2:
-                    if string2.index not in indices1:
+                    if string2.qubit not in qubits1:
                         operators.append(string2)
                 return Pauli(collections.OrderedDict([(PauliString(tuple(operators)), value)]))
             else:
@@ -364,5 +364,5 @@ class PauliStarter(object):
         if char not in ['X', 'Y', 'Z']: raise RuntimeError('char must be one of X, Y, or Z')
         self.char = char
 
-    def __getitem__(self, index):
-        return Pauli(collections.OrderedDict([(PauliString((PauliOperator(index=index, char=self.char),)), 1.0)]))
+    def __getitem__(self, qubit):
+        return Pauli(collections.OrderedDict([(PauliString((PauliOperator(qubit=qubit, char=self.char),)), 1.0)]))
