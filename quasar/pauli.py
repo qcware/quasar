@@ -152,7 +152,13 @@ class Pauli(collections.OrderedDict):
     # => String Representations <= #
 
     def __str__(self):
-        return '\n'.join(['%s*%s' % (value, string) for string, value in self.items()])
+        lines = []
+        for string, value in self.items():
+            if isinstance(value, float): sign = -1 if value < 0.0 else +1
+            elif isinstance(value, complex): sign = -1 if value.real < 0.0 else +1
+            else: raise RuntimeError('value must be float or complex: %s' % value)
+            lines.append('%s%s*%s' % ('-' if sign == -1 else '+', sign*value, string))
+        return '\n'.join(lines)
 
     @property
     def summary_str(self):
