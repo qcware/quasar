@@ -91,7 +91,6 @@ class Matrix(object):
         [0.0, 0.0, 0.0, 1.0],
         [0.0, 0.0, 1.0, 0.0],
         ], dtype=np.complex128)
-    CNOT = CX
     CY = np.array([
         [1.0, 0.0, 0.0, 0.0],
         [0.0, 1.0, 0.0, 0.0],
@@ -176,10 +175,10 @@ class Gate(object):
                 matrix for this gate from the current parameter set.
             params (OrderedDict of str : float) - the dictionary of initial
                 gate parameters.
-            name (str) - a simple name for the gate, e.g., 'CNOT'
+            name (str) - a simple name for the gate, e.g., 'CX'
             ascii_symbols (list of str of len N) - a list of ASCII symbols for
                 each active qubit of the gate, for use in generating textual diagrams, e.g.,
-                ['@', 'X'] for CNOT.
+                ['@', 'X'] for CX.
         """
         
         self.N = N
@@ -343,15 +342,14 @@ Gate.Rx2T = Gate(
 
 # > Explicit 2-body gates < #
 
-""" CNOT (CX) gate """
-Gate.CNOT = Gate(
+""" CX (CNOT) gate """
+Gate.CX = Gate(
     N=2,
     Ufun = lambda params: Matrix.CX,
     params=collections.OrderedDict(),
-    name='CNOT',
+    name='CX',
     ascii_symbols=['@', 'X'],
     )
-Gate.CX = Gate.CNOT # Common alias
 """ CY gate """
 Gate.CY = Gate(
     N=2,
@@ -587,7 +585,7 @@ class Circuit(object):
         >>> circuit = Circuit(N=2)
         >>> circuit.add_gate(time=0, qubits=0, Gate.H)
         >>> circuit.add_gate(time=0, qubits=(1,), Gate.X)
-        >>> circuit.add_gate(time=1, qubits=(0,1), Gate.CNOT)
+        >>> circuit.add_gate(time=1, qubits=(0,1), Gate.CX)
         >>> print(circuit)
         
         A Circuit is always constructed with a fixed number of qubits N, but
@@ -762,7 +760,7 @@ class Circuit(object):
                 between self and returned circuit (True - default) or not
                 (False). 
         Returns:
-            (Circuit) - the time-sliced circuit.
+            (Circuit) - the new time-sliced circuit.
         """
 
         circuit = Circuit(N=self.N)
@@ -790,7 +788,7 @@ class Circuit(object):
                 between circuits and returned circuit (True - default) or not
                 (False). 
         Returns:
-            (Circuit) - the time-concatenated circuit.
+            (Circuit) - the new time-concatenated circuit.
         """
 
         if any(x.N != circuits[0].N for x in circuits): 
@@ -820,7 +818,7 @@ class Circuit(object):
                 between self and returned circuit (True - default) or not
                 (False). 
         Returns:
-            (Circuit) - the qubit-sliced circuit.
+            (Circuit) - the new qubit-sliced circuit.
         """
 
         for A2, Aref in enumerate(qubits):
@@ -850,7 +848,7 @@ class Circuit(object):
                 between circuits and returned circuit (True - default) or not
                 (False). 
         Returns:
-            (Circuit) - the spatially qubit-adjoined circuit.
+            (Circuit) - the new spatially qubit-adjoined circuit.
         """
         circuit = Circuit(N=sum(x.N for x in circuits))
         Astart = 0
@@ -876,7 +874,7 @@ class Circuit(object):
                 between self and returned circuit (True - default) or not
                 (False). 
         Returns:
-            (Circuit) - the reversed circuit.
+            (Circuit) - the new reversed circuit.
         """
 
         circuit = Circuit(N=self.N)
@@ -897,7 +895,7 @@ class Circuit(object):
                 between self and returned circuit (True - default) or not
                 (False). 
         Returns:
-            (Circuit) - the time-dense circuit.
+            (Circuit) - the new time-dense circuit.
         """
 
         circuit = Circuit(N=self.N)
@@ -924,7 +922,7 @@ class Circuit(object):
         circuit again if the parameters change.
 
         Returns:
-            (Circuit) - the compressed circuit.
+            (Circuit) - the new compressed circuit.
         """
 
         # Jam consecutive 1-body gates (removes runs of 1-body gates)
@@ -1057,6 +1055,1068 @@ class Circuit(object):
                 circuit2.add_gate(time=T, qubits=qubits, gate=gate)
 
         return circuit2.nonredundant()
+
+    def subcircuit(
+        self,
+        qubits,
+        times, 
+        copy=True,
+        ):
+
+        """ Return a circuit which is a subset of self in both qubits and time
+            (a mixture of deadjoin and subset).
+
+        Params:
+            qubits (list of int) - ordered qubit indices to slice in spatial
+                indices into the [0,1,2...] indices in the returned circuit.
+            times (list of int) - ordered time moments to slice into time moments
+                [0,1,2,...] in the returned circuit.
+            copy (bool) - copy Gate elements to remove parameter dependencies
+                between self and returned circuit (True - default) or not
+                (False). 
+        Returns:
+            (Circuit) - the new qubit- and time-sliced circuit.
+        """
+
+        return self.subset(times=times, copy=copy).deadjoin(qubits=qubits, copy=copy)
+
+    def add_circuit(
+        self,
+        circuit,
+        qubits,
+        times=None,
+        time=None,
+        time_placement='early', 
+        copy=True,
+        ):
+
+        """ Add another circuit to self at specified qubits and times, updating
+            self. Essentially a composite version of add_gate. The qubits to
+            add circuit to are always explicitly specified. The times to add
+            circuit to may be explicitly specified in the times argumet (1st
+            priority), the starting time moment may be explicitly specified and
+            then the circuit added in a time-contiguous manner from that point
+            using the time argument (2nd priority), or a recipe for determining
+            the time-contiguous placement can be specified using the
+            time_placement argument (3rd priority).
+
+        Params:
+            circuit (Circuit) - the circuit to add into self. 
+            qubits (list of int) - ordered qubit indices in self to add the
+                qubit indices of circuit into.
+            times (list of int) - ordered time moments in self to add the time
+                moments of circuit into. If None, the time argument will be
+                considered next.
+            time (int) - starting time moment in self to add the time moments
+                of circuit into. If None, the time_placement argument will be
+                considered next.
+            time_placement (str - 'early', 'late', or 'next') - recipe to
+                determine starting time moment in self to add the time moments
+                of circuit into. The rules are:
+                    'early' - start adding the circuit as early as possible,
+                        just after any existing gates on self's qubit wires.
+                    'late' - start adding the circuit in the last open time
+                        moment in self, unless a conflict arises, in which
+                        case, start adding the circuit in the next (new) time
+                        moment.
+                    'next' - start adding the circuit in the next (new) time
+                        moment.
+            copy (bool) - copy Gate elements to remove parameter dependencies
+                between circuit and updated self (True - default) or not
+                (False). 
+        Result:
+            self is updated with the added gates from circuit. Checks are
+                performed to ensure that the addition is valid.
+        Returns:
+            self - for chaining
+        """
+
+        if times is None:
+            if time is not None:
+                times = list(range(time,time+circuit.ntime))
+            else:
+                if time_placement == 'early':
+                    leads = [circuit.ntime for _ in range(len(qubits))]
+                    for time2, A in circuit.TAs:
+                        leads[A] = min(leads[A], time2)
+                    timemax = -1
+                    for time2, A in self.TAs:
+                        if A in qubits:
+                            timemax = max(timemax, time2 - leads[qubits.index(A)])
+                    timemax += 1
+                    times = list(range(timemax, timemax+circuit.ntime))
+                elif time_placement == 'late':
+                    timemax = max(self.ntime - 1, 0)
+                    if any((timemax, A) in self.TAs for A in qubits):
+                        timemax += 1 
+                    times = list(range(timemax, timemax+circuit.ntime))
+                elif time_placement == 'next':
+                    times = list(range(self.ntime, self.ntime+circuit.ntime))
+                else:
+                    raise RuntimeError('Unknown time_placement: %s. Allowed values are early, late, next' % time_placement)
+
+        if len(qubits) != circuit.N: raise RuntimeError('len(qubits) != circuit.N')
+        if len(times) != circuit.ntime: raise RuntimeError('len(times) != circuit.ntime')
+
+        for key, gate in circuit.gates.items():
+            time2, qubits2 = key
+            time3 = times[time2]
+            qubits3 = tuple(qubits[_] for _ in qubits2)
+            self.add_gate(time=time3, qubits=qubits3, gate=gate, copy=copy)
+        
+        return self
+             
+    # > Gate Addition Sugar < #
+
+    def add_gate_sugar(
+        self,
+        gate,
+        qubits,
+        time=None, 
+        time_placement='early',
+        copy=True,
+        ):
+
+        """ Add a gate to self at specified qubits and time, updating self. The
+            qubits to add gate to are always explicitly specified. The time to
+            add gate to may be explicitly specified in the time argumet (1st
+            priority), or a recipe for determining the time placement can be
+            specified using the time_placement argument (2nd priority).
+
+            This is a sugar (helper) method that users should not generally
+            call. Typically, users should call one of the gate helper methods
+            such as self.X(qubit, ...), which then calls this method.
+
+        Params:
+            qate (Gate) - the gate to add into self. 
+            qubits (tuple of int) - ordered qubit indices in self to add the
+                qubit indices of circuit into.
+            time (int) - time moment in self to add the gate into. If None, the
+                time_placement argument will be considered next.
+            time_placement (str - 'early', 'late', or 'next') - recipe to
+                determine time moment in self to add the gate into. The rules
+                are:
+                    'early' -  add the gate as early as possible, just after
+                        any existing gates on self's qubit wires.
+                    'late' - add the gate in the last open time moment in self,
+                        unless a conflict arises, in which case, add the gate
+                        in the next (new) time moment.
+                    'next' - add the gate in the next (new) time moment.
+        Result:
+            self is updated with the added gate. Checks are
+                performed to ensure that the addition is valid.
+        Returns:
+            self - for chaining
+        """
+
+        if time is None:
+            if time_placement == 'early':
+                timemax = -1
+                for time2, A in self.TAs:
+                    if A in qubits:
+                        timemax = max(timemax, time2)
+                time = timemax + 1
+            elif time_placement == 'late':
+                time = max(self.ntime - 1, 0)
+                if any((time, A) in self.TAs for A in qubits):
+                    time += 1 
+            elif time_placement == 'next':
+                time = self.ntime
+            else:
+                raise RuntimeError('Unknown time_placement: %s. Allowed values are early, late, next' % time_placement)
+
+        self.add_gate(
+            time=time,
+            qubits=qubits,
+            gate=gate,
+            )
+    
+        return self
+
+    def I(
+        self,
+        qubit,
+        **kwargs):
+        
+        """ Add an I (Identity) gate to self at specified qubits and time,
+            updating self. The qubits to add gate to are always explicitly
+            specified. The time to add gate to may be explicitly specified in
+            the time argumet (1st priority), or a recipe for determining the
+            time placement can be specified using the time_placement argument
+            (2nd priority).
+
+        Params:
+            qubit (int) - qubit index in self to add the gate into.
+            time (int) - time moment in self to add the gate into. If None, the
+                time_placement argument will be considered next.
+            time_placement (str - 'early', 'late', or 'next') - recipe to
+                determine time moment in self to add the gate into. The rules
+                are:
+                    'early' -  add the gate as early as possible, just after
+                        any existing gates on self's qubit wires.
+                    'late' - add the gate in the last open time moment in self,
+                        unless a conflict arises, in which case, add the gate
+                        in the next (new) time moment.
+                    'next' - add the gate in the next (new) time moment.
+        Result:
+            self is updated with the added gate. Checks are
+                performed to ensure that the addition is valid.
+        Returns:
+            self - for chaining
+        """
+
+        return self.add_gate_sugar(
+            gate=Gate.I,
+            qubits=(qubit,),
+            **kwargs)
+
+    def X(
+        self,
+        qubit,
+        **kwargs):
+        
+        """ Add an X gate to self at specified qubits and time, updating self.
+            The qubits to add gate to are always explicitly specified. The time
+            to add gate to may be explicitly specified in the time argumet (1st
+            priority), or a recipe for determining the time placement can be
+            specified using the time_placement argument (2nd priority).
+
+        Params:
+            qubit (int) - qubit index in self to add the gate into.
+            time (int) - time moment in self to add the gate into. If None, the
+                time_placement argument will be considered next.
+            time_placement (str - 'early', 'late', or 'next') - recipe to
+                determine time moment in self to add the gate into. The rules
+                are:
+                    'early' -  add the gate as early as possible, just after
+                        any existing gates on self's qubit wires.
+                    'late' - add the gate in the last open time moment in self,
+                        unless a conflict arises, in which case, add the gate
+                        in the next (new) time moment.
+                    'next' - add the gate in the next (new) time moment.
+        Result:
+            self is updated with the added gate. Checks are
+                performed to ensure that the addition is valid.
+        Returns:
+            self - for chaining
+        """
+
+        return self.add_gate_sugar(
+            gate=Gate.X,
+            qubits=(qubit,),
+            **kwargs)
+
+    def Y(
+        self,
+        qubit,
+        **kwargs):
+        
+        """ Add an Y gate to self at specified qubits and time, updating self.
+            The qubits to add gate to are always explicitly specified. The time
+            to add gate to may be explicitly specified in the time argumet (1st
+            priority), or a recipe for determining the time placement can be
+            specified using the time_placement argument (2nd priority).
+
+        Params:
+            qubit (int) - qubit index in self to add the gate into.
+            time (int) - time moment in self to add the gate into. If None, the
+                time_placement argument will be considered next.
+            time_placement (str - 'early', 'late', or 'next') - recipe to
+                determine time moment in self to add the gate into. The rules
+                are:
+                    'early' -  add the gate as early as possible, just after
+                        any existing gates on self's qubit wires.
+                    'late' - add the gate in the last open time moment in self,
+                        unless a conflict arises, in which case, add the gate
+                        in the next (new) time moment.
+                    'next' - add the gate in the next (new) time moment.
+        Result:
+            self is updated with the added gate. Checks are
+                performed to ensure that the addition is valid.
+        Returns:
+            self - for chaining
+        """
+
+        return self.add_gate_sugar(
+            gate=Gate.Y,
+            qubits=(qubit,),
+            **kwargs)
+
+    def Z(
+        self,
+        qubit,
+        **kwargs):
+        
+        """ Add an Z gate to self at specified qubits and time, updating self.
+            The qubits to add gate to are always explicitly specified. The time
+            to add gate to may be explicitly specified in the time argumet (1st
+            priority), or a recipe for determining the time placement can be
+            specified using the time_placement argument (2nd priority).
+
+        Params:
+            qubit (int) - qubit index in self to add the gate into.
+            time (int) - time moment in self to add the gate into. If None, the
+                time_placement argument will be considered next.
+            time_placement (str - 'early', 'late', or 'next') - recipe to
+                determine time moment in self to add the gate into. The rules
+                are:
+                    'early' -  add the gate as early as possible, just after
+                        any existing gates on self's qubit wires.
+                    'late' - add the gate in the last open time moment in self,
+                        unless a conflict arises, in which case, add the gate
+                        in the next (new) time moment.
+                    'next' - add the gate in the next (new) time moment.
+        Result:
+            self is updated with the added gate. Checks are
+                performed to ensure that the addition is valid.
+        Returns:
+            self - for chaining
+        """
+
+        return self.add_gate_sugar(
+            gate=Gate.Z,
+            qubits=(qubit,),
+            **kwargs)
+
+    def H(
+        self,
+        qubit,
+        **kwargs):
+        
+        """ Add an H (Hadamard) gate to self at specified qubits and time,
+            updating self. The qubits to add gate to are always explicitly
+            specified. The time to add gate to may be explicitly specified in
+            the time argumet (1st priority), or a recipe for determining the
+            time placement can be specified using the time_placement argument
+            (2nd priority).
+
+        Params:
+            qubit (int) - qubit index in self to add the gate into.
+            time (int) - time moment in self to add the gate into. If None, the
+                time_placement argument will be considered next.
+            time_placement (str - 'early', 'late', or 'next') - recipe to
+                determine time moment in self to add the gate into. The rules
+                are:
+                    'early' -  add the gate as early as possible, just after
+                        any existing gates on self's qubit wires.
+                    'late' - add the gate in the last open time moment in self,
+                        unless a conflict arises, in which case, add the gate
+                        in the next (new) time moment.
+                    'next' - add the gate in the next (new) time moment.
+        Result:
+            self is updated with the added gate. Checks are
+                performed to ensure that the addition is valid.
+        Returns:
+            self - for chaining
+        """
+
+        return self.add_gate_sugar(
+            gate=Gate.H,
+            qubits=(qubit,),
+            **kwargs)
+
+    def S(
+        self,
+        qubit,
+        **kwargs):
+        
+        """ Add an S gate to self at specified qubits and time, updating self.
+            The qubits to add gate to are always explicitly specified. The time
+            to add gate to may be explicitly specified in the time argumet (1st
+            priority), or a recipe for determining the time placement can be
+            specified using the time_placement argument (2nd priority).
+
+        Params:
+            qubit (int) - qubit index in self to add the gate into.
+            time (int) - time moment in self to add the gate into. If None, the
+                time_placement argument will be considered next.
+            time_placement (str - 'early', 'late', or 'next') - recipe to
+                determine time moment in self to add the gate into. The rules
+                are:
+                    'early' -  add the gate as early as possible, just after
+                        any existing gates on self's qubit wires.
+                    'late' - add the gate in the last open time moment in self,
+                        unless a conflict arises, in which case, add the gate
+                        in the next (new) time moment.
+                    'next' - add the gate in the next (new) time moment.
+        Result:
+            self is updated with the added gate. Checks are
+                performed to ensure that the addition is valid.
+        Returns:
+            self - for chaining
+        """
+
+        return self.add_gate_sugar(
+            gate=Gate.S,
+            qubits=(qubit,),
+            **kwargs)
+
+    def T(
+        self,
+        qubit,
+        **kwargs):
+        
+        """ Add a T gate to self at specified qubits and time, updating self.
+            The qubits to add gate to are always explicitly specified. The time
+            to add gate to may be explicitly specified in the time argumet (1st
+            priority), or a recipe for determining the time placement can be
+            specified using the time_placement argument (2nd priority).
+
+        Params:
+            qubit (int) - qubit index in self to add the gate into.
+            time (int) - time moment in self to add the gate into. If None, the
+                time_placement argument will be considered next.
+            time_placement (str - 'early', 'late', or 'next') - recipe to
+                determine time moment in self to add the gate into. The rules
+                are:
+                    'early' -  add the gate as early as possible, just after
+                        any existing gates on self's qubit wires.
+                    'late' - add the gate in the last open time moment in self,
+                        unless a conflict arises, in which case, add the gate
+                        in the next (new) time moment.
+                    'next' - add the gate in the next (new) time moment.
+        Result:
+            self is updated with the added gate. Checks are
+                performed to ensure that the addition is valid.
+        Returns:
+            self - for chaining
+        """
+
+        return self.add_gate_sugar(
+            gate=Gate.T,
+            qubits=(qubit,),
+            **kwargs)
+
+    def T(
+        self,
+        qubit,
+        **kwargs):
+        
+        """ Add a T gate to self at specified qubits and time, updating self.
+            The qubits to add gate to are always explicitly specified. The time
+            to add gate to may be explicitly specified in the time argumet (1st
+            priority), or a recipe for determining the time placement can be
+            specified using the time_placement argument (2nd priority).
+
+        Params:
+            qubit (int) - qubit index in self to add the gate into.
+            time (int) - time moment in self to add the gate into. If None, the
+                time_placement argument will be considered next.
+            time_placement (str - 'early', 'late', or 'next') - recipe to
+                determine time moment in self to add the gate into. The rules
+                are:
+                    'early' -  add the gate as early as possible, just after
+                        any existing gates on self's qubit wires.
+                    'late' - add the gate in the last open time moment in self,
+                        unless a conflict arises, in which case, add the gate
+                        in the next (new) time moment.
+                    'next' - add the gate in the next (new) time moment.
+        Result:
+            self is updated with the added gate. Checks are
+                performed to ensure that the addition is valid.
+        Returns:
+            self - for chaining
+        """
+
+        return self.add_gate_sugar(
+            gate=Gate.T,
+            qubits=(qubit,),
+            **kwargs)
+
+    def Rx2(
+        self,
+        qubit,
+        **kwargs):
+        
+        """ Add an Rx2 (Z -> Y basis) gate to self at specified qubits and time,
+            updating self. The qubits to add gate to are always explicitly
+            specified. The time to add gate to may be explicitly specified in
+            the time argumet (1st priority), or a recipe for determining the
+            time placement can be specified using the time_placement argument
+            (2nd priority).
+
+        Params:
+            qubit (int) - qubit index in self to add the gate into.
+            time (int) - time moment in self to add the gate into. If None, the
+                time_placement argument will be considered next.
+            time_placement (str - 'early', 'late', or 'next') - recipe to
+                determine time moment in self to add the gate into. The rules
+                are:
+                    'early' -  add the gate as early as possible, just after
+                        any existing gates on self's qubit wires.
+                    'late' - add the gate in the last open time moment in self,
+                        unless a conflict arises, in which case, add the gate
+                        in the next (new) time moment.
+                    'next' - add the gate in the next (new) time moment.
+        Result:
+            self is updated with the added gate. Checks are
+                performed to ensure that the addition is valid.
+        Returns:
+            self - for chaining
+        """
+
+        return self.add_gate_sugar(
+            gate=Gate.Rx2,
+            qubits=(qubit,),
+            **kwargs)
+
+    def Rx2T(
+        self,
+        qubit,
+        **kwargs):
+        
+        """ Add an Rx2T (Y -> Z basis) gate to self at specified qubits and time,
+            updating self. The qubits to add gate to are always explicitly
+            specified. The time to add gate to may be explicitly specified in
+            the time argumet (1st priority), or a recipe for determining the
+            time placement can be specified using the time_placement argument
+            (2nd priority).
+
+        Params:
+            qubit (int) - qubit index in self to add the gate into.
+            time (int) - time moment in self to add the gate into. If None, the
+                time_placement argument will be considered next.
+            time_placement (str - 'early', 'late', or 'next') - recipe to
+                determine time moment in self to add the gate into. The rules
+                are:
+                    'early' -  add the gate as early as possible, just after
+                        any existing gates on self's qubit wires.
+                    'late' - add the gate in the last open time moment in self,
+                        unless a conflict arises, in which case, add the gate
+                        in the next (new) time moment.
+                    'next' - add the gate in the next (new) time moment.
+        Result:
+            self is updated with the added gate. Checks are
+                performed to ensure that the addition is valid.
+        Returns:
+            self - for chaining
+        """
+
+        return self.add_gate_sugar(
+            gate=Gate.Rx2T,
+            qubits=(qubit,),
+            **kwargs)
+
+    def CX(
+        self,
+        qubitA,
+        qubitB,
+        **kwargs):
+
+        """ Add a CX gate to self at specified qubits and time, updating self.
+            The qubits to add gate to are always explicitly specified. The time
+            to add gate to may be explicitly specified in the time argumet (1st
+            priority), or a recipe for determining the time placement can be
+            specified using the time_placement argument (2nd priority).
+
+        Params:
+            qubitA (int) - control qubit index in self to add the gate into.
+            qubitB (int) - target qubit index in self to add the gate into.
+            time (int) - time moment in self to add the gate into. If None, the
+                time_placement argument will be considered next.
+            time_placement (str - 'early', 'late', or 'next') - recipe to
+                determine time moment in self to add the gate into. The rules
+                are:
+                    'early' -  add the gate as early as possible, just after
+                        any existing gates on self's qubit wires.
+                    'late' - add the gate in the last open time moment in self,
+                        unless a conflict arises, in which case, add the gate
+                        in the next (new) time moment.
+                    'next' - add the gate in the next (new) time moment.
+        Result:
+            self is updated with the added gate. Checks are
+                performed to ensure that the addition is valid.
+        Returns:
+            self - for chaining
+        """
+        return self.add_gate_sugar(
+            gate=Gate.CX,
+            qubits=(qubitA, qubitB),
+            **kwargs)
+
+    def CY(
+        self,
+        qubitA,
+        qubitB,
+        **kwargs):
+
+        """ Add a CY gate to self at specified qubits and time, updating self.
+            The qubits to add gate to are always explicitly specified. The time
+            to add gate to may be explicitly specified in the time argumet (1st
+            priority), or a recipe for determining the time placement can be
+            specified using the time_placement argument (2nd priority).
+
+        Params:
+            qubitA (int) - control qubit index in self to add the gate into.
+            qubitB (int) - target qubit index in self to add the gate into.
+            time (int) - time moment in self to add the gate into. If None, the
+                time_placement argument will be considered next.
+            time_placement (str - 'early', 'late', or 'next') - recipe to
+                determine time moment in self to add the gate into. The rules
+                are:
+                    'early' -  add the gate as early as possible, just after
+                        any existing gates on self's qubit wires.
+                    'late' - add the gate in the last open time moment in self,
+                        unless a conflict arises, in which case, add the gate
+                        in the next (new) time moment.
+                    'next' - add the gate in the next (new) time moment.
+        Result:
+            self is updated with the added gate. Checks are
+                performed to ensure that the addition is valid.
+        Returns:
+            self - for chaining
+        """
+        return self.add_gate_sugar(
+            gate=Gate.CY,
+            qubits=(qubitA, qubitB),
+            **kwargs)
+
+    def CZ(
+        self,
+        qubitA,
+        qubitB,
+        **kwargs):
+
+        """ Add a CZ gate to self at specified qubits and time, updating self.
+            The qubits to add gate to are always explicitly specified. The time
+            to add gate to may be explicitly specified in the time argumet (1st
+            priority), or a recipe for determining the time placement can be
+            specified using the time_placement argument (2nd priority).
+
+        Params:
+            qubitA (int) - control qubit index in self to add the gate into.
+            qubitB (int) - target qubit index in self to add the gate into.
+            time (int) - time moment in self to add the gate into. If None, the
+                time_placement argument will be considered next.
+            time_placement (str - 'early', 'late', or 'next') - recipe to
+                determine time moment in self to add the gate into. The rules
+                are:
+                    'early' -  add the gate as early as possible, just after
+                        any existing gates on self's qubit wires.
+                    'late' - add the gate in the last open time moment in self,
+                        unless a conflict arises, in which case, add the gate
+                        in the next (new) time moment.
+                    'next' - add the gate in the next (new) time moment.
+        Result:
+            self is updated with the added gate. Checks are
+                performed to ensure that the addition is valid.
+        Returns:
+            self - for chaining
+        """
+        return self.add_gate_sugar(
+            gate=Gate.CZ,
+            qubits=(qubitA, qubitB),
+            **kwargs)
+
+    def CS(
+        self,
+        qubitA,
+        qubitB,
+        **kwargs):
+
+        """ Add a CS gate to self at specified qubits and time, updating self.
+            The qubits to add gate to are always explicitly specified. The time
+            to add gate to may be explicitly specified in the time argumet (1st
+            priority), or a recipe for determining the time placement can be
+            specified using the time_placement argument (2nd priority).
+
+        Params:
+            qubitA (int) - control qubit index in self to add the gate into.
+            qubitB (int) - target qubit index in self to add the gate into.
+            time (int) - time moment in self to add the gate into. If None, the
+                time_placement argument will be considered next.
+            time_placement (str - 'early', 'late', or 'next') - recipe to
+                determine time moment in self to add the gate into. The rules
+                are:
+                    'early' -  add the gate as early as possible, just after
+                        any existing gates on self's qubit wires.
+                    'late' - add the gate in the last open time moment in self,
+                        unless a conflict arises, in which case, add the gate
+                        in the next (new) time moment.
+                    'next' - add the gate in the next (new) time moment.
+        Result:
+            self is updated with the added gate. Checks are
+                performed to ensure that the addition is valid.
+        Returns:
+            self - for chaining
+        """
+        return self.add_gate_sugar(
+            gate=Gate.CS,
+            qubits=(qubitA, qubitB),
+            **kwargs)
+
+    def SWAP(
+        self,
+        qubitA,
+        qubitB,
+        **kwargs):
+
+        """ Add a SWAP gate to self at specified qubits and time, updating self.
+            The qubits to add gate to are always explicitly specified. The time
+            to add gate to may be explicitly specified in the time argumet (1st
+            priority), or a recipe for determining the time placement can be
+            specified using the time_placement argument (2nd priority).
+
+        Params:
+            qubitA (int) - control qubit index in self to add the gate into.
+            qubitB (int) - target qubit index in self to add the gate into.
+            time (int) - time moment in self to add the gate into. If None, the
+                time_placement argument will be considered next.
+            time_placement (str - 'early', 'late', or 'next') - recipe to
+                determine time moment in self to add the gate into. The rules
+                are:
+                    'early' -  add the gate as early as possible, just after
+                        any existing gates on self's qubit wires.
+                    'late' - add the gate in the last open time moment in self,
+                        unless a conflict arises, in which case, add the gate
+                        in the next (new) time moment.
+                    'next' - add the gate in the next (new) time moment.
+        Result:
+            self is updated with the added gate. Checks are
+                performed to ensure that the addition is valid.
+        Returns:
+            self - for chaining
+        """
+        return self.add_gate_sugar(
+            gate=Gate.SWAP,
+            qubits=(qubitA, qubitB),
+            **kwargs)
+
+    def Rx(
+        self,
+        qubit,
+        theta=0.0,
+        **kwargs):
+
+        """ Add an Rx (X-rotation) gate to self at specified qubits and time,
+            updating self. The qubits to add gate to are always explicitly
+            specified. The time to add gate to may be explicitly specified in
+            the time argumet (1st priority), or a recipe for determining the
+            time placement can be specified using the time_placement argument
+            (2nd priority).
+
+        Params:
+            qubit (int) - qubit index in self to add the gate into.
+            theta (float) - the angle parameter of the gate (default - 0.0).
+            time (int) - time moment in self to add the gate into. If None, the
+                time_placement argument will be considered next.
+            time_placement (str - 'early', 'late', or 'next') - recipe to
+                determine time moment in self to add the gate into. The rules
+                are:
+                    'early' -  add the gate as early as possible, just after
+                        any existing gates on self's qubit wires.
+                    'late' - add the gate in the last open time moment in self,
+                        unless a conflict arises, in which case, add the gate
+                        in the next (new) time moment.
+                    'next' - add the gate in the next (new) time moment.
+        Result:
+            self is updated with the added gate. Checks are
+                performed to ensure that the addition is valid.
+        Returns:
+            self - for chaining
+        """
+        return self.add_gate_sugar(
+            gate=Gate.Rx(theta=theta),
+            qubits=(qubit,),
+            **kwargs)
+
+    def Ry(
+        self,
+        qubit,
+        theta=0.0,
+        **kwargs):
+
+        """ Add an Ry (Y-rotation) gate to self at specified qubits and time,
+            updating self. The qubits to add gate to are always explicitly
+            specified. The time to add gate to may be explicitly specified in
+            the time argumet (1st priority), or a recipe for determining the
+            time placement can be specified using the time_placement argument
+            (2nd priority).
+
+        Params:
+            qubit (int) - qubit index in self to add the gate into.
+            theta (float) - the angle parameter of the gate (default - 0.0).
+            time (int) - time moment in self to add the gate into. If None, the
+                time_placement argument will be considered next.
+            time_placement (str - 'early', 'late', or 'next') - recipe to
+                determine time moment in self to add the gate into. The rules
+                are:
+                    'early' -  add the gate as early as possible, just after
+                        any existing gates on self's qubit wires.
+                    'late' - add the gate in the last open time moment in self,
+                        unless a conflict arises, in which case, add the gate
+                        in the next (new) time moment.
+                    'next' - add the gate in the next (new) time moment.
+        Result:
+            self is updated with the added gate. Checks are
+                performed to ensure that the addition is valid.
+        Returns:
+            self - for chaining
+        """
+        return self.add_gate_sugar(
+            gate=Gate.Ry(theta=theta),
+            qubits=(qubit,),
+            **kwargs)
+
+    def Rz(
+        self,
+        qubit,
+        theta=0.0,
+        **kwargs):
+
+        """ Add an Rz (Z-rotation) gate to self at specified qubits and time,
+            updating self. The qubits to add gate to are always explicitly
+            specified. The time to add gate to may be explicitly specified in
+            the time argumet (1st priority), or a recipe for determining the
+            time placement can be specified using the time_placement argument
+            (2nd priority).
+
+        Params:
+            qubit (int) - qubit index in self to add the gate into.
+            theta (float) - the angle parameter of the gate (default - 0.0).
+            time (int) - time moment in self to add the gate into. If None, the
+                time_placement argument will be considered next.
+            time_placement (str - 'early', 'late', or 'next') - recipe to
+                determine time moment in self to add the gate into. The rules
+                are:
+                    'early' -  add the gate as early as possible, just after
+                        any existing gates on self's qubit wires.
+                    'late' - add the gate in the last open time moment in self,
+                        unless a conflict arises, in which case, add the gate
+                        in the next (new) time moment.
+                    'next' - add the gate in the next (new) time moment.
+        Result:
+            self is updated with the added gate. Checks are
+                performed to ensure that the addition is valid.
+        Returns:
+            self - for chaining
+        """
+        return self.add_gate_sugar(
+            gate=Gate.Rz(theta=theta),
+            qubits=(qubit,),
+            **kwargs)
+
+    def SO4(
+        self,
+        qubitA,
+        qubitB,
+        A=0.0,
+        B=0.0,
+        C=0.0,
+        D=0.0,
+        E=0.0,
+        F=0.0,
+        **kwargs):
+
+        """ Add an SO4 gate to self at specified qubits and time, updating self.
+            The qubits to add gate to are always explicitly specified. The time
+            to add gate to may be explicitly specified in the time argumet (1st
+            priority), or a recipe for determining the time placement can be
+            specified using the time_placement argument (2nd priority).
+
+        Params:
+            qubitA (int) - control qubit index in self to add the gate into.
+            qubitB (int) - target qubit index in self to add the gate into.
+            A (float) - SO4 A parameter (default - 0.0).
+            B (float) - SO4 B parameter (default - 0.0).
+            C (float) - SO4 C parameter (default - 0.0).
+            D (float) - SO4 D parameter (default - 0.0).
+            E (float) - SO4 E parameter (default - 0.0).
+            F (float) - SO4 F parameter (default - 0.0).
+            time (int) - time moment in self to add the gate into. If None, the
+                time_placement argument will be considered next.
+            time_placement (str - 'early', 'late', or 'next') - recipe to
+                determine time moment in self to add the gate into. The rules
+                are:
+                    'early' -  add the gate as early as possible, just after
+                        any existing gates on self's qubit wires.
+                    'late' - add the gate in the last open time moment in self,
+                        unless a conflict arises, in which case, add the gate
+                        in the next (new) time moment.
+                    'next' - add the gate in the next (new) time moment.
+        Result:
+            self is updated with the added gate. Checks are
+                performed to ensure that the addition is valid.
+        Returns:
+            self - for chaining
+        """
+        return self.add_gate_sugar(
+            gate=Gate.SO4(A=A, B=B, C=C, D=D, E=E, F=F),
+            qubits=(qubitA, qubitB),
+            **kwargs)
+
+    def SO42(
+        self,
+        qubitA,
+        qubitB,
+        thetaIY=0.0,
+        thetaYI=0.0,
+        thetaYX=0.0,
+        thetaXY=0.0,
+        thetaZY=0.0,
+        thetaYZ=0.0,
+        **kwargs):
+
+        """ Add an SO4 gate to self at specified qubits and time, updating self.
+            The qubits to add gate to are always explicitly specified. The time
+            to add gate to may be explicitly specified in the time argumet (1st
+            priority), or a recipe for determining the time placement can be
+            specified using the time_placement argument (2nd priority).
+
+        Params:
+            qubitA (int) - control qubit index in self to add the gate into.
+            qubitB (int) - target qubit index in self to add the gate into.
+            thetaIY (float) - SO4 thetaIY parameter (default - 0.0).
+            thetaYI (float) - SO4 thetaYI parameter (default - 0.0).
+            thetaYX (float) - SO4 thetaYX parameter (default - 0.0).
+            thetaXY (float) - SO4 thetaXY parameter (default - 0.0).
+            thetaZY (float) - SO4 thetaZY parameter (default - 0.0).
+            thetaYZ (float) - SO4 thetaYZ parameter (default - 0.0).
+            time (int) - time moment in self to add the gate into. If None, the
+                time_placement argument will be considered next.
+            time_placement (str - 'early', 'late', or 'next') - recipe to
+                determine time moment in self to add the gate into. The rules
+                are:
+                    'early' -  add the gate as early as possible, just after
+                        any existing gates on self's qubit wires.
+                    'late' - add the gate in the last open time moment in self,
+                        unless a conflict arises, in which case, add the gate
+                        in the next (new) time moment.
+                    'next' - add the gate in the next (new) time moment.
+        Result:
+            self is updated with the added gate. Checks are
+                performed to ensure that the addition is valid.
+        Returns:
+            self - for chaining
+        """
+        return self.add_gate_sugar(
+            gate=Gate.SO42(
+                thetaIY=thetaIY, 
+                thetaYI=thetaYI, 
+                thetaYX=thetaYX, 
+                thetaXY=thetaXY, 
+                thetaZY=thetaZY, 
+                thetaYZ=thetaYZ,
+                ),
+            qubits=(qubitA, qubitB),
+            **kwargs)
+
+    def CF(
+        self,
+        qubitA,
+        qubitB,
+        theta=0.0,
+        **kwargs):
+
+        """ Add a CF gate to self at specified qubits and time, updating self.
+            The qubits to add gate to are always explicitly specified. The time
+            to add gate to may be explicitly specified in the time argumet (1st
+            priority), or a recipe for determining the time placement can be
+            specified using the time_placement argument (2nd priority).
+
+        Params:
+            qubitA (int) - control qubit index in self to add the gate into.
+            qubitB (int) - target qubit index in self to add the gate into.
+            theta (float) - the angle parameter of the gate (default - 0.0).
+            time (int) - time moment in self to add the gate into. If None, the
+                time_placement argument will be considered next.
+            time_placement (str - 'early', 'late', or 'next') - recipe to
+                determine time moment in self to add the gate into. The rules
+                are:
+                    'early' -  add the gate as early as possible, just after
+                        any existing gates on self's qubit wires.
+                    'late' - add the gate in the last open time moment in self,
+                        unless a conflict arises, in which case, add the gate
+                        in the next (new) time moment.
+                    'next' - add the gate in the next (new) time moment.
+        Result:
+            self is updated with the added gate. Checks are
+                performed to ensure that the addition is valid.
+        Returns:
+            self - for chaining
+        """
+        return self.add_gate_sugar(
+            gate=Gate.CF(theta=theta),
+            qubits=(qubitA, qubitB),
+            **kwargs)
+
+    def U1(
+        self,
+        qubitA,
+        qubitB,
+        U,
+        **kwargs):
+
+        """ Add a U1 gate to self at specified qubits and time, updating self.
+            The qubits to add gate to are always explicitly specified. The time
+            to add gate to may be explicitly specified in the time argumet (1st
+            priority), or a recipe for determining the time placement can be
+            specified using the time_placement argument (2nd priority).
+
+        Params:
+            qubitA (int) - control qubit index in self to add the gate into.
+            qubitB (int) - target qubit index in self to add the gate into.
+            U (np.ndarray) - 2 x 2 unitary to construct the U1 gate from.
+            time (int) - time moment in self to add the gate into. If None, the
+                time_placement argument will be considered next.
+            time_placement (str - 'early', 'late', or 'next') - recipe to
+                determine time moment in self to add the gate into. The rules
+                are:
+                    'early' -  add the gate as early as possible, just after
+                        any existing gates on self's qubit wires.
+                    'late' - add the gate in the last open time moment in self,
+                        unless a conflict arises, in which case, add the gate
+                        in the next (new) time moment.
+                    'next' - add the gate in the next (new) time moment.
+        Result:
+            self is updated with the added gate. Checks are
+                performed to ensure that the addition is valid.
+        Returns:
+            self - for chaining
+        """
+        return self.add_gate_sugar(
+            gate=Gate.U1(U=U),
+            qubits=(qubitA, qubitB),
+            **kwargs)
+
+    def U2(
+        self,
+        qubitA,
+        qubitB,
+        U,
+        **kwargs):
+
+        """ Add a U2 gate to self at specified qubits and time, updating self.
+            The qubits to add gate to are always explicitly specified. The time
+            to add gate to may be explicitly specified in the time argumet (1st
+            priority), or a recipe for determining the time placement can be
+            specified using the time_placement argument (2nd priority).
+
+        Params:
+            qubitA (int) - control qubit index in self to add the gate into.
+            qubitB (int) - target qubit index in self to add the gate into.
+            U (np.ndarray) - 4 x 4 unitary to construct the U2 gate from.
+            time (int) - time moment in self to add the gate into. If None, the
+                time_placement argument will be considered next.
+            time_placement (str - 'early', 'late', or 'next') - recipe to
+                determine time moment in self to add the gate into. The rules
+                are:
+                    'early' -  add the gate as early as possible, just after
+                        any existing gates on self's qubit wires.
+                    'late' - add the gate in the last open time moment in self,
+                        unless a conflict arises, in which case, add the gate
+                        in the next (new) time moment.
+                    'next' - add the gate in the next (new) time moment.
+        Result:
+            self is updated with the added gate. Checks are
+                performed to ensure that the addition is valid.
+        Returns:
+            self - for chaining
+        """
+        return self.add_gate_sugar(
+            gate=Gate.U2(U=U),
+            qubits=(qubitA, qubitB),
+            **kwargs)
 
     # > Parameter Access/Manipulation < #
 
@@ -1837,131 +2897,3 @@ class Circuit(object):
                 G[A,B] = np.sum(np.kron(PA, PB).conj() * D).real
 
         return G
-
-    # > Gate Addition Sugar < #
-
-    def add_gate_sugar(
-        self,
-        gate,
-        qubits,
-        time=None, 
-        time_placement='early',
-        ):
-
-        if time is None:
-            if time_placement == 'early':
-                timemax = -1
-                for time2, A in self.TAs:
-                    if A in qubits:
-                        timemax = max(timemax, time2)
-                time = timemax + 1
-            elif time_placement == 'late':
-                time = max(self.ntime - 1, 0)
-                if any((time, A) in self.TAs for A in qubits):
-                    time += 1 
-            elif time_placement == 'next':
-                time = self.ntime
-            else:
-                raise RuntimeError('Unknown time_placement: %s. Allowed values are early, late, next' % time_placement)
-
-        self.add_gate(
-            time=time,
-            qubits=qubits,
-            gate=gate,
-            )
-    
-        return self
-
-    def H(
-        self,
-        qubit,
-        **kwargs):
-        
-        return self.add_gate_sugar(
-            gate=Gate.H,
-            qubits=(qubit,),
-            **kwargs)
-
-    def CX(
-        self,
-        qubitA,
-        qubitB,
-        **kwargs):
-
-        return self.add_gate_sugar(
-            gate=Gate.CX,
-            qubits=(qubitA, qubitB),
-            **kwargs)
-
-    def CZ(
-        self,
-        qubitA,
-        qubitB,
-        **kwargs):
-
-        return self.add_gate_sugar(
-            gate=Gate.CZ,
-            qubits=(qubitA, qubitB),
-            **kwargs)
-
-    def Ry(
-        self,
-        qubit,
-        theta=0.0,
-        **kwargs):
-
-        return self.add_gate_sugar(
-            gate=Gate.Ry(theta=theta),
-            qubits=(qubit,),
-            **kwargs)
-
-    def add_circuit(
-        self,
-        circuit,
-        qubits,
-        times=None,
-        time=None,
-        time_placement='early', 
-        copy=True,
-        ):
-
-        if times is None:
-            if time is not None:
-                times = list(range(time,time+circuit.ntime))
-            else:
-                if time_placement == 'early':
-                    leads = [circuit.ntime for _ in range(len(qubits))]
-                    for time2, A in circuit.TAs:
-                        leads[A] = min(leads[A], time2)
-                    timemax = -1
-                    for time2, A in self.TAs:
-                        if A in qubits:
-                            timemax = max(timemax, time2 - leads[qubits.index(A)])
-                    timemax += 1
-                    times = list(range(timemax, timemax+circuit.ntime))
-                elif time_placement == 'late':
-                    timemax = max(self.ntime - 1, 0)
-                    if any((timemax, A) in self.TAs for A in qubits):
-                        timemax += 1 
-                    times = list(range(timemax, timemax+circuit.ntime))
-                elif time_placement == 'next':
-                    times = list(range(self.ntime, self.ntime+circuit.ntime))
-                else:
-                    raise RuntimeError('Unknown time_placement: %s. Allowed values are early, late, next' % time_placement)
-
-        for key, gate in circuit.gates.items():
-            time2, qubits2 = key
-            time3 = times[time2]
-            qubits3 = tuple(qubits[_] for _ in qubits2)
-            self.add_gate(time=time3, qubits=qubits3, gate=gate, copy=copy)
-        
-        return self
-             
-    def subcircuit(
-        self,
-        qubits,
-        times, 
-        copy=True,
-        ):
-
-        return self.subset(times=times, copy=copy).deadjoin(qubits=qubits, copy=copy)
