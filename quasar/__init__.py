@@ -5,3 +5,4 @@ from .run import build_native_circuit, run_measurement, run_statevector, run_pau
 
 from .backend import Backend
 from .quasar_backend import QuasarSimulatorBackend
+from .qiskit_backend import QiskitBackend, QiskitSimulatorBackend, QiskitHardwareBackend

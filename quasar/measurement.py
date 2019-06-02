@@ -45,6 +45,7 @@ class Measurement(dict):
             if not isinstance(v, int): raise RuntimeError('Value must be int: %s' % v) 
             if v < 0: raise RuntimeError('Value must be positive: %s' % v)
 
+        if len(self) == 0: return
         selfN = self.N
         if not all(_.N == self.N for _ in self.keys()): raise RuntimeError('All keys must have same N')
 
@@ -73,7 +74,7 @@ class Measurement(dict):
         if not isinstance(key, Ket): raise RuntimeError('Key must be Ket: %s' % key)
         if not isinstance(value, int): raise RuntimeError('Value must be int: %s' % value)
         if value < 0: raise RuntimeError('Value must be positive: %s' % value)
-        if key.N != self.N: raise RuntimeError('All keys must have same N')
+        if len(self) and key.N != self.N: raise RuntimeError('All keys must have same N')
         return super(Measurement, self).__setitem__(key, value)
 
     def get(
@@ -95,7 +96,7 @@ class Measurement(dict):
         if not isinstance(key, Ket): raise RuntimeError('Key must be Ket: %s' % key)
         if default is not None and not isinstance(default, int): raise RuntimeError('default must be int: %s' % default)
         if default < 0: raise RuntimeError('default must be positive: %s' % default)
-        if key.N != self.N: raise RuntimeError('All keys must have same N')
+        if len(self) and key.N != self.N: raise RuntimeError('All keys must have same N')
         return super(Measurement, self).setdefault(key, default)
 
     def update(self, *args, **kwargs):
@@ -103,11 +104,11 @@ class Measurement(dict):
 
     @property
     def N(self):
-        return next(iter(self.keys())).N
+        return next(iter(self.keys())).N if len(self) else None
         
     @property
     def nmeasurement(self):
-        return sum(v for v in self.values())
+        return sum(v for v in self.values()) if len(self) else 0
 
     def __str__(self):
         maxval = max(_ for _ in self.values())

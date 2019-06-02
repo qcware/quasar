@@ -8,7 +8,7 @@ def build_native_circuit(
 def run_measurement(
     backend,
     circuit,
-    nmeasurement,
+    nmeasurement=1000,
     **kwargs):
 
     return backend.run_measurement(circuit, nmeasurement, **kwargs)
