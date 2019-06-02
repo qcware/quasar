@@ -6,6 +6,7 @@
 
 import numpy as np
 import collections
+from .measurement import Ket, Measurement
 
 """ Quasar: an ultralight python-2.7/python-3.X quantum simulator package
 
@@ -2869,3 +2870,62 @@ class Circuit(object):
                 G[A,B] = np.sum(np.kron(PA, PB).conj() * D).real
 
         return G
+
+    def measure(
+        self, 
+        nmeasurement=1000,
+        wfn=None,
+        dtype=np.complex128,
+        ):
+
+        """ Randomly sample the measurement outputs of the quantum circuit.
+            First calls self.simulate to generate the final statevector, then
+            calls compute_measurements_from_statevector to perform the random
+            sampling. 
+
+        Params:
+            nmeasurement (int) - number of measurements to sample.
+            wfn (np.ndarray of shape (2**self.N,) or None)
+                - the initial wavefunction. If None, the reference state
+                  \prod_{A} |0_A> will be used.
+            dtype (real or complex dtype) - the dtype to perform the
+                computation at. The input wfn and all gate unitary operators
+                will be cast to this type and the returned wfn will be of this
+                dtype. Note that using real dtypes (float64 or float32) can
+                reduce storage and runtime, but the imaginary parts of the
+                input wfn and all gate unitary operators will be discarded
+                without checking. In these cases, the user is responsible for
+                ensuring that the circuit works on O(2^N) rather than U(2^N)
+                and that the output is valid.
+        Returns:
+            (Measurement) - a Measurement object containing the results of
+                randomly sampled projective measurements .
+        """
+    
+        return Circuit.compute_measurements_from_statevector(
+            self.simulate(wfn=wfn, dtype=dtype), 
+            nmeasurement=nmeasurement,
+            )
+
+    @staticmethod
+    def compute_measurements_from_statevector(
+        statevector,
+        nmeasurement,
+        ):
+
+        """ Randomly sample the measurement outputs obtained by projectively
+            measuring the statevector in the computational basis.
+
+        Params:
+            statevector (np.ndarray of shape (2**N,)) - the statevector to
+                sample.
+            nmeasurement (int) - number of measurements to sample.
+        Returns:
+            (Measurement) - a Measurement object containing the results of
+                randomly sampled projective measurements .
+        """
+
+        N = (statevector.shape[0]&-statevector.shape[0]).bit_length()-1
+        P = (np.conj(statevector) * statevector).real
+        I = list(np.searchsorted(np.cumsum(P), np.random.rand(nmeasurement)))
+        return Measurement({ Ket.from_int(k, N) : I.count(k) for k in list(sorted(set(I))) }) 

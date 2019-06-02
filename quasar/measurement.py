@@ -23,6 +23,13 @@ class Ket(str):
     def N(self):
         return len(self)
 
+    @staticmethod
+    def from_int(value, N):
+        if value >= (1 << N): raise RuntimeError('value >= 2**N: value=%s, N=%s' % (value, N))
+        start = bin(value)[2:]
+        padded = ('0' * (N - len(start))) + start
+        return Ket(padded)
+
 class Measurement(dict):    
 
     def __init__(

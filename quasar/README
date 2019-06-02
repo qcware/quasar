@@ -1,0 +1,14 @@
+quasar/quasar - the galactic core of the quasar library, containing all primary
+    code.
+
+# Contents 
+
+circuit.py - the quasar quantum circuit library. Includes Circuit, Gate, and
+    Matrix classes.
+pauli.py - the quasar Pauli operator library. Includes the Pauli class and
+    PauliString, PauliOperator, and PauliStarter utility classes (most of which
+    are simple stubs used only for symbolic algebra of Pauli objects).
+measurement.py - the quasar qubit measurement library. Includes the Ket and
+    Measurement classes.
+run.py - the quasar runtime methods library.
+
