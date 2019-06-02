@@ -1,5 +1,7 @@
 import numpy as np
+import collections
 from .pauli import Pauli, PauliString
+from .circuit import Circuit
 
 """ File backend.py contains some utility classes the standardize the
     input/output data for quantum circuits and some utility functions that
@@ -207,6 +209,8 @@ class Backend(object):
         Pauli density matrix elements XA, ZA, XB, and ZB.
         """
 
+        if pauli.N > circuit.N: raise RuntimeError('pauli.N >= circuit.N')
+
         if nmeasurement is None:
             return self.run_pauli_expectation_from_statevector(circuit, pauli, **kwargs)
         else:
@@ -232,21 +236,21 @@ class Backend(object):
         pauli_expectation = Pauli.zeros_like(pauli)
         if PauliString.I in pauli_expectation:
             pauli_expectation[PauliString.I] = 1.0
-        # TODO
-        for index in pauli_expectation.indices(1):
+        for index in pauli_expectation.extract_orders((1,)).qubits:
             A = index[0]
             P = Circuit.compute_pauli_1(wfn=statevector, A=A)
             for dA, DA in zip([1, 2, 3], ['X', 'Y', 'Z']):
-                key = '%s%d' % (DA, A)
+                key = PauliString.from_string('%s%d' % (DA, A))
                 if key in pauli_expectation:
                     pauli_expectation[key] = P[dA]
-        for index in pauli_expectation.indices(2):
+        for index in pauli_expectation.extract_orders((2,)).qubits:
+            A = index[0]
             A = index[0]
             B = index[1]
             P = Circuit.compute_pauli_2(wfn=statevector, A=A, B=B)
             for dA, DA in zip([1, 2, 3], ['X', 'Y', 'Z']):
                 for dB, DB in zip([1, 2, 3], ['X', 'Y', 'Z']):
-                    key = '%s%d*%s%d' % (DA, A, DB, B)
+                    key = PauliString.from_string('%s%d*%s%d' % (DA, A, DB, B))
                     if key in pauli_expectation:
                         pauli_expectation[key] = P[dA, dB]
 
@@ -274,7 +278,8 @@ class Backend(object):
             basis = Circuit(N=circuit.N)
             for A, char in enumerate(group):
                 if char in ['I', 'Z']: continue
-                elif char == 'X': basis.add_gate(T=0, key=A, gate=Gate.H)
+                elif char == 'X': basis.H(A)
+                elif char == 'Y': basis.Rx2(A)
                 else: raise RuntimeError('Unknown basis: %s' % char)
             circuits.append(Circuit.concatenate([circuit, basis]))
     
@@ -285,23 +290,22 @@ class Backend(object):
             **kwargs) for _ in circuits]
             
         # Counts for pauli strings
-        counts = { _ : 0 for _ in pauli.strings }
-        ns = { _ : 0 for _ in pauli.strings }
+        counts = { _ : 0 for _ in pauli.keys() }
+        ns = { _ : 0 for _ in pauli.keys() }
         for group, result in zip(groups.keys(), results):
             strings = groups[group]
             for string in strings:
-                indices = string.indices
+                qubits = string.qubits
                 ns[string] += nmeasurement
                 for ket, count in result.items():
-                    parity = sum(ket[_] for _ in indices) % 2
+                    parity = sum(ket[_] for _ in qubits) % 2
                     counts[string] += (-count) if parity else (+count)
                 
         # Pauli density matrix values
-        values = np.array([counts[_] / float(ns[_]) for _ in pauli.strings])
-        pauli_expectation = Pauli(
-            strings=pauli.strings,
-            values=values,
-            )
+        pauli_expectation = Pauli(collections.OrderedDict([
+            (_, counts[_] / max(ns[_], 1)) for _ in pauli.keys()]))
+        if PauliString.I in pauli_expectation:
+            pauli_expectation[PauliString.I] = 1.0
         return pauli_expectation
 
     @staticmethod
@@ -322,7 +326,7 @@ class Backend(object):
 
     @staticmethod
     def is_all_z(pauli):
-        for string in pauli.strings:
+        for string in pauli.keys():
             if any(_ != 'Z' for _ in string.chars):
                 return False
         return True
@@ -333,7 +337,7 @@ class Backend(object):
         groups = {}
         groups[tuple(['Z']*pauli.N)] = []
 
-        for string in pauli.strings:
+        for string in pauli.keys():
             
             # Do not do the identity operator
             if string.order == 0: continue
@@ -342,10 +346,10 @@ class Backend(object):
             found = False
             for group, strings2 in groups.items():
                 valid = True
-                for operator in string.operators:
-                    index = operator.index
+                for operator in string:
+                    qubit = operator.qubit
                     char = operator.char
-                    if group[index] != 'I' and group[index] != char:
+                    if group[qubit] != char:
                         valid = False
                         break
                 if not valid: continue
@@ -364,7 +368,7 @@ class Backend(object):
         groups[tuple(['Z', 'X']*pauli.N)[:pauli.N]] = []
         groups[tuple(['Z']*pauli.N)] = []
 
-        for string in pauli.strings:
+        for string in pauli.keys():
             
             # Do not do the identity operator
             if string.order == 0: continue
@@ -373,10 +377,10 @@ class Backend(object):
             found = False
             for group, strings2 in groups.items():
                 valid = True
-                for operator in string.operators:
-                    index = operator.index
+                for operator in string:
+                    qubit = operator.qubit
                     char = operator.char
-                    if group[index] != 'I' and group[index] != char:
+                    if group[qubit] != char:
                         valid = False
                         break
                 if not valid: continue

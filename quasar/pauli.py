@@ -155,7 +155,11 @@ class Pauli(collections.OrderedDict):
         lines = []
         for string, value in self.items():
             if isinstance(value, float): sign = -1 if value < 0.0 else +1
-            elif isinstance(value, complex): sign = -1 if value.real < 0.0 else +1
+            elif isinstance(value, complex): 
+                if value.real == 0.0:
+                    sign = -1 if value.imag < 0.0 else +1
+                else:
+                    sign = -1 if value.real < 0.0 else +1
             else: raise RuntimeError('value must be float or complex: %s' % value)
             lines.append('%s%s*%s' % ('-' if sign == -1 else '+', sign*value, string))
         return '\n'.join(lines)
@@ -360,6 +364,34 @@ class Pauli(collections.OrderedDict):
     @staticmethod
     def IXYZ():
         return Pauli(collections.OrderedDict([(PauliString.I, 1.0)])), PauliStarter('X'), PauliStarter('Y'), PauliStarter('Z')
+
+    # > Extra utility for run_pauli_expectation < #
+
+    def extract_orders(
+        self,
+        orders,
+        ):
+
+        """ Return a subset of Pauli with only terms with specific orders retained.
+        
+        Params:
+            orders (tuple of int) - tuple of orders to retain
+        Returns:
+            (Pauli) - a version of this Pauli, but with only strings with order
+                present in orders retained.
+        """
+
+        return Pauli(collections.OrderedDict([(k, v) for k, v in self.items() if k.order in orders]))
+
+    @property
+    def qubits(self):
+
+        return tuple([_.qubits for _ in self.keys()])
+
+    @property
+    def chars(self):
+
+        return tuple([_.chars for _ in self.keys()])
 
 class PauliStarter(object):
 

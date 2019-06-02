@@ -23,7 +23,7 @@ class QuasarSimulatorBackend(Backend):
 
     @property
     def has_measurement(self):
-        return False 
+        return True
 
     def build_native_circuit(
         self,
@@ -37,5 +37,13 @@ class QuasarSimulatorBackend(Backend):
         compressed=True,
         ):
         return (circuit.compressed() if compressed else circuit).simulate()
+
+    def run_measurement(
+        self,
+        circuit,
+        nmeasurement=1000,
+        compressed=True,
+        ):
+        return (circuit.compressed() if compressed else circuit).measure(nmeasurement)
 
 
