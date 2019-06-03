@@ -393,6 +393,7 @@ def _GateRx(theta):
     
     def Ufun(params):
         theta = params['theta']
+        print(np)
         c = np.cos(theta)
         s = np.sin(theta)
         return np.array([[c, -1.j*s], [-1.j*s, c]], dtype=np.complex128)

@@ -1,9 +1,9 @@
 def build_native_circuit(
     backend,
     circuit,
-    **kwargs):
+    ):
 
-    return backend.build_native_circuit(circuit, **kwargs)
+    return backend.build_native_circuit(circuit)
 
 def run_measurement(
     backend,

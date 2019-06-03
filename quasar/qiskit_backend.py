@@ -1,3 +1,4 @@
+from .circuit import Circuit
 from .backend import Backend
 from .measurement import Ket, Measurement
 
@@ -15,10 +16,25 @@ class QiskitBackend(Backend):
     def quasar_to_qiskit_angle(theta):
         return 2.0 * theta
 
+    @staticmethod
+    def qiskit_to_quasar_angle(theta):
+        return 0.5 * theta
+
+    @property
+    def native_circuit_type(self):
+        import qiskit
+        return qiskit.QuantumCircuit
+
     def build_native_circuit(
         self,
         circuit,
-        **kwargs):
+        ):
+
+        # Dropthrough
+        if isinstance(circuit, self.native_circuit_type): return circuit
+    
+        # Can only convert quasar -> qiskit
+        if not isinstance(circuit, Circuit): raise RuntimeError('circuit must be Circuit type for build_native_circuit: %s' % (circuit))
 
         import qiskit
         q = qiskit.QuantumRegister(circuit.N)
@@ -53,9 +69,7 @@ class QiskitBackend(Backend):
             elif gate.N == 2:
                 qubitA = qubits[0]
                 qubitB = qubits[1]
-                if gate.name == 'CNOT':
-                    qc.cx(q[qubitA], q[qubitB])
-                elif gate.name == 'CX':
+                if gate.name == 'CX':
                     qc.cx(q[qubitA], q[qubitB])
                 elif gate.name == 'CY':
                     qc.cy(q[qubitA], q[qubitB])
@@ -66,9 +80,66 @@ class QiskitBackend(Backend):
                 else:
                     raise RuntimeError('Gate translation to qiskit not known: %s' % gate)
             else:
-                raise RuntimeError('Cannot emit qiskit for N > 2')
+                raise RuntimeError('Cannot translate qiskit for N > 2')
                 
         return qc
+
+    def build_quasar_circuit(
+        self,
+        native_circuit,
+        ):
+
+        # Dropthrough
+        if isinstance(native_circuit, Circuit): return native_circuit
+    
+        # Can only convert quasar -> qiskit
+        if not isinstance(native_circuit, self.native_circuit_type): raise RuntimeError('native_circuit must be Circuit type for build_native_native_circuit: %s' % (native_circuit))
+
+        if len(native_circuit.qregs) != 1: raise RuntimeError('Multiple qregs - translation error')
+        circuit = Circuit(N=len(native_circuit.qregs[0]))
+
+        for gate in native_circuit:
+            if len(gate.qargs) == 1:
+                qubit = gate.qargs[0][1]
+                if gate.name == 'id':
+                    circuit.I(qubit)
+                elif gate.name == 'x':
+                    circuit.X(qubit)
+                elif gate.name == 'y':
+                    circuit.Y(qubit)
+                elif gate.name == 'z':
+                    circuit.Z(qubit)
+                elif gate.name == 'h':
+                    circuit.H(qubit)
+                elif gate.name == 's':
+                    circuit.S(qubit)
+                elif gate.name == 't':
+                    circuit.T(qubit)
+                elif gate.name == 'rx':
+                    circuit.Rx(qubit, theta=QiskitBackend.qiskit_to_quasar_angle(float(gate.param[0])))
+                elif gate.name == 'ry':
+                    circuit.Ry(qubit, theta=QiskitBackend.qiskit_to_quasar_angle(float(gate.param[0])))
+                elif gate.name == 'rz':
+                    circuit.Rz(qubit, theta=QiskitBackend.qiskit_to_quasar_angle(float(gate.param[0])))
+                else:
+                    raise RuntimeError('Gate translation to quasar not known: %s' % gate)
+            elif len(gate.qargs) == 2:
+                qubitA = gate.qargs[0][1]
+                qubitB = gate.qargs[1][1]
+                if gate.name == 'cx':
+                    circuit.CX(qubitA, qubitB)
+                elif gate.name == 'cy':
+                    circuit.CY(qubitA, qubitB)
+                elif gate.name == 'cz':
+                    circuit.CZ(qubitA, qubitB)
+                elif gate.name == 'swap':
+                    circuit.SWAP(qubitA, qubitB)
+                else:
+                    raise RuntimeError('Gate translation to quasar not known: %s' % gate)
+            else:
+                raise RuntimeError('Cannot translate qiskit for N > 2')
+
+        return circuit
 
     def build_native_circuit_measurement(
         self,
@@ -160,6 +231,10 @@ class QiskitHardwareBackend(QiskitBackend):
         self.backend = qiskit.IBMQ.get_backend(backend_name)
         
     def __str__(self):
+        return 'Qiskit Hardware Backend (%s)' % self.backend
+
+    @property
+    def summary_str(self):
         return 'Qiskit Hardware Backend (%s)' % self.backend
 
     @property

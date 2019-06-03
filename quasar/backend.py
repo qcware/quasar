@@ -110,18 +110,54 @@ class Backend(object):
         """ 
         raise NotImplementedError
 
+    @property
+    def native_circuit_type(self):
+        """ The native circuit type for this backend, to identify drop-through. 
+
+        Returns:
+            (? - native datatype) - Native circuit object representation
+                datatype.
+
+        Backend subclasses should OVERLOAD this method.
+        """ 
+        raise NotImplementedError
+
     def build_native_circuit(
         self,
         circuit,
-        **kwargs):
+        ):
         """ Return the native object representation of the input Quasar circuit. 
         
         Params:
-            circuit (quasar.Circuit) - Quasar circuit to translate to native
-                representation.
+            circuit (quasar.Circuit or native circuit type) - Quasar circuit to
+                translate to native representation *OR* native circuit
+                representation (for dropthrough).
         Returns:
-            (? - native datatype) - Native circuit object representation.
+            (native_circuit_type) - Native circuit object representation. If
+                input circuit is quasar circuit, translation is performed. If
+                input circuit is native circuit, this method drops through and
+                immediately returns the unmodified native circuit.
 
+        Backend subclasses should OVERLOAD this method.
+        """
+        raise NotImplementedError
+
+    def build_quasar_circuit(
+        self,
+        native_circuit,
+        ):
+
+        """ Return the Quasar representation of the input native circuit representation.
+
+        Params:
+            native_circuit (native circuit type or quasar.Circuit) - native
+            type to translate to translate to Quasar circuit *OR* Quasar
+            circuit (for dropthrough).
+        Return:
+            (Circuit) - Quasar circuit object representation. If the input
+                circuit is native circuit, translation is performed. If input
+                circuit is Quasar circuit, this method drops through and
+                immediately returns the unmodified Quasar circuit.
         Backend subclasses should OVERLOAD this method.
         """
         raise NotImplementedError
@@ -141,7 +177,8 @@ class Backend(object):
             can change depending on the specific backend.
 
         Params:
-            circuit (quasar.Circuit) - Quasar circuit to simulate.
+            circuit (quasar.Circuit) - Quasar circuit to simulate *OR* native
+                circuit to simulate (dropthrough).
         Returns:
             (np.ndarray of shape (2**N,), dtype determined by backend) - the
                 statevector in Quasar Hilbert space order.
@@ -181,7 +218,8 @@ class Backend(object):
         """ Return a Pauli object representating the density matrix of the quantum circuit. 
 
         Params:
-            circuit (quasar.Circuit) - Quasar circuit to measure.
+            circuit (quasar.Circuit) - Quasar circuit to simulate *OR* native
+                circuit to simulate (dropthrough).
             pauli (Pauli) - Pauli object to use as a stencil for required Pauli
                 density matrix elements. The strings in 
             nmeasurement (int or None) - integer number of measurements

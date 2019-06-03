@@ -1,4 +1,5 @@
 from .backend import Backend
+from .circuit import Circuit
 
 class QuasarSimulatorBackend(Backend):
 
@@ -25,11 +26,31 @@ class QuasarSimulatorBackend(Backend):
     def has_measurement(self):
         return True
 
+    @property
+    def native_circuit_type(self):
+        return Circuit
+
     def build_native_circuit(
         self,
         circuit,
         ):
-        return circuit.copy()
+
+        # Dropthrough
+        if isinstance(circuit, self.native_circuit_type): return circuit
+
+        # Can only convert quasar -> quasar
+        if not isinstance(circuit, Circuit): raise RuntimeError('circuit must be Circuit type for build_native_circuit: %s' % (circuit))
+
+    def build_quasar_circuit(
+        self,
+        native_circuit,
+        ):
+
+        # Dropthrough
+        if isinstance(native_circuit, self.native_circuit_type): return circuit
+
+        # Can only convert quasar -> quasar
+        if not isinstance(native_circuit, Circuit): raise RuntimeError('circuit must be Circuit type for build_native_circuit: %s' % (native_circuit))
 
     def run_statevector(
         self,
