@@ -300,7 +300,7 @@ class Backend(object):
 
         # Validity check
         N = (statevector.shape[0]&-statevector.shape[0]).bit_length()-1
-        if pauli.N >= N: raise RuntimeError('pauli.N >= circuit.N')
+        if pauli.N > N: raise RuntimeError('pauli.N > circuit.N')
 
         pauli_expectation = Pauli.zeros_like(pauli)
         if PauliString.I in pauli_expectation:

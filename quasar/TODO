@@ -1,4 +1,13 @@
-General commuting groups for measurement-based Pauli expectations
+Cirq angles
+Rigetti integration
+ProjectQ integration
+
 N-body Pauli matrices for statevector-based Pauli expectations
+General commuting groups for measurement-based Pauli expectations
+
+gradients/Hessians
+
 u3-style gates
 Ensure identical gate time placement in backends
+
+Y-basis transforms in build_native_circuit_in_basis
