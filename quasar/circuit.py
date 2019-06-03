@@ -2795,6 +2795,154 @@ class Circuit(object):
         return np.reshape(D, (4,4))
 
     @staticmethod
+    def compute_3pdm(
+        wfn1,
+        wfn2,
+        A,
+        B,
+        C,
+        ):
+
+        N = (wfn1.shape[0]&-wfn1.shape[0]).bit_length()-1
+        if A >= N: raise RuntimeError('A >= N')
+        if B >= N: raise RuntimeError('B >= N')
+        if C >= N: raise RuntimeError('C >= N')
+        if A == B: raise RuntimeError('A == B')
+        if A == C: raise RuntimeError('A == C')
+        if B == C: raise RuntimeError('B == C')
+        if wfn1.shape != (2**N,): raise RuntimeError('wfn1 should be (%d,) shape, is %r shape' % (2**N, wfn1.shape))
+        if wfn2.shape != (2**N,): raise RuntimeError('wfn2 should be (%d,) shape, is %r shape' % (2**N, wfn2.shape))
+    
+        A2, B2, C2 = sorted((A, B, C))
+
+        L = 2**(A2)      # Left hangover
+        M = 2**(B2-A2-1) # Middle1 hangover
+        P = 2**(C2-B2-1) # Middle2 hangover
+        R = 2**(N-C2-1)  # Right hangover
+        
+        wfn1v = wfn1.view() 
+        wfn2v = wfn2.view()
+        wfn1v.shape = (L,2,M,2,P,2,R)
+        wfn2v.shape = (L,2,M,2,P,2,R)
+
+        D = np.einsum('LiMjPkR,LlMmPkR->ijklmn', wfn1v.conj(), wfn2v)
+
+        bra_indices = 'ijk'
+        ket_indices = 'lmn'
+        # TODO: double check
+        bra_indices2 = ''.join([bra_indices[(A, B, C).index[_]] for _ in (A2, B2, C2)])
+        ket_indices2 = ''.join([ket_indices[(A, B, C).index[_]] for _ in (A2, B2, C2)])
+
+        D = np.einsum('%s%s->%s%s' % (bra_indices, ket_indices, bra_indices2, ket_indices2), D)
+
+        return np.reshape(D, (8, 8))
+
+    @staticmethod
+    def compute_4pdm(
+        wfn1,
+        wfn2,
+        A,
+        B,
+        C,
+        D,
+        ):
+
+        N = (wfn1.shape[0]&-wfn1.shape[0]).bit_length()-1
+        if A >= N: raise RuntimeError('A >= N')
+        if B >= N: raise RuntimeError('B >= N')
+        if C >= N: raise RuntimeError('C >= N')
+        if D >= N: raise RuntimeError('D >= N')
+        if A == B: raise RuntimeError('A == B')
+        if A == C: raise RuntimeError('A == C')
+        if A == D: raise RuntimeError('A == D')
+        if B == C: raise RuntimeError('B == C')
+        if B == D: raise RuntimeError('B == D')
+        if C == D: raise RuntimeError('C == D')
+        if wfn1.shape != (2**N,): raise RuntimeError('wfn1 should be (%d,) shape, is %r shape' % (2**N, wfn1.shape))
+        if wfn2.shape != (2**N,): raise RuntimeError('wfn2 should be (%d,) shape, is %r shape' % (2**N, wfn2.shape))
+    
+        A2, B2, C2, D2 = sorted((A, B, C, D))
+
+        L = 2**(A2)      # Left hangover
+        M = 2**(B2-A2-1) # Middle1 hangover
+        P = 2**(C2-B2-1) # Middle2 hangover
+        Q = 2**(D2-C2-1) # Middle3 hangover
+        R = 2**(N-D2-1)  # Right hangover
+        
+        wfn1v = wfn1.view() 
+        wfn2v = wfn2.view()
+        wfn1v.shape = (L,2,M,2,P,2,Q,2,R)
+        wfn2v.shape = (L,2,M,2,P,2,Q,2,R)
+
+        D = np.einsum('LiMjPkQlR,LmMnPoPpR->ijklmnop', wfn1v.conj(), wfn2v)
+
+        bra_indices = 'ijkl'
+        ket_indices = 'mnop'
+        # TODO: double check
+        bra_indices2 = ''.join([bra_indices[(A, B, C, D).index[_]] for _ in (A2, B2, C2, D2)])
+        ket_indices2 = ''.join([ket_indices[(A, B, C, D).index[_]] for _ in (A2, B2, C2, D2)])
+
+        D = np.einsum('%s%s->%s%s' % (bra_indices, ket_indices, bra_indices2, ket_indices2), D)
+
+        return np.reshape(D, (8, 8))
+        
+    @staticmethod
+    def compute_npdm(
+        wfn1,
+        wfn2,
+        qubits,
+        ):
+
+        N = (wfn1.shape[0]&-wfn1.shape[0]).bit_length()-1
+        if any(_ >= N for _ in qubits): raise RuntimeError('qubits >= N')
+        if len(set(qubits)) != len(qubits): raise RuntimeError('duplicate entry in qubits')
+        if wfn1.shape != (2**N,): raise RuntimeError('wfn1 should be (%d,) shape, is %r shape' % (2**N, wfn1.shape))
+        if wfn2.shape != (2**N,): raise RuntimeError('wfn2 should be (%d,) shape, is %r shape' % (2**N, wfn2.shape))
+    
+        qubits2 = tuple(sorted(qubits))
+        hangovers = (2**qubits2[0],) + tuple(2**(qubits2[A+1]-qubits2[A]-1) for A in range(len(qubits2)-1)) + (2**(N-qubits2[-1]-1),)
+        shape = []
+        for hangover in hangovers[:-1]:
+            shape.append(hangover)
+            shape.append(2)
+        shape.append(hangover[-1])
+        shape = tuple(shape)
+        
+        wfn1v = wfn1.view() 
+        wfn2v = wfn2.view()
+        wfn1v.shape = shape
+        wfn2v.shape = shape
+
+        hangover_stock = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+        bra_stock = 'abcdefghijklm'
+        ket_stock = 'nopqrstuvwxyz'
+
+        if N > 13: raise RuntimeError('Technical limit: cannot run N > 13')
+    
+        bra_str = ''
+        ket_str = ''
+        for A in range(N):
+            bra_str += hangover_stock[A]
+            bra_str += bra_stock[A]
+            ket_str += hangover_stock[A]
+            ket_str += ket_stock[A]
+        bra_str += hangover_stock[N]
+        ket_str += hangover_stock[N]
+            
+        den_str = bra_stock[:N] + ket_stock[:N]
+
+        D = np.einsum('%s,%s->%s' % (bra_str, ket_str, den_str), wfn1v.conj(), wfn2v)
+
+        bra_str2 = ''.join([bra_stock[qubits.index[_]] for _ in qubits2])
+        ket_str2 = ''.join([ket_stock[qubits.index[_]] for _ in qubits2])
+        den_str2 = bra_str2 + ket_str2
+
+        D = np.einsum('%s->%s' % (den_str, den_str2), D)
+
+        return np.reshape(D, (2**N, 2**N))
+        
+
+    @staticmethod
     def compute_pauli_1(
         wfn,
         A,
