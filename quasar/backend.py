@@ -142,6 +142,34 @@ class Backend(object):
         """
         raise NotImplementedError
 
+    def build_native_circuit_in_basis(
+        self,
+        circuit,
+        basis,
+        ):
+        """ Return the native object representation of the input Quasar
+            circuit, in a given X/Y/Z basis on each qubit. This is often used
+            to compute Pauli expectations by measurements in the appropriate
+            basis.
+        
+        Params:
+            circuit (quasar.Circuit or native circuit type) - Quasar circuit to
+                translate to native representation *OR* native circuit
+                representation (for dropthrough).
+            basis (str of x/Y/Z chars of len(circuit.N)) - basis to rotate each
+                qubit in circuit to at the end of the computation.
+        Returns:
+            (native_circuit_type) - Native circuit object representation. If
+                input circuit is quasar circuit, translation is performed. If
+                input circuit is native circuit, this method drops through and
+                immediately returns the unmodified native circuit, plus the
+                basis rotations.
+
+        Backend subclasses should OVERLOAD this method.
+        """
+        raise NotImplementedError
+        
+
     def build_quasar_circuit(
         self,
         native_circuit,
@@ -247,8 +275,6 @@ class Backend(object):
         Pauli density matrix elements XA, ZA, XB, and ZB.
         """
 
-        if pauli.N > circuit.N: raise RuntimeError('pauli.N >= circuit.N')
-
         if nmeasurement is None:
             return self.run_pauli_expectation_from_statevector(circuit, pauli, **kwargs)
         else:
@@ -264,12 +290,17 @@ class Backend(object):
         pauli,
         **kwargs): 
 
-        if not self.has_statevector: raise RuntimeError('Backend does not have statevector')
+        if not self.has_statevector: 
+            raise RuntimeError('Backend does not have statevector')
 
         if pauli.max_order > 2: 
             raise NotImplementedError
 
         statevector = self.run_statevector(circuit, **kwargs)
+
+        # Validity check
+        N = (statevector.shape[0]&-statevector.shape[0]).bit_length()-1
+        if pauli.N >= N: raise RuntimeError('pauli.N >= circuit.N')
 
         pauli_expectation = Pauli.zeros_like(pauli)
         if PauliString.I in pauli_expectation:
@@ -301,9 +332,10 @@ class Backend(object):
         nmeasurement,
         **kwargs):
     
-        if not self.has_measurement: raise RuntimeError('Backend does not have measurement')
+        if not self.has_measurement: 
+            raise RuntimeError('Backend does not have measurement')
 
-        # Commuting group
+        # Determine commuting group
         if Backend.is_all_z(pauli):
             groups = Backend.z_commuting_group(pauli)
         else:
@@ -311,15 +343,8 @@ class Backend(object):
         # Else exception will be raised if unknown commuting group
 
         # Modified circuits for basis transformations
-        circuits = []
-        for group in groups.keys():
-            basis = Circuit(N=circuit.N)
-            for A, char in enumerate(group):
-                if char in ['I', 'Z']: continue
-                elif char == 'X': basis.H(A)
-                elif char == 'Y': basis.Rx2(A)
-                else: raise RuntimeError('Unknown basis: %s' % char)
-            circuits.append(Circuit.concatenate([circuit, basis]))
+        circuits = [self.build_native_circuit_in_basis(circuit, basis) 
+            for basis in groups.keys()]
     
         # Measurements in commuting group (quantum heavy)
         results = [self.run_measurement(
@@ -373,7 +398,7 @@ class Backend(object):
     def z_commuting_group(pauli):
 
         groups = {}
-        groups[tuple(['Z']*pauli.N)] = []
+        groups['Z'*pauli.N] = []
 
         for string in pauli.keys():
             
@@ -400,11 +425,11 @@ class Backend(object):
     @staticmethod
     def linear_xz_commuting_group(pauli):
 
-        groups = {}
-        groups[tuple(['X']*pauli.N)] = []
-        groups[tuple(['X', 'Z']*pauli.N)[:pauli.N]] = []
-        groups[tuple(['Z', 'X']*pauli.N)[:pauli.N]] = []
-        groups[tuple(['Z']*pauli.N)] = []
+        groups = collections.OrderedDict()
+        groups['X'*pauli.N] = []
+        groups[('XZ'*pauli.N)[:pauli.N]] = []
+        groups[('ZX'*pauli.N)[:pauli.N]] = []
+        groups['Z'*pauli.N] = []
 
         for string in pauli.keys():
             
@@ -427,34 +452,3 @@ class Backend(object):
             if not found: raise RuntimeError('Invalid string - not in linear XZ commuting groups: %s' % string)
 
         return groups
-
-def test_statevector_order(
-    N,
-    backend1,
-    backend2,
-    ):
-
-    for I in range(N):
-        circuit = Circuit(N=N)
-        circuit.add_gate(T=0, key=I, gate=quasar.Gate.X)
-        wfn1 = backend1.run_statevector(circuit)
-        wfn2 = backend2.run_statevector(circuit)
-        print(np.sum(wfn1*wfn2))
-        
-if __name__ == '__main__':
-
-    circuit = Circuit(N=3)
-    circuit.add_gate(T=0, key=0, gate=Gate.H)
-    circuit.add_gate(T=1, key=(0,1), gate=Gate.CX)
-    circuit.add_gate(T=2, key=(1,2), gate=Gate.CX)
-    print(circuit)
-
-    backend = QiskitSimulatorBackend()
-    circuit2 = backend.native_circuit(circuit)
-    print(circuit2)
-
-    print(backend.run_statevector(circuit))
-    print(backend.run_statevector(circuit).dtype)
-
-    test_statevector_order() 
-

@@ -154,6 +154,27 @@ class CirqBackend(Backend):
                     raise RuntimeError('Cannot translate cirq for N > 2')
 
         return circuit
+
+    def build_native_circuit_in_basis(
+        self,
+        circuit,
+        basis,
+        ):
+
+        circuit = self.build_native_circuit(circuit)
+    
+        if len(basis) > len(circuit.all_qubits()): raise RuntimeError('len(basis) > circuit.N. Often implies pauli.N > circuit.N')
+        
+        import cirq
+        q = [cirq.LineQubit(A) for A in range(len(circuit.all_qubits()))]
+        basis_circuit = cirq.Circuit()
+        for A, char in enumerate(basis):
+            if char == 'X': basis_circuit.append(cirq.H(q[A]))
+            # elif char == 'Y': basis_circuit.append(cirq.X(q[A])**0.5) # TODO
+            elif char == 'Z': continue
+            else: raise RuntimeError('Unknown basis: %s' % char)
+        
+        return circuit + basis_circuit
             
     def build_native_circuit_measurement(
         self,
@@ -161,7 +182,7 @@ class CirqBackend(Backend):
         ):
 
         import cirq
-        qc = self.build_native_circuit(circuit)
+        qc = self.build_native_circuit(circuit).copy()
         for qubit in qc.all_qubits():
             qc.append(cirq.measure(qubit))
         return qc
@@ -199,6 +220,7 @@ class CirqSimulatorBackend(CirqBackend):
         circuit_native = self.build_native_circuit(circuit)
         result = self.simulator.simulate(circuit_native, **kwargs)
         statevector = result.state_vector()
+        statevector = np.array(statevector, dtype=np.complex128)
         # TODO: verify ordering, particularly for large qubit counts
         return statevector
 

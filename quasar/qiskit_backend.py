@@ -141,6 +141,27 @@ class QiskitBackend(Backend):
 
         return circuit
 
+    def build_native_circuit_in_basis(
+        self,
+        circuit,
+        basis,
+        ):
+
+        circuit = self.build_native_circuit(circuit)
+    
+        if len(basis) > len(circuit.qregs[0]): raise RuntimeError('len(basis) > circuit.N. Often implies pauli.N > circuit.N')
+        
+        import qiskit
+        q = circuit.qregs[0]
+        basis_circuit = qiskit.QuantumCircuit(q)
+        for A, char in enumerate(basis): 
+            if char == 'X': basis_circuit.h(q[A])
+            # elif char == 'Y': basis_circuit.Rx2(A) # TODO
+            elif char == 'Z': continue # Computational basis
+            else: raise RuntimeError('Unknown basis: %s' % char)
+        
+        return circuit + basis_circuit
+
     def build_native_circuit_measurement(
         self,
         circuit,
@@ -149,7 +170,7 @@ class QiskitBackend(Backend):
         import qiskit
         qc = self.build_native_circuit(circuit)
         q = qc.qregs[0]
-        c = qiskit.ClassicalRegister(circuit.N)
+        c = qiskit.ClassicalRegister(len(q))
         measure = qiskit.QuantumCircuit(q, c)
         measure.measure(q, c)
         return qc + measure
@@ -198,12 +219,13 @@ class QiskitSimulatorBackend(QiskitBackend):
         #      [  exp(2 i theta)]
         # 
         # To correct, we must apply a global phase of exp(-1j * theta) for each
-        # Rz gate
-        phase_rz = 1.0 + 0.0j
-        for key, gate in circuit.gates.items():
-            if gate.name == 'Rz':
-                phase_rz *= np.exp(-1.0j * gate.params['theta'])
-        wfn *= phase_rz
+        # Rz gate. We only do this if the user supplied a Circuit object.
+        if isinstance(circuit, Circuit):
+            phase_rz = 1.0 + 0.0j
+            for key, gate in circuit.gates.items():
+                if gate.name == 'Rz':
+                    phase_rz *= np.exp(-1.0j * gate.params['theta'])
+            wfn *= phase_rz
         return wfn
 
     def run_measurement(

@@ -41,13 +41,32 @@ class QuasarSimulatorBackend(Backend):
         # Can only convert quasar -> quasar
         if not isinstance(circuit, Circuit): raise RuntimeError('circuit must be Circuit type for build_native_circuit: %s' % (circuit))
 
+    def build_native_circuit_in_basis(
+        self,
+        circuit,
+        basis,
+        ):
+
+        circuit = self.build_native_circuit(circuit)
+    
+        if len(basis) > circuit.N: raise RuntimeError('len(basis) > circuit.N. Often implies pauli.N > circuit.N')
+        
+        basis_circuit = Circuit(N=circuit.N)
+        for A, char in enumerate(basis): 
+            if char == 'X': basis_circuit.H(A)
+            elif char == 'Y': basis_circuit.Rx2(A)
+            elif char == 'Z': continue # Computational basis
+            else: raise RuntimeError('Unknown basis: %s' % char)
+        
+        return Circuit.concatenate([circuit, basis_circuit])
+
     def build_quasar_circuit(
         self,
         native_circuit,
         ):
 
         # Dropthrough
-        if isinstance(native_circuit, self.native_circuit_type): return circuit
+        if isinstance(native_circuit, self.native_circuit_type): return native_circuit
 
         # Can only convert quasar -> quasar
         if not isinstance(native_circuit, Circuit): raise RuntimeError('circuit must be Circuit type for build_native_circuit: %s' % (native_circuit))
