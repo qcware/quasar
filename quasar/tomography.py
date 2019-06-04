@@ -1,5 +1,5 @@
 from .run import run_pauli_expectation
-from .resolution import resolve_and_emit_quasar_circuit
+from .resolution import build_quasar_circuit
 import numpy as np
 import itertools
 
@@ -177,7 +177,7 @@ def run_observable_expectation_value_tomography(
     **kwargs):
     
     # No dropthrough - always need quasar.Circuit to manipulate
-    circuit = resolve_and_emit_quasar_circuit(circuit).copy()
+    circuit = build_quasar_circuit(circuit).copy()
     param_values = circuit.param_values
 
     # Default to doing tomography over all parameters (NOTE: This costs 3**nparam pauli expectation values)

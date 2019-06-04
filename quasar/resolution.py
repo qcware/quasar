@@ -2,7 +2,7 @@ from .cirq_backend import CirqBackend
 from .qiskit_backend import QiskitBackend
 from .quasar_backend import QuasarSimulatorBackend
 
-def resolve_and_emit_quasar_circuit(
+def build_quasar_circuit(
     circuit,    
     ):
 

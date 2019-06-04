@@ -1,5 +1,5 @@
 from .run import run_pauli_expectation
-from .resolution import resolve_and_emit_quasar_circuit
+from .resolution import build_quasar_circuit
 from .pauli import Pauli
 import numpy as np
 
@@ -11,7 +11,7 @@ def run_observable_expectation_value(
     **kwargs):
 
     # No dropthrough - always need quasar.Circuit to manipulate
-    circuit = resolve_and_emit_quasar_circuit(circuit).copy()
+    circuit = build_quasar_circuit(circuit).copy()
 
     return run_pauli_expectation(backend, circuit, pauli, nmeasurement, **kwargs).dot(pauli).real # TODO: do we need this to be real
 
@@ -24,7 +24,7 @@ def run_observable_expectation_value_gradient(
     **kwargs):
 
     # No dropthrough - always need quasar.Circuit to manipulate
-    circuit = resolve_and_emit_quasar_circuit(circuit).copy()
+    circuit = build_quasar_circuit(circuit).copy()
     param_values = circuit.param_values
 
     # Default to taking the gradient with respect to all params
@@ -65,7 +65,7 @@ def run_observable_expectation_value_hessian(
     **kwargs):
 
     # No dropthrough - always need quasar.Circuit to manipulate
-    circuit = resolve_and_emit_quasar_circuit(circuit).copy()
+    circuit = build_quasar_circuit(circuit).copy()
     param_values = circuit.param_values
 
     # Default to taking the Hessian with respect to all params
@@ -130,7 +130,7 @@ def run_observable_expectation_value_hessian_selected(
     **kwargs):
 
     # No dropthrough - always need quasar.Circuit to manipulate
-    circuit = resolve_and_emit_quasar_circuit(circuit).copy()
+    circuit = build_quasar_circuit(circuit).copy()
     param_values = circuit.param_values
 
     # Check that the gradient formula is known for these parameters (i.e., Rx, Ry, Rz gates)
@@ -190,7 +190,7 @@ def run_observable_expectation_value_gradient_pauli_contraction(
     **kwargs):
     
     # No dropthrough - always need quasar.Circuit to manipulate
-    circuit = resolve_and_emit_quasar_circuit(circuit).copy()
+    circuit = build_quasar_circuit(circuit).copy()
     param_values = circuit.param_values
 
     # Default to taking the gradient with respect to all params

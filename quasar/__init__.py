@@ -21,4 +21,4 @@ from .derivatives import run_observable_expectation_value_gradient_pauli_contrac
 from .tomography import Tomography, RotationTomography
 from .tomography import run_observable_expectation_value_tomography
 
-from .resolution import resolve_and_emit_quasar_circuit
+from .resolution import build_quasar_circuit

@@ -1,5 +1,5 @@
 from .circuit import Circuit
-from .resolution import resolve_and_emit_quasar_circuit
+from .resolution import build_quasar_circuit
     
 def build_native_circuit(
     backend,
@@ -7,7 +7,7 @@ def build_native_circuit(
     ):
 
     if not isinstance(circuit, (backend.native_circuit_type, Circuit)):
-        circuit = resolve_and_emit_quasar_circuit(circuit)
+        circuit = build_quasar_circuit(circuit)
 
     return backend.build_native_circuit(circuit)
 
@@ -18,7 +18,7 @@ def run_measurement(
     **kwargs):
 
     if not isinstance(circuit, (backend.native_circuit_type, Circuit)):
-        circuit = resolve_and_emit_quasar_circuit(circuit)
+        circuit = build_quasar_circuit(circuit)
 
     return backend.run_measurement(circuit, nmeasurement, **kwargs)
 
@@ -28,7 +28,7 @@ def run_statevector(
     **kwargs):
 
     if not isinstance(circuit, (backend.native_circuit_type, Circuit)):
-        circuit = resolve_and_emit_quasar_circuit(circuit)
+        circuit = build_quasar_circuit(circuit)
 
     return backend.run_statevector(circuit, **kwargs)
 
@@ -40,6 +40,6 @@ def run_pauli_expectation(
     **kwargs):
 
     if not isinstance(circuit, (backend.native_circuit_type, Circuit)):
-        circuit = resolve_and_emit_quasar_circuit(circuit)
+        circuit = build_quasar_circuit(circuit)
 
     return backend.run_pauli_expectation(circuit, pauli, nmeasurement, **kwargs)
