@@ -2224,7 +2224,7 @@ class Circuit(object):
         """
 
         # Left side states
-        Wd = int(np.ceil(np.log10(self.N)))
+        Wd = max(len(str(_)) for _ in range(self.N))
         lstick = '%-*s : |\n' % (2+Wd, 'T')
         for x in range(self.N): 
             lstick += '%*s\n' % (6+Wd, ' ')
