@@ -1,3 +1,4 @@
+import numpy as np
 from .circuit import Circuit
 from .backend import Backend
 from .measurement import Ket, Measurement
@@ -156,7 +157,7 @@ class QiskitBackend(Backend):
         basis_circuit = qiskit.QuantumCircuit(q)
         for A, char in enumerate(basis): 
             if char == 'X': basis_circuit.h(q[A])
-            # elif char == 'Y': basis_circuit.Rx2(A) # TODO
+            elif char == 'Y': basis_circuit.rx(QiskitBackend.quasar_to_qiskit_angle(-np.pi / 4.0), q[A])
             elif char == 'Z': continue # Computational basis
             else: raise RuntimeError('Unknown basis: %s' % char)
         

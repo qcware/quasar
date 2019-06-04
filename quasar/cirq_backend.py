@@ -19,8 +19,6 @@ class CirqBackend(Backend):
 
     @staticmethod
     def cirq_to_quasar_angle(theta):
-        # return 0.5 * theta * np.pi
-        # TODO: Verify angles
         return 0.5 * theta
 
     @property
@@ -170,7 +168,7 @@ class CirqBackend(Backend):
         basis_circuit = cirq.Circuit()
         for A, char in enumerate(basis):
             if char == 'X': basis_circuit.append(cirq.H(q[A]))
-            # elif char == 'Y': basis_circuit.append(cirq.X(q[A])**0.5) # TODO
+            elif char == 'Y': basis_circuit.append(cirq.Rx(CirqBackend.quasar_to_cirq_angle(-np.pi / 4.0))(q[A]))
             elif char == 'Z': continue
             else: raise RuntimeError('Unknown basis: %s' % char)
         
