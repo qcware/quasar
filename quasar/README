@@ -13,3 +13,6 @@ measurement.py - the quasar qubit measurement library. Includes the Ket and
 run.py - the quasar runtime methods library. Includes the build_native_circuit,
     run_statevector, run_measurement, and run_pauli_expectation methods.
 
+backend.py - the general hardware/software backend library. Includes Backend
+    base class.
+

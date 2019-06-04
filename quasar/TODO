@@ -1,13 +1,12 @@
-Cirq angles
+N-body Pauli matrices for statevector-based Pauli expectations
+General commuting groups for measurement-based Pauli expectations
+    
+Ensure identical gate time placement in backends
+
 Rigetti integration
 ProjectQ integration
 
-N-body Pauli matrices for statevector-based Pauli expectations
-General commuting groups for measurement-based Pauli expectations
-
-gradients/Hessians
-
 u3-style gates
-Ensure identical gate time placement in backends
-
-Y-basis transforms in build_native_circuit_in_basis
+centered tomography formulae
+tomography optimization
+state-averaged stuff

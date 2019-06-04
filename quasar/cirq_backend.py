@@ -128,11 +128,11 @@ class CirqBackend(Backend):
                     elif strname == 'H':
                         circuit.H(qubit, time=time)
                     elif strname[:2] == 'Rx':
-                        circuit.Rx(qubit, time=time, theta=CirqBackend.cirq_to_quasar_angle(gate2.exponent))
+                        circuit.Rx(qubit, time=time, theta=CirqBackend.cirq_to_quasar_angle(np.pi * gate2.exponent))
                     elif strname[:2] == 'Ry':
-                        circuit.Ry(qubit, time=time, theta=CirqBackend.cirq_to_quasar_angle(gate2.exponent))
+                        circuit.Ry(qubit, time=time, theta=CirqBackend.cirq_to_quasar_angle(np.pi * gate2.exponent))
                     elif strname[:2] == 'Rz':
-                        circuit.Rz(qubit, time=time, theta=CirqBackend.cirq_to_quasar_angle(gate2.exponent))
+                        circuit.Rz(qubit, time=time, theta=CirqBackend.cirq_to_quasar_angle(np.pi * gate2.exponent))
                     else:
                         raise RuntimeError('Gate translation from cirq not known: %s' % gate)
                 elif len(qubits) == 2:

@@ -398,7 +398,7 @@ class Backend(object):
     def z_commuting_group(pauli):
 
         groups = {}
-        groups['Y'*pauli.N] = []
+        groups['Z'*pauli.N] = []
 
         for string in pauli.keys():
             

@@ -18,4 +18,7 @@ from .derivatives import run_observable_expectation_value_hessian
 from .derivatives import run_observable_expectation_value_hessian_selected
 from .derivatives import run_observable_expectation_value_gradient_pauli_contraction
 
+from .tomography import Tomography, RotationTomography
+from .tomography import run_observable_expectation_value_tomography
+
 from .resolution import resolve_and_emit_quasar_circuit
