@@ -393,6 +393,12 @@ class Pauli(collections.OrderedDict):
 
         return tuple([_.chars for _ in self.keys()])
 
+    @property
+    def unique_chars(self):
+        
+        return tuple(sorted(set(''.join(''.join(_) for _ in self.chars))))
+    
+
 class PauliStarter(object):
 
     def __init__(

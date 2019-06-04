@@ -336,11 +336,9 @@ class Backend(object):
             raise RuntimeError('Backend does not have measurement')
 
         # Determine commuting group
-        if Backend.is_all_z(pauli):
-            groups = Backend.z_commuting_group(pauli)
-        else:
-            groups = Backend.linear_xz_commuting_group(pauli)
+        groups = Backend.linear_commuting_group(pauli, pauli.unique_chars)
         # Else exception will be raised if unknown commuting group
+        # TODO: Optimally cover all commuting groups
 
         # Modified circuits for basis transformations
         circuits = [self.build_native_circuit_in_basis(circuit, basis) 
@@ -388,48 +386,12 @@ class Backend(object):
         return statevector
 
     @staticmethod
-    def is_all_z(pauli):
-        for string in pauli.keys():
-            if any(_ != 'Z' for _ in string.chars):
-                return False
-        return True
-
-    @staticmethod
-    def z_commuting_group(pauli):
-
-        groups = {}
-        groups['Z'*pauli.N] = []
-
-        for string in pauli.keys():
-            
-            # Do not do the identity operator
-            if string.order == 0: continue
-
-            # Add to all valid commuting groups
-            found = False
-            for group, strings2 in groups.items():
-                valid = True
-                for operator in string:
-                    qubit = operator.qubit
-                    char = operator.char
-                    if group[qubit] != char:
-                        valid = False
-                        break
-                if not valid: continue
-                strings2.append(string)
-                found = True
-            if not found: raise RuntimeError('Invalid string - not in Z commuting groups: %s' % string)
-
-        return groups
-
-    @staticmethod
-    def linear_xz_commuting_group(pauli):
+    def linear_commuting_group(pauli, keys):
 
         groups = collections.OrderedDict()
-        groups['X'*pauli.N] = []
-        groups[('XZ'*pauli.N)[:pauli.N]] = []
-        groups[('ZX'*pauli.N)[:pauli.N]] = []
-        groups['Z'*pauli.N] = []
+        for keyA in keys:
+            for keyB in keys:
+                groups[((keyA + keyB)*pauli.N)[:pauli.N]] = []
 
         for string in pauli.keys():
             
@@ -449,6 +411,6 @@ class Backend(object):
                 if not valid: continue
                 strings2.append(string)
                 found = True
-            if not found: raise RuntimeError('Invalid string - not in linear XZ commuting groups: %s' % string)
+            if not found: raise RuntimeError('Invalid string - not in linear commuting group: %s' % string)
 
         return groups
