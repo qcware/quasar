@@ -168,6 +168,51 @@ class RotationTomography(Tomography):
     
         return np.reshape(np.dot(RotationTomography.quad_transfer_inv(D=O.ndim), O.ravel()), O.shape)
 
+    # => Optimization <= #
+    
+    def optimize_jacobi_1(
+        self,
+        theta0=None,
+        n=100,
+        d=0,
+        ):
+    
+        if theta0 is None:
+            theta0 = np.zeros((self.nparam,))
+    
+        theta = np.copy(theta0)
+        thetas = [theta0]
+        for iteration in range(n):
+            k = (iteration + d) % self.nparam
+            theta_2 = np.array([theta for k2, theta in enumerate(theta) if k2 != k])
+            theta_2 = np.reshape(theta_2, theta_2.shape + (1,))
+            coefs_b = np.take(self.coefs, 1, k)
+            coefs_c = np.take(self.coefs, 2, k)
+            tomography_b = RotationTomography(coefs_b)
+            tomography_c = RotationTomography(coefs_c)
+            Ob = tomography_b.compute_observable_expectation_value(theta_2)
+            Oc = tomography_c.compute_observable_expectation_value(theta_2)
+            theta[k] = 0.5 * np.arctan2(-Oc, -Ob)
+            thetas.append(np.copy(theta))
+        thetas = np.array(thetas)
+        return thetas.T
+    
+    def optimize_jacobi_1_best(
+        self,
+        theta0=None,
+        n=100,
+        ):
+    
+        thetas = []
+        for d in range(self.nparam):
+            thetas.append(self.optimize_jacobi_1(
+                theta0=theta0,  
+                n=n,    
+                d=d,
+                ))
+        Os = np.array([self.compute_observable_expectation_value(theta2[:,-2:-1]) for theta2 in thetas])
+        return thetas[np.argmin(Os)] 
+
 def run_observable_expectation_value_tomography(
     backend,
     circuit,
