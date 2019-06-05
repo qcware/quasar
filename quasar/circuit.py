@@ -6,6 +6,7 @@
 
 import numpy as np
 import collections
+import itertools
 from .measurement import Ket, Measurement
 
 """ Quasar: an ultralight python-2.7/python-3.X quantum simulator package
@@ -3014,6 +3015,108 @@ class Circuit(object):
         for A, PA in enumerate(Pmats):
             for B, PB in enumerate(Pmats):
                 G[A,B] = np.sum(np.kron(PA, PB).conj() * D).real
+
+        return G
+
+    @staticmethod
+    def compute_pauli_3(
+        wfn,
+        A,
+        B,
+        C,
+        ):
+
+        """ Compute the expectation values of the 3-qubit Pauli operators at
+            qubits A, B, C
+
+        Params:
+            wfn (np.ndarray of shape (self.N**2,) and a complex dtype) - the wavefunction.
+            A (int) - the index of the first qubit to evaluate the Pauli measurements at.
+            B (int) - the index of the second qubit to evaluate the Pauli measurements at.
+            C (int) - the index of the third qubit to evaluate the Pauli measurements at.
+        Returns:
+            (np.ndarray of shape (4,4,4) and real dtype corresponding to precision
+                of wfn dtype) - the Pauli expectation values packed as [I,X,Y,Z].
+        """
+
+        D = Circuit.compute_3pdm(
+            wfn1=wfn,
+            wfn2=wfn,
+            A=A,
+            B=B,
+            C=C,
+            )
+
+        Pmats = [Matrix.I, Matrix.X, Matrix.Y, Matrix.Z]
+        G = np.zeros((4,4,4))
+        for A, PA in enumerate(Pmats):
+            for B, PB in enumerate(Pmats):
+                for C, PC in enumerate(Pmats):
+                    G[A,B,C] = np.sum(np.kron(np.kron(PA, PB), PC).conj() * D).real
+
+        return G
+
+    @staticmethod
+    def compute_pauli_4(
+        wfn,
+        A,
+        B,
+        C,
+        D,
+        ):
+
+        """ Compute the expectation values of the 4-qubit Pauli operators at
+            qubits A, B, C, D
+
+        Params:
+            wfn (np.ndarray of shape (self.N**2,) and a complex dtype) - the wavefunction.
+            A (int) - the index of the first qubit to evaluate the Pauli measurements at.
+            B (int) - the index of the second qubit to evaluate the Pauli measurements at.
+            C (int) - the index of the third qubit to evaluate the Pauli measurements at.
+            D (int) - the index of the fourth qubit to evaluate the Pauli measurements at.
+        Returns:
+            (np.ndarray of shape (4,4,4,4) and real dtype corresponding to precision
+                of wfn dtype) - the Pauli expectation values packed as [I,X,Y,Z].
+        """
+
+        Dm = Circuit.compute_4pdm(
+            wfn1=wfn,
+            wfn2=wfn,
+            A=A,
+            B=B,
+            C=C,
+            D=D,
+            )
+
+        Pmats = [Matrix.I, Matrix.X, Matrix.Y, Matrix.Z]
+        G = np.zeros((4,4,4,4))
+        for A, PA in enumerate(Pmats):
+            for B, PB in enumerate(Pmats):
+                for C, PC in enumerate(Pmats):
+                    for D, PD in enumerate(Pmats):
+                        G[A,B,C,D] = np.sum(np.kron(np.kron(np.kron(PA, PB), PC), PD).conj() * Dm).real
+
+        return G
+
+    @staticmethod
+    def compute_pauli_n(
+        wfn,
+        qubits,
+        ):
+
+        D = Circuit.compute_npdm(
+            wfn1=wfn,
+            wfn2=wfn,
+            qubits=qubits,
+            )
+
+        Pmats = [Matrix.I, Matrix.X, Matrix.Y, Matrix.Z]
+        G = np.zeros((4,)*len(qubits))
+        for index in itertools.product(range(4), repeat=len(qubits)):
+            P = Pmats[index[0]]
+            for B in range(1, len(qubits)):
+                P = np.kron(P, Pmats[index[B]])
+            G[index] = np.sum(P.conj() * D).real
 
         return G
 

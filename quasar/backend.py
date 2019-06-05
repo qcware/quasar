@@ -314,7 +314,6 @@ class Backend(object):
                     pauli_expectation[key] = P[dA]
         for index in pauli_expectation.extract_orders((2,)).qubits:
             A = index[0]
-            A = index[0]
             B = index[1]
             P = Circuit.compute_pauli_2(wfn=statevector, A=A, B=B)
             for dA, DA in zip([1, 2, 3], ['X', 'Y', 'Z']):
