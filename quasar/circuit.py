@@ -2242,10 +2242,10 @@ class Circuit(object):
 
         # Left side states
         Wd = max(len(str(_)) for _ in range(self.N))
-        lstick = '%-*s : |\n' % (2+Wd, 'T')
+        lstick = '%-*s : |\n' % (1+Wd, 'T')
         for x in range(self.N): 
-            lstick += '%*s\n' % (6+Wd, ' ')
-            lstick += '|%*d> : -\n' % (Wd, x)
+            lstick += '%*s\n' % (5+Wd, ' ')
+            lstick += 'q%*d : -\n' % (Wd, x)
 
         # Build moment strings
         moments = []
