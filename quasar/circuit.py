@@ -2131,24 +2131,32 @@ class Circuit(object):
 
     def set_param_values(
         self,
-        values,
+        param_values,
+        param_indices=None,
         ):
 
         """ Set the param values corresponding to param_keys for all mutable parameters in the circuit.
 
         Params:
-            values (list of float) - ordered parameter values with order
+            param_values (list of float) - ordered parameter values with order
                 corresponding to param_keys for all mutable parameters in the
                 circuit.
+            param_indices (list of int or None) - indices of parameter values
+                or None. If None, all parameter indices are set.
         Result:
             Parameters of self.gates are updated with new parameter values.
         Returns:
             self - for chaining
         """
 
-        for k, v in zip(self.param_keys, values):
-            time, qubits, name = k
-            self.gates[(time, qubits)].set_param(key=name, param=v)
+        param_keys = self.param_keys
+
+        if param_indices is None:
+            param_indices = list(range(len(param_keys)))
+    
+        for param_index, param_value in zip(param_indices, param_values):
+            time, qubits, name = param_keys[param_index]
+            self.gates[(time, qubits)].set_param(key=name, param=param_value)
 
         return self
     
