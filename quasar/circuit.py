@@ -2142,11 +2142,15 @@ class Circuit(object):
                 circuit.
         Result:
             Parameters of self.gates are updated with new parameter values.
+        Returns:
+            self - for chaining
         """
 
         for k, v in zip(self.param_keys, values):
             time, qubits, name = k
             self.gates[(time, qubits)].set_param(key=name, param=v)
+
+        return self
     
     @property
     def params(self):
@@ -2172,11 +2176,15 @@ class Circuit(object):
 
         Result:
             Parameters of self.gates are updated with new parameter values.
+        Returns:
+            self - for chaining
         """
     
         for k, v in params.items():
             time, qubits, name = k
             self.gates[(time, qubits)].set_param(key=name, param=v)
+
+        return self
 
     @property
     def param_str(self):
