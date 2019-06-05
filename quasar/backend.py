@@ -294,9 +294,6 @@ class Backend(object):
         if not self.has_statevector: 
             raise RuntimeError('Backend does not have statevector')
 
-        if pauli.max_order > 2: 
-            raise NotImplementedError
-
         statevector = self.run_statevector(circuit, **kwargs)
 
         # Validity check
@@ -306,7 +303,7 @@ class Backend(object):
         pauli_expectation = Pauli.zeros_like(pauli)
         if PauliString.I in pauli_expectation:
             pauli_expectation[PauliString.I] = 1.0
-        for order in range(1, pauli_expectation.max_order):
+        for order in range(1, pauli_expectation.max_order+1):
             for qubits in pauli_expectation.extract_orders((order,)).qubits:
                 P = Circuit.compute_pauli_n(wfn=statevector, qubits=qubits)
                 for index in itertools.product(range(1,4), repeat=order):
