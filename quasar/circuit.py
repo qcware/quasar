@@ -2205,12 +2205,12 @@ class Circuit(object):
                 specified by param_keys.
         """ 
         s = ''
-        s += '%-5s %-5s %-10s %-10s %-10s: %24s\n' % ('Index', 'Time', 'Qubits', 'Name', 'Gate', 'Value')
+        s += '%-5s %-5s %-10s %-10s %-10s: %9s\n' % ('Index', 'Time', 'Qubits', 'Name', 'Gate', 'Value')
         I = 0
         for k, v in self.params.items():
             time, qubits, name = k
             gate = self.gates[(time, qubits)]
-            s += '%-5d %-5d %-10s %-10s %-10s: %24.16E\n' % (I, time, qubits, name, gate.name, v)
+            s += '%-5d %-5d %-10s %-10s %-10s: %9.6f\n' % (I, time, qubits, name, gate.name, v)
             I += 1
         return s
 
