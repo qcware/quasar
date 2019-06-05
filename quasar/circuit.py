@@ -2825,13 +2825,12 @@ class Circuit(object):
         wfn1v.shape = (L,2,M,2,P,2,R)
         wfn2v.shape = (L,2,M,2,P,2,R)
 
-        D = np.einsum('LiMjPkR,LlMmPkR->ijklmn', wfn1v.conj(), wfn2v)
+        D = np.einsum('LiMjPkR,LlMmPnR->ijklmn', wfn1v.conj(), wfn2v)
 
         bra_indices = 'ijk'
         ket_indices = 'lmn'
-        # TODO: double check
-        bra_indices2 = ''.join([bra_indices[(A, B, C).index[_]] for _ in (A2, B2, C2)])
-        ket_indices2 = ''.join([ket_indices[(A, B, C).index[_]] for _ in (A2, B2, C2)])
+        bra_indices2 = ''.join([bra_indices[(A, B, C).index(_)] for _ in (A2, B2, C2)])
+        ket_indices2 = ''.join([ket_indices[(A, B, C).index(_)] for _ in (A2, B2, C2)])
 
         D = np.einsum('%s%s->%s%s' % (bra_indices, ket_indices, bra_indices2, ket_indices2), D)
 
@@ -2874,17 +2873,16 @@ class Circuit(object):
         wfn1v.shape = (L,2,M,2,P,2,Q,2,R)
         wfn2v.shape = (L,2,M,2,P,2,Q,2,R)
 
-        D = np.einsum('LiMjPkQlR,LmMnPoPpR->ijklmnop', wfn1v.conj(), wfn2v)
+        Dm = np.einsum('LiMjPkQlR,LmMnPoQpR->ijklmnop', wfn1v.conj(), wfn2v)
 
         bra_indices = 'ijkl'
         ket_indices = 'mnop'
-        # TODO: double check
-        bra_indices2 = ''.join([bra_indices[(A, B, C, D).index[_]] for _ in (A2, B2, C2, D2)])
-        ket_indices2 = ''.join([ket_indices[(A, B, C, D).index[_]] for _ in (A2, B2, C2, D2)])
+        bra_indices2 = ''.join([bra_indices[(A, B, C, D).index(_)] for _ in (A2, B2, C2, D2)])
+        ket_indices2 = ''.join([ket_indices[(A, B, C, D).index(_)] for _ in (A2, B2, C2, D2)])
 
-        D = np.einsum('%s%s->%s%s' % (bra_indices, ket_indices, bra_indices2, ket_indices2), D)
+        Dm = np.einsum('%s%s->%s%s' % (bra_indices, ket_indices, bra_indices2, ket_indices2), Dm)
 
-        return np.reshape(D, (8, 8))
+        return np.reshape(Dm, (16, 16))
         
     @staticmethod
     def compute_npdm(
@@ -2905,7 +2903,7 @@ class Circuit(object):
         for hangover in hangovers[:-1]:
             shape.append(hangover)
             shape.append(2)
-        shape.append(hangover[-1])
+        shape.append(hangovers[-1])
         shape = tuple(shape)
         
         wfn1v = wfn1.view() 
@@ -2916,31 +2914,31 @@ class Circuit(object):
         hangover_stock = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
         bra_stock = 'abcdefghijklm'
         ket_stock = 'nopqrstuvwxyz'
-
-        if N > 13: raise RuntimeError('Technical limit: cannot run N > 13')
+    
+        M = len(qubits)
+        if M > 13: raise RuntimeError('Technical limit: cannot run N > 13')
     
         bra_str = ''
         ket_str = ''
-        for A in range(N):
+        for A in range(M):
             bra_str += hangover_stock[A]
             bra_str += bra_stock[A]
             ket_str += hangover_stock[A]
             ket_str += ket_stock[A]
-        bra_str += hangover_stock[N]
-        ket_str += hangover_stock[N]
-            
-        den_str = bra_stock[:N] + ket_stock[:N]
+        bra_str += hangover_stock[M]
+        ket_str += hangover_stock[M]
+
+        den_str = bra_stock[:M] + ket_stock[:M]
 
         D = np.einsum('%s,%s->%s' % (bra_str, ket_str, den_str), wfn1v.conj(), wfn2v)
 
-        bra_str2 = ''.join([bra_stock[qubits.index[_]] for _ in qubits2])
-        ket_str2 = ''.join([ket_stock[qubits.index[_]] for _ in qubits2])
+        bra_str2 = ''.join([bra_stock[qubits.index(_)] for _ in qubits2])
+        ket_str2 = ''.join([ket_stock[qubits.index(_)] for _ in qubits2])
         den_str2 = bra_str2 + ket_str2
 
         D = np.einsum('%s->%s' % (den_str, den_str2), D)
 
-        return np.reshape(D, (2**N, 2**N))
-        
+        return np.reshape(D, (2**M, 2**M))
 
     @staticmethod
     def compute_pauli_1(
