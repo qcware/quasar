@@ -1,12 +1,11 @@
-N-body Pauli matrices for statevector-based Pauli expectations
-General commuting groups for measurement-based Pauli expectations
-    
 Ensure identical gate time placement in backends
 
 Rigetti integration
 ProjectQ integration
 
 u3-style gates
+
 centered tomography formulae
-tomography optimization
 state-averaged stuff
+
+General commuting groups for measurement-based Pauli expectations
