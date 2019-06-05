@@ -54,7 +54,8 @@ class Measurement(dict):
         key,
         ):
 
-        if not isinstance(key, Ket): raise RuntimeError('Key must be Ket: %s' % key)
+        
+        key = Ket(key)
         return super(Measurement, self).__contains__(key)
 
     def __getitem__(
@@ -62,7 +63,7 @@ class Measurement(dict):
         key,
         ):
 
-        if not isinstance(key, Ket): raise RuntimeError('Key must be Ket: %s' % key)
+        key = Ket(key)
         return super(Measurement, self).__getitem__(key)
 
     def __setitem__(
@@ -71,7 +72,7 @@ class Measurement(dict):
         value,
         ):
 
-        if not isinstance(key, Ket): raise RuntimeError('Key must be Ket: %s' % key)
+        key = Ket(key)
         if not isinstance(value, int): raise RuntimeError('Value must be int: %s' % value)
         if value < 0: raise RuntimeError('Value must be positive: %s' % value)
         if len(self) and key.N != self.N: raise RuntimeError('All keys must have same N')
@@ -83,7 +84,7 @@ class Measurement(dict):
         default=None,
         ):
 
-        if not isinstance(key, Ket): raise RuntimeError('Key must be Ket: %s' % key)
+        key = Ket(key)
         if default is not None and not isinstance(default, int): raise RuntimeError('default must be int: %s' % default)
         return super(Measurement, self).get(key, default)
 
@@ -93,7 +94,7 @@ class Measurement(dict):
         default=None,
         ):
 
-        if not isinstance(key, Ket): raise RuntimeError('Key must be Ket: %s' % key)
+        key = Ket(key)
         if default is not None and not isinstance(default, int): raise RuntimeError('default must be int: %s' % default)
         if default < 0: raise RuntimeError('default must be positive: %s' % default)
         if len(self) and key.N != self.N: raise RuntimeError('All keys must have same N')
