@@ -1,5 +1,6 @@
 import numpy as np
 import collections
+import itertools
 from .pauli import Pauli, PauliString
 from .circuit import Circuit
 
@@ -305,22 +306,13 @@ class Backend(object):
         pauli_expectation = Pauli.zeros_like(pauli)
         if PauliString.I in pauli_expectation:
             pauli_expectation[PauliString.I] = 1.0
-        for index in pauli_expectation.extract_orders((1,)).qubits:
-            A = index[0]
-            P = Circuit.compute_pauli_1(wfn=statevector, A=A)
-            for dA, DA in zip([1, 2, 3], ['X', 'Y', 'Z']):
-                key = PauliString.from_string('%s%d' % (DA, A))
-                if key in pauli_expectation:
-                    pauli_expectation[key] = P[dA]
-        for index in pauli_expectation.extract_orders((2,)).qubits:
-            A = index[0]
-            B = index[1]
-            P = Circuit.compute_pauli_2(wfn=statevector, A=A, B=B)
-            for dA, DA in zip([1, 2, 3], ['X', 'Y', 'Z']):
-                for dB, DB in zip([1, 2, 3], ['X', 'Y', 'Z']):
-                    key = PauliString.from_string('%s%d*%s%d' % (DA, A, DB, B))
+        for order in range(1, pauli_expectation.max_order):
+            for qubits in pauli_expectation.extract_orders((order,)).qubits:
+                P = Circuit.compute_pauli_n(wfn=statevector, qubits=qubits)
+                for index in itertools.product(range(1,4), repeat=order):
+                    key = PauliString.from_string('*'.join('%s%d' % ('XYZ'[I - 1], A) for I, A in zip(index, qubits)))
                     if key in pauli_expectation:
-                        pauli_expectation[key] = P[dA, dB]
+                        pauli_expectation[key] = P[index]
 
         return pauli_expectation
 
