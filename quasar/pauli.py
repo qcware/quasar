@@ -155,18 +155,11 @@ class Pauli(collections.OrderedDict):
     def __str__(self):
         lines = []
         for string, value in self.items():
-            if isinstance(value, sympy.Basic): 
-                lines.append('+%s*%s' % (value, string))
-            elif isinstance(value, float): 
-                sign = -1 if value < 0.0 else +1
-                lines.append('%s%s*%s' % ('-' if sign == -1 else '+', sign*value, string))
-            elif isinstance(value, complex): 
-                if value.real == 0.0:
-                    sign = -1 if value.imag < 0.0 else +1
-                else:
-                    sign = -1 if value.real < 0.0 else +1
-                lines.append('%s%s*%s' % ('-' if sign == -1 else '+', sign*value, string))
-            else: raise RuntimeError('value must be float or complex: %s' % value)
+            strval = '%s*%s' % (value, string)
+            if strval[0] == '-':
+                lines.append(strval)
+            else:   
+                lines.append('+' + strval)
         return '\n'.join(lines)
 
     @property

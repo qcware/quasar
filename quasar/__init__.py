@@ -1,4 +1,4 @@
-from .circuit import Matrix, Gate, Circuit
+from .circuit import Matrix, Gate, ControlledGate, Circuit
 from .pauli import PauliJordanWigner, PauliStarter, PauliOperator, PauliString, Pauli
 from .measurement import Ket, MeasurementResult
 

@@ -133,33 +133,33 @@ class Matrix(object):
     CSWAP[6,5] = 1.0
 
     @staticmethod
-    def Rx(theta):
+    def Rx(theta=0.0):
         c = np.cos(theta)
         s = np.sin(theta)
         return np.array([[c, -1.j*s], [-1.j*s, c]], dtype=np.complex128)
 
     @staticmethod
-    def Ry(theta):
+    def Ry(theta=0.0):
         c = np.cos(theta)
         s = np.sin(theta)
         return np.array([[c, -s], [+s, c]], dtype=np.complex128)
 
     @staticmethod
-    def Rz(theta):
+    def Rz(theta=0.0):
         c = np.cos(theta)
         s = np.sin(theta)
         return np.array([[c-1.j*s, 0.0], [0.0, c+1.j*s]], dtype=np.complex128)
 
     @staticmethod
-    def u1(lam):
+    def u1(lam=0.0):
         return np.array([[1.0, 0.0], [0.0, np.exp(+1.j*lam)]], dtype=np.complex128)
 
     @staticmethod
-    def u2(phi, lam):
+    def u2(phi=0.0, lam=0.0):
         return np.array([[1.0, -np.exp(+1.j*lam)], [+np.exp(+1.j*phi), np.exp(+1.j*(phi+lam))]], dtype=np.complex128) / np.sqrt(2.0)
 
     @staticmethod
-    def u3(theta, phi, lam):
+    def u3(theta=0.0, phi=0.0, lam=0.0):
         c = np.cos(theta / 2.0)
         s = np.sin(theta / 2.0)
         return np.array([
@@ -437,7 +437,7 @@ Gate.CSWAP = Gate(
 # > Parametrized 1-body gates < #
 
 @staticmethod
-def _GateRx(theta):
+def _GateRx(theta=0.0):
 
     """ Rx (theta) = exp(-i * theta * x) """
     
@@ -456,7 +456,7 @@ def _GateRx(theta):
         )
     
 @staticmethod
-def _GateRy(theta):
+def _GateRy(theta=0.0):
 
     """ Ry (theta) = exp(-i * theta * Y) """
     
@@ -475,7 +475,7 @@ def _GateRy(theta):
         )
     
 @staticmethod
-def _GateRz(theta):
+def _GateRz(theta=0.0):
 
     """ Rz (theta) = exp(-i * theta * Z) """
     
@@ -498,7 +498,7 @@ Gate.Ry = _GateRy
 Gate.Rz = _GateRz
 
 @staticmethod
-def _Gateu1(lam):
+def _Gateu1(lam=0.0):
 
     def Ufun(params):
         return Matrix.u1(lam=params['lam'])
@@ -512,7 +512,7 @@ def _Gateu1(lam):
         )
 
 @staticmethod
-def _Gateu2(phi, lam):
+def _Gateu2(phi=0.0, lam=0.0):
 
     def Ufun(params):
         return Matrix.u2(phi=params['phi'], lam=params['lam'])
@@ -526,7 +526,7 @@ def _Gateu2(phi, lam):
         )
 
 @staticmethod
-def _Gateu3(theta, phi, lam):
+def _Gateu3(theta=0.0, phi=0.0, lam=0.0):
 
     def Ufun(params):
         return Matrix.u3(theta=params['theta'], phi=params['phi'], lam=params['lam'])
@@ -546,7 +546,7 @@ Gate.u3 = _Gateu3
 # > Parametrized 2-body gates < #
 
 @staticmethod
-def _GateSO4(A, B, C, D, E, F):
+def _GateSO4(A=0.0, B=0.0, C=0.0, D=0.0, E=0.0, F=0.0):
     
     def Ufun(params):
         A = params['A']
@@ -576,7 +576,7 @@ def _GateSO4(A, B, C, D, E, F):
 Gate.SO4 = _GateSO4
 
 @staticmethod
-def _GateSO42(thetaIY, thetaYI, thetaXY, thetaYX, thetaZY, thetaYZ):
+def _GateSO42(thetaIY=0.0, thetaYI=0.0, thetaXY=0.0, thetaYX=0.0, thetaZY=0.0, thetaYZ=0.0):
     
     def Ufun(params):
         A = -(params['thetaIY'] + params['thetaZY'])
@@ -613,7 +613,7 @@ def _GateSO42(thetaIY, thetaYI, thetaXY, thetaYX, thetaZY, thetaYZ):
 Gate.SO42 = _GateSO42
 
 @staticmethod
-def _CF(theta):
+def _CF(theta=0.0):
 
     """ Controlled F gate """
     
@@ -668,6 +668,48 @@ def _GateU2(U):
 
 Gate.U1 = _GateU1
 Gate.U2 = _GateU2
+
+class ControlledGate(Gate):
+
+    def __init__(
+        self,
+        gate,
+        ):
+
+        self.gate = gate
+
+    @property
+    def N(self):
+        return self.gate.N + 1
+
+    @property
+    def Ufun(self):
+        def cU(params):        
+            U = np.eye(2**self.N, dtype=np.complex128)
+            U[(2**self.N // 2):, (2**self.N // 2):] = self.gate.Ufun(params)
+            return U
+        return cU
+
+    @property
+    def params(self):
+        return self.gate.params
+
+    @property
+    def name(self):
+        return 'C' + self.gate.name
+
+    @property
+    def ascii_symbols(self):
+        return ['@'] + self.gate.ascii_symbols
+
+    def copy(self):
+        return ControlledGate(self.gate.copy())
+
+    def set_param(self, key, param):
+        self.gate.set_param(key, param)
+
+    def set_params(self, params):
+        self.gate.set_params(params)
 
 # => Gate class <= #
 

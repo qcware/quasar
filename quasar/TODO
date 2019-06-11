@@ -3,10 +3,14 @@ Ensure identical gate time placement in backends
 Rigetti integration
 ProjectQ integration
 
-u3-style gates
+4- and N-body simulation
 
 centered tomography formulae
 state-averaged stuff
 
 General commuting groups for measurement-based Pauli expectations
 Noise Simulators
+
+Numpy load: 0.1 s
+Sympy load: 0.26 s
+Quasar load: 0.36 s - dominated by sympy
