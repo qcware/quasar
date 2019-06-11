@@ -149,6 +149,23 @@ class Matrix(object):
         c = np.cos(theta)
         s = np.sin(theta)
         return np.array([[c-1.j*s, 0.0], [0.0, c+1.j*s]], dtype=np.complex128)
+
+    @staticmethod
+    def u1(lam):
+        return np.array([[1.0, 0.0], [0.0, np.exp(+1.j*lam)]], dtype=np.complex128)
+
+    @staticmethod
+    def u2(phi, lam):
+        return np.array([[1.0, -np.exp(+1.j*lam)], [+np.exp(+1.j*phi), np.exp(+1.j*(phi+lam))]], dtype=np.complex128) / np.sqrt(2.0)
+
+    @staticmethod
+    def u3(theta, phi, lam):
+        c = np.cos(theta / 2.0)
+        s = np.sin(theta / 2.0)
+        return np.array([
+            [c, -np.exp(+1.j*lam)*s],
+            [+np.exp(+1.j*phi)*s, np.exp(+1.j*(phi+lam))*c],
+            ], dtype=np.complex128)
     
 # => Gate class <= #
 
@@ -479,6 +496,52 @@ def _GateRz(theta):
 Gate.Rx = _GateRx
 Gate.Ry = _GateRy
 Gate.Rz = _GateRz
+
+@staticmethod
+def _Gateu1(lam):
+
+    def Ufun(params):
+        return Matrix.u1(lam=params['lam'])
+
+    return Gate(
+        N=1,
+        Ufun=Ufun,
+        params=collections.OrderedDict([('lam', lam)]),
+        name='u1',
+        ascii_symbols=['u1'],
+        )
+
+@staticmethod
+def _Gateu2(phi, lam):
+
+    def Ufun(params):
+        return Matrix.u2(phi=params['phi'], lam=params['lam'])
+
+    return Gate(
+        N=1,
+        Ufun=Ufun,
+        params=collections.OrderedDict([('phi', phi), ('lam', lam)]),
+        name='u2',
+        ascii_symbols=['u2'],
+        )
+
+@staticmethod
+def _Gateu3(theta, phi, lam):
+
+    def Ufun(params):
+        return Matrix.u3(theta=params['theta'], phi=params['phi'], lam=params['lam'])
+
+    return Gate(
+        N=1,
+        Ufun=Ufun,
+        params=collections.OrderedDict([('theta', theta), ('phi', phi), ('lam', lam)]),
+        name='u3',
+        ascii_symbols=['u3'],
+        )
+
+Gate.u1 = _Gateu1
+Gate.u2 = _Gateu2
+Gate.u3 = _Gateu3
 
 # > Parametrized 2-body gates < #
 
@@ -1977,6 +2040,123 @@ class Circuit(object):
         """
         return self.add_gate(
             gate=Gate.Rz(theta=theta),
+            qubits=(qubit,),
+            **kwargs)
+
+    def u1(
+        self,
+        qubit,
+        lam=0.0,
+        **kwargs):
+
+        """ Add a u1 gate to self at specified qubits and time, updating self.
+            The qubits to add gate to are always explicitly specified. The time
+            to add gate to may be explicitly specified in the time argumet (1st
+            priority), or a recipe for determining the time placement can be
+            specified using the time_placement argument (2nd priority).
+
+        Params:
+            qubit (int) - qubit index in self to add the gate into.
+            lam (float) - the angle parameter of the gate (default - 0.0).
+            time (int) - time moment in self to add the gate into. If None, the
+                time_placement argument will be considered next.
+            time_placement (str - 'early', 'late', or 'next') - recipe to
+                determine time moment in self to add the gate into. The rules
+                are:
+                    'early' -  add the gate as early as possible, just after
+                        any existing gates on self's qubit wires.
+                    'late' - add the gate in the last open time moment in self,
+                        unless a conflict arises, in which case, add the gate
+                        in the next (new) time moment.
+                    'next' - add the gate in the next (new) time moment.
+        Result:
+            self is updated with the added gate. Checks are
+                performed to ensure that the addition is valid.
+        Returns:
+            self - for chaining
+        """
+        return self.add_gate(
+            gate=Gate.u1(lam=lam),
+            qubits=(qubit,),
+            **kwargs)
+
+    def u2(
+        self,
+        qubit,
+        phi=0.0,
+        lam=0.0,
+        **kwargs):
+
+        """ Add a u3 gate to self at specified qubits and time, updating self.
+            The qubits to add gate to are always explicitly specified. The time
+            to add gate to may be explicitly specified in the time argumet (1st
+            priority), or a recipe for determining the time placement can be
+            specified using the time_placement argument (2nd priority).
+
+        Params:
+            qubit (int) - qubit index in self to add the gate into.
+            phi (float) - the angle parameter of the gate (default - 0.0).
+            lam (float) - the angle parameter of the gate (default - 0.0).
+            time (int) - time moment in self to add the gate into. If None, the
+                time_placement argument will be considered next.
+            time_placement (str - 'early', 'late', or 'next') - recipe to
+                determine time moment in self to add the gate into. The rules
+                are:
+                    'early' -  add the gate as early as possible, just after
+                        any existing gates on self's qubit wires.
+                    'late' - add the gate in the last open time moment in self,
+                        unless a conflict arises, in which case, add the gate
+                        in the next (new) time moment.
+                    'next' - add the gate in the next (new) time moment.
+        Result:
+            self is updated with the added gate. Checks are
+                performed to ensure that the addition is valid.
+        Returns:
+            self - for chaining
+        """
+        return self.add_gate(
+            gate=Gate.u2(phi=phi, lam=lam),
+            qubits=(qubit,),
+            **kwargs)
+
+    def u3(
+        self,
+        qubit,
+        theta=0.0,
+        phi=0.0,
+        lam=0.0,
+        **kwargs):
+
+        """ Add a u3 gate to self at specified qubits and time, updating self.
+            The qubits to add gate to are always explicitly specified. The time
+            to add gate to may be explicitly specified in the time argumet (1st
+            priority), or a recipe for determining the time placement can be
+            specified using the time_placement argument (2nd priority).
+
+        Params:
+            qubit (int) - qubit index in self to add the gate into.
+            theta (float) - the angle parameter of the gate (default - 0.0).
+            phi (float) - the angle parameter of the gate (default - 0.0).
+            lam (float) - the angle parameter of the gate (default - 0.0).
+            time (int) - time moment in self to add the gate into. If None, the
+                time_placement argument will be considered next.
+            time_placement (str - 'early', 'late', or 'next') - recipe to
+                determine time moment in self to add the gate into. The rules
+                are:
+                    'early' -  add the gate as early as possible, just after
+                        any existing gates on self's qubit wires.
+                    'late' - add the gate in the last open time moment in self,
+                        unless a conflict arises, in which case, add the gate
+                        in the next (new) time moment.
+                    'next' - add the gate in the next (new) time moment.
+        Result:
+            self is updated with the added gate. Checks are
+                performed to ensure that the addition is valid.
+        Returns:
+            self - for chaining
+        """
+        return self.add_gate(
+            gate=Gate.u3(theta=theta, phi=phi, lam=lam),
             qubits=(qubit,),
             **kwargs)
 
