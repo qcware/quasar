@@ -9,7 +9,7 @@ pauli.py - the quasar Pauli operator library. Includes the Pauli class and
     PauliString, PauliOperator, and PauliStarter utility classes (most of which
     are simple stubs used only for symbolic algebra of Pauli objects).
 measurement.py - the quasar qubit measurement library. Includes the Ket and
-    Measurement classes.
+    MeasurementResult classes.
 run.py - the quasar runtime methods library. Includes the build_native_circuit,
     run_statevector, run_measurement, and run_pauli_expectation methods.
 resolution.py - the native-to-quasar translation library. Includes
