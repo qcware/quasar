@@ -1,7 +1,7 @@
 import numpy as np
 from .circuit import Circuit
 from .backend import Backend
-from .measurement import Ket, Measurement
+from .measurement import Ket, MeasurementResult
 
 # => Qiskit <= #
 
@@ -238,7 +238,7 @@ class QiskitSimulatorBackend(QiskitBackend):
         import qiskit
         circuit_native = self.build_native_circuit_measurement(circuit)
         measurements_native = qiskit.execute(circuit_native, backend=self.qasm_backend, shots=nmeasurement).result().get_counts()
-        results = Measurement()
+        results = MeasurementResult()
         for k, v in measurements_native.items():
             results[Ket(k[::-1])] = v
         return results
@@ -277,7 +277,7 @@ class QiskitHardwareBackend(QiskitBackend):
         import qiskit
         circuit_native = self.build_native_circuit_measurement(circuit)
         measurements_native = qiskit.execute(circuit_native, backend=self.qasm_backend, shots=nmeasurement).result().get_counts()
-        results = Measurement()
+        results = MeasurementResult()
         for k, v in measurements_native.items():
             results[Ket(k[::-1])] = v
         return results

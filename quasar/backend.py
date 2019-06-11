@@ -1,7 +1,7 @@
 import numpy as np
 import collections
 import itertools
-from .pauli import Pauli, PauliString
+from .pauli import Pauli, PauliExpectation, PauliString
 from .circuit import Circuit
 
 """ File backend.py contains some utility classes the standardize the
@@ -26,7 +26,7 @@ from .circuit import Circuit
             on the quantum backend.
         (2) the discrete quantum measurements - A set of kets |AB...Z> and the
             corresponding count of observations. Here, we represent this by the
-            Measurement class, which is a dict of Ket : count pairs. Class Ket
+            MeasurementResult class, which is a dict of Ket : count pairs. Class Ket
             wraps an str an makes it unambiguous as to the qubit ordering in
             the ket.
         (3) the simulated statevector - a 2**N-dimensional real or complex
@@ -36,7 +36,7 @@ from .circuit import Circuit
             infinite-sampling contraction of a simulated statevector or by
             statistical expectation value over a set of strings of many-body
             Pauli operators. Here, we compute this ourselves using either a
-            simulated statevector or a set of Measurement objects computed in
+            simulated statevector or a set of MeasurementResult objects computed in
             the "commuting group" space for the relevant Pauli operator. This
             object is returned as a Pauli object.
 
@@ -221,7 +221,7 @@ class Backend(object):
         circuit,
         nmeasurement=1000,
         **kwargs):
-        """ Return a Measurement object with the results of repeated quantum
+        """ Return a MeasurementResult object with the results of repeated quantum
             circuit preparation and measurement in the computational basis.
 
             The output from this function is generally stochastic.
@@ -230,7 +230,7 @@ class Backend(object):
             circuit (quasar.Circuit) - Quasar circuit to measure.
             nmeasurement (int) - number of measurement
         Returns:
-            (Measurement) - a Measurement object with the observed measurements
+            (MeasurementResult) - a MeasurementResult object with the observed measurements
                 in the computational basis, nmeasurement total measurements.
     
         Backend subclasses should OVERLOAD this method.
@@ -300,7 +300,7 @@ class Backend(object):
         N = (statevector.shape[0]&-statevector.shape[0]).bit_length()-1
         if pauli.N > N: raise RuntimeError('pauli.N > circuit.N')
 
-        pauli_expectation = Pauli.zeros_like(pauli)
+        pauli_expectation = PauliExpectation.zeros_like(pauli)
         if PauliString.I in pauli_expectation:
             pauli_expectation[PauliString.I] = 1.0
         for order in range(1, pauli_expectation.max_order+1):
@@ -332,7 +332,7 @@ class Backend(object):
         circuits = [self.build_native_circuit_in_basis(circuit, basis) 
             for basis in groups.keys()]
     
-        # Measurements in commuting group (quantum heavy)
+        # MeasurementResults in commuting group (quantum heavy)
         results = [self.run_measurement(
             circuit=_,
             nmeasurement=nmeasurement,
@@ -351,7 +351,7 @@ class Backend(object):
                     counts[string] += (-count) if parity else (+count)
                 
         # Pauli density matrix values
-        pauli_expectation = Pauli(collections.OrderedDict([
+        pauli_expectation = PauliExpectation(collections.OrderedDict([
             (_, counts[_] / max(ns[_], 1)) for _ in pauli.keys()]))
         if PauliString.I in pauli_expectation:
             pauli_expectation[PauliString.I] = 1.0

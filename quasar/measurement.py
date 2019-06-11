@@ -30,7 +30,7 @@ class Ket(str):
         padded = ('0' * (N - len(start))) + start
         return Ket(padded)
 
-class Measurement(dict):    
+class MeasurementResult(dict):    
 
     def __init__(
         self, 
@@ -38,7 +38,7 @@ class Measurement(dict):
         **kwargs,
         ):
 
-        super(Measurement, self).__init__(*args, **kwargs)
+        super(MeasurementResult, self).__init__(*args, **kwargs)
 
         for k, v in self.items():
             if not isinstance(k, Ket): raise RuntimeError('Key must be Ket: %s' % k) 
@@ -56,7 +56,7 @@ class Measurement(dict):
 
         
         key = Ket(key)
-        return super(Measurement, self).__contains__(key)
+        return super(MeasurementResult, self).__contains__(key)
 
     def __getitem__(
         self,
@@ -64,7 +64,7 @@ class Measurement(dict):
         ):
 
         key = Ket(key)
-        return super(Measurement, self).__getitem__(key)
+        return super(MeasurementResult, self).__getitem__(key)
 
     def __setitem__(
         self,
@@ -76,7 +76,7 @@ class Measurement(dict):
         if not isinstance(value, int): raise RuntimeError('Value must be int: %s' % value)
         if value < 0: raise RuntimeError('Value must be positive: %s' % value)
         if len(self) and key.N != self.N: raise RuntimeError('All keys must have same N')
-        return super(Measurement, self).__setitem__(key, value)
+        return super(MeasurementResult, self).__setitem__(key, value)
 
     def get(
         self,
@@ -86,7 +86,7 @@ class Measurement(dict):
 
         key = Ket(key)
         if default is not None and not isinstance(default, int): raise RuntimeError('default must be int: %s' % default)
-        return super(Measurement, self).get(key, default)
+        return super(MeasurementResult, self).get(key, default)
 
     def setdefault(
         self,
@@ -98,10 +98,10 @@ class Measurement(dict):
         if default is not None and not isinstance(default, int): raise RuntimeError('default must be int: %s' % default)
         if default < 0: raise RuntimeError('default must be positive: %s' % default)
         if len(self) and key.N != self.N: raise RuntimeError('All keys must have same N')
-        return super(Measurement, self).setdefault(key, default)
+        return super(MeasurementResult, self).setdefault(key, default)
 
     def update(self, *args, **kwargs):
-        raise RuntimeError('Measurement.update is not a well-defined operation, so we have poisoned this method of dict')
+        raise RuntimeError('MeasurementResult.update is not a well-defined operation, so we have poisoned this method of dict')
 
     @property
     def N(self):
@@ -119,3 +119,17 @@ class Measurement(dict):
             s += '|%s> : %*d\n' % (k, maxlen, self[k])
         return s
 
+    def subset(
+        self,
+        qubits,
+        ):
+
+        if not all(isinstance(qubit, int) for qubit in qubits): raise RuntimeError('qubits must be int')
+        if any(qubit >= self.N or qubit < 0 for qubit in qubits): raise RuntimeError('qubits must be in [0, N)')
+        if len(set(qubits)) != len(qubits): raise RuntimeError('qubits must be unique')
+
+        measurement = MeasurementResult()
+        for k, v in self.items():
+            k2 = ''.join(str(k[qubit]) for qubit in qubits)
+            measurement[k2] = self[k] + measurement.get(k2, 0)
+        return measurement

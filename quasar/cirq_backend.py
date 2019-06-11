@@ -1,7 +1,7 @@
 import numpy as np
 from .circuit import Circuit
 from .backend import Backend
-from .measurement import Ket, Measurement
+from .measurement import Ket, MeasurementResult
 
 # => Cirq <= #
 
@@ -232,7 +232,7 @@ class CirqSimulatorBackend(CirqBackend):
         circuit_native = self.build_native_circuit_measurement(circuit)
         result = self.simulator.run(circuit_native, repetitions=nmeasurement, **kwargs)
         table = np.hstack(tuple(result.measurements[key] for key in sorted(result.measurements.keys())))
-        results = Measurement()
+        results = MeasurementResult()
         for A in range(table.shape[0]):
             ket = Ket(''.join('1' if table[A,B] else '0' for B in range(table.shape[1])))
             results[ket] = 1 + results.get(ket, 0)

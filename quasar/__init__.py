@@ -1,6 +1,6 @@
 from .circuit import Matrix, Gate, Circuit
-from .pauli import PauliStarter, PauliOperator, PauliString, Pauli
-from .measurement import Ket, Measurement
+from .pauli import PauliJordanWigner, PauliStarter, PauliOperator, PauliString, Pauli
+from .measurement import Ket, MeasurementResult
 
 from .backend import Backend
 from .quasar_backend import QuasarSimulatorBackend

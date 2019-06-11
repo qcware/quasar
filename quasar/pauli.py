@@ -362,6 +362,10 @@ class Pauli(collections.OrderedDict):
         return Pauli(collections.OrderedDict((k, v) for k, v in self.items() if np.abs(v) > cutoff))
 
     @staticmethod
+    def I():
+        return Pauli(collections.OrderedDict([(PauliString.I, 1.0)]))
+
+    @staticmethod
     def IXYZ():
         return Pauli(collections.OrderedDict([(PauliString.I, 1.0)])), PauliStarter('X'), PauliStarter('Y'), PauliStarter('Z')
 
@@ -398,6 +402,17 @@ class Pauli(collections.OrderedDict):
         
         return tuple(sorted(set(''.join(''.join(_) for _ in self.chars))))
     
+class PauliExpectation(Pauli):
+
+    def __str__(self):
+        lines = []
+        for string, value in self.items():
+            lines.append('<%s> = %s' % (string, value))
+        return '\n'.join(lines)
+
+    @staticmethod   
+    def zeros_like(x):
+        return PauliExpectation(collections.OrderedDict((k, 0.0) for k, v in x.items()))
 
 class PauliStarter(object):
 
@@ -411,3 +426,77 @@ class PauliStarter(object):
 
     def __getitem__(self, qubit):
         return Pauli(collections.OrderedDict([(PauliString((PauliOperator(qubit=qubit, char=self.char),)), 1.0)]))
+
+class PauliJordanWigner(object):
+
+    class Composition(object):
+
+        def __init__(
+            self,
+            creation=True,
+            ):
+
+            self.creation = creation
+
+        def __getitem__(
+            self,
+            index,
+            ):
+
+            if not isinstance(index, int): raise RuntimeError('index must be int')
+
+            Zstr = []
+            for index2 in range(index):
+                Zstr.append(PauliOperator(qubit=index2, char='Z'))
+            Xstr = Zstr + [PauliOperator(qubit=index, char='X')]
+            Ystr = Zstr + [PauliOperator(qubit=index, char='Y')]
+            Xkey = PauliString(tuple(Xstr))
+            Ykey = PauliString(tuple(Ystr))
+            
+            return Pauli(collections.OrderedDict([
+                (Xkey, 0.5),
+                (Ykey, -0.5j if self.creation else +0.5j),
+                ]))
+
+    @staticmethod
+    def composition_operators():
+        return PauliJordanWigner.Composition(creation=True), PauliJordanWigner.Composition(creation=False)
+
+    class Substitution1(object):
+
+        def __getitem__(
+            self,   
+            indices,
+            ):
+
+            """ Returns 0.5 * (p^+ q + q^+ p) """
+
+            if not isinstance(indices, tuple): raise RuntimeError('indices must be tuple')
+            if len(indices) != 2: raise RuntimeError('indices must be len 2')
+            if not all(isinstance(_, int) for _ in indices): raise RuntimeError('indices must be tuple of int')
+
+            if indices[0] == indices[1]:
+                I, X, Y, Z = Pauli.IXYZ()
+                return 0.5 * I - 0.5 * Z[indices[0]]
+            else:
+                index1 = min(indices)
+                index2 = max(indices)
+                Zstr = []
+                for index3 in range(index1+1, index2):
+                    Zstr.append(PauliOperator(qubit=index3, char='Z'))
+                Xstr = [PauliOperator(qubit=index1, char='X')] + Zstr + [PauliOperator(qubit=index2, char='X')]
+                Ystr = [PauliOperator(qubit=index1, char='Y')] + Zstr + [PauliOperator(qubit=index2, char='Y')]
+                Xkey = PauliString(tuple(Xstr))
+                Ykey = PauliString(tuple(Ystr))
+                
+                return Pauli(collections.OrderedDict([
+                    (Xkey, 0.25),
+                    (Ykey, 0.25),
+                    ]))
+
+    @staticmethod
+    def substitution1_operator():
+        return PauliJordanWigner.Substitution1()
+                
+            
+    

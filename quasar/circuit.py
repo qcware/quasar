@@ -7,7 +7,7 @@
 import numpy as np
 import collections
 import itertools
-from .measurement import Ket, Measurement
+from .measurement import Ket, MeasurementResult
 
 """ Quasar: an ultralight python-2.7/python-3.X quantum simulator package
 
@@ -117,6 +117,20 @@ class Matrix(object):
         [0.0, 1.0, 0.0, 0.0],
         [0.0, 0.0, 0.0, 1.0],
         ], dtype=np.complex128)
+
+    # Toffoli
+    CCX = np.eye(8, dtype=np.complex128)
+    CCX[6,6] = 0.0
+    CCX[7,7] = 0.0
+    CCX[6,7] = 1.0
+    CCX[7,6] = 1.0
+
+    # Fredkin
+    CSWAP = np.eye(8, dtype=np.complex128)
+    CSWAP[5,5] = 0.0
+    CSWAP[6,6] = 0.0
+    CSWAP[5,6] = 1.0
+    CSWAP[6,5] = 1.0
 
     @staticmethod
     def Rx(theta):
@@ -383,6 +397,24 @@ Gate.SWAP = Gate(
     params=collections.OrderedDict(),
     name='SWAP',
     ascii_symbols=['X', 'X'],
+    )
+
+""" CCX (Toffoli gate) """
+Gate.CCX = Gate(
+    N=3,
+    Ufun = lambda params: Matrix.CCX,
+    params=collections.OrderedDict(),
+    name='CCX',
+    ascii_symbols=['@', '@', 'X'],
+    )
+
+""" CSWAP (Toffoli gate) """
+Gate.CSWAP = Gate(
+    N=3,
+    Ufun = lambda params: Matrix.CSWAP,
+    params=collections.OrderedDict(),
+    name='CSWAP',
+    ascii_symbols=['@', 'X', 'X'],
     )
 
 # > Parametrized 1-body gates < #
@@ -1756,6 +1788,84 @@ class Circuit(object):
             qubits=(qubitA, qubitB),
             **kwargs)
 
+    def CCX(
+        self,
+        qubitA,
+        qubitB,
+        qubitC,
+        **kwargs):
+
+        """ Add a CCX gate to self at specified qubits and time, updating self.
+            The qubits to add gate to are always explicitly specified. The time
+            to add gate to may be explicitly specified in the time argumet (1st
+            priority), or a recipe for determining the time placement can be
+            specified using the time_placement argument (2nd priority).
+
+        Params:
+            qubitA (int) - control1 qubit index in self to add the gate into.
+            qubitB (int) - control2 qubit index in self to add the gate into.
+            qubitC (int) - target qubit index in self to add the gate into.
+            time (int) - time moment in self to add the gate into. If None, the
+                time_placement argument will be considered next.
+            time_placement (str - 'early', 'late', or 'next') - recipe to
+                determine time moment in self to add the gate into. The rules
+                are:
+                    'early' -  add the gate as early as possible, just after
+                        any existing gates on self's qubit wires.
+                    'late' - add the gate in the last open time moment in self,
+                        unless a conflict arises, in which case, add the gate
+                        in the next (new) time moment.
+                    'next' - add the gate in the next (new) time moment.
+        Result:
+            self is updated with the added gate. Checks are
+                performed to ensure that the addition is valid.
+        Returns:
+            self - for chaining
+        """
+        return self.add_gate(
+            gate=Gate.CCX,
+            qubits=(qubitA, qubitB, qubitC),
+            **kwargs)
+
+    def CSWAP(
+        self,
+        qubitA,
+        qubitB,
+        qubitC,
+        **kwargs):
+
+        """ Add a CSWAP gate to self at specified qubits and time, updating self.
+            The qubits to add gate to are always explicitly specified. The time
+            to add gate to may be explicitly specified in the time argumet (1st
+            priority), or a recipe for determining the time placement can be
+            specified using the time_placement argument (2nd priority).
+
+        Params:
+            qubitA (int) - control qubit index in self to add the gate into.
+            qubitB (int) - swap1 qubit index in self to add the gate into.
+            qubitC (int) - swap2 qubit index in self to add the gate into.
+            time (int) - time moment in self to add the gate into. If None, the
+                time_placement argument will be considered next.
+            time_placement (str - 'early', 'late', or 'next') - recipe to
+                determine time moment in self to add the gate into. The rules
+                are:
+                    'early' -  add the gate as early as possible, just after
+                        any existing gates on self's qubit wires.
+                    'late' - add the gate in the last open time moment in self,
+                        unless a conflict arises, in which case, add the gate
+                        in the next (new) time moment.
+                    'next' - add the gate in the next (new) time moment.
+        Result:
+            self is updated with the added gate. Checks are
+                performed to ensure that the addition is valid.
+        Returns:
+            self - for chaining
+        """
+        return self.add_gate(
+            gate=Gate.CSWAP,
+            qubits=(qubitA, qubitB, qubitC),
+            **kwargs)
+
     def Rx(
         self,
         qubit,
@@ -2319,13 +2429,8 @@ class Circuit(object):
             for A in range(min(qubits), max(qubits)+1):
                 # Gate symbol
                 if A in qubits:
-                    if gate.N == 1:
-                        seconds[idx][A] = gate.ascii_symbols[0]
-                    elif gate.N == 2:
-                        Aind = [Aind for Aind, B in enumerate(qubits) if A == B][0]
-                        seconds[idx][A] = gate.ascii_symbols[Aind]
-                    else:
-                        raise RuntimeError('Unknown N>2 gate')
+                    Aind = [Aind for Aind, B in enumerate(qubits) if A == B][0]
+                    seconds[idx][A] = gate.ascii_symbols[Aind]
                 else:
                     seconds[idx][A] = '|'
                 # Gate connector
@@ -2582,6 +2687,15 @@ class Circuit(object):
                         A=qubits[0],
                         B=qubits[1],
                         )
+                elif gate.N == 3:
+                    wfn2 = Circuit.apply_gate_3(
+                        wfn1=wfn1,
+                        wfn2=wfn2,
+                        U=np.array(gate.U, dtype=dtype),
+                        A=qubits[0],
+                        B=qubits[1],
+                        C=qubits[2],
+                        )
                 else:
                     raise RuntimeError('Cannot apply gates with N > 2: %s' % gate)
                 wfn1, wfn2 = wfn2, wfn1
@@ -2671,7 +2785,7 @@ class Circuit(object):
                 - an array to write the new wavefunction into. Overwritten by
                 the operation.
             U (np.ndarray of shape (4,4) and a complex dtype) - the matrix
-                representation of the 1-body gate. This should be packed to
+                representation of the 2-body gate. This should be packed to
                 operate on the product state |A> otimes |B>, as usual.
             A (int) - the first qubit index to apply the gate at.
             B (int) - the second qubit index to apply the gate at.
@@ -2704,6 +2818,75 @@ class Circuit(object):
         wfn1v.shape = (L,2,M,2,R)
         wfn2v.shape = (L,2,M,2,R)
         np.einsum('LkMlR,ijkl->LiMjR', wfn1v, U2, out=wfn2v)
+
+        return wfn2
+
+    @staticmethod
+    def apply_gate_3(
+        wfn1,
+        wfn2,
+        U,
+        A,
+        B,
+        C,
+        ):
+
+        """ Apply a 3-body gate unitary U to wfn1 at qubits A, B, and C, yielding wfn2.
+
+        This function requires the user to supply both the initial state in
+        wfn1 and an array wfn2 to place the result into. This allows this
+        function to apply the gate without any new allocations or scratch arrays.
+
+        Params:
+            wfn1 (np.ndarray of shape (2**self.N,) and a complex dtype)
+                - the initial wavefunction. Unaffected by the operation
+            wfn2 (np.ndarray of shape (2**self.N,) and a complex dtype)
+                - an array to write the new wavefunction into. Overwritten by
+                the operation.
+            U (np.ndarray of shape (8,8) and a complex dtype) - the matrix
+                representation of the 3-body gate. This should be packed to
+                operate on the product state |A> otimes |B> otimes |C>, as
+                usual.
+            A (int) - the first qubit index to apply the gate at.
+            B (int) - the second qubit index to apply the gate at.
+            C (int) - the third qubit index to apply the gate at.
+        Result:
+            the data of wfn2 is overwritten with the result of the operation.
+        Returns:
+            reference to wfn2, for chaining
+        """
+
+        N = (wfn1.shape[0]&-wfn1.shape[0]).bit_length()-1
+        if A >= N: raise RuntimeError('A >= N')
+        if B >= N: raise RuntimeError('B >= N')
+        if C >= N: raise RuntimeError('C >= N')
+        if A == B: raise RuntimeError('A == B')
+        if A == C: raise RuntimeError('A == C')
+        if B == C: raise RuntimeError('B == C')
+        if U.shape != (8,8): raise RuntimeError('2-body gate must be (4,4)')
+        if wfn1.shape != (2**N,): raise RuntimeError('wfn1 should be (%d,) shape, is %r shape' % (2**N, wfn1.shape))
+        if wfn2.shape != (2**N,): raise RuntimeError('wfn2 should be (%d,) shape, is %r shape' % (2**N, wfn2.shape))
+
+        A2, B2, C2 = sorted((A, B, C))
+
+        U2 = np.reshape(U, (2,2,2,2,2,2))
+
+        bra_indices = 'ijk'
+        ket_indices = 'lmn'
+        bra_indices2 = ''.join([bra_indices[(A, B, C).index(_)] for _ in (A2, B2, C2)])
+        ket_indices2 = ''.join([ket_indices[(A, B, C).index(_)] for _ in (A2, B2, C2)])
+        
+        U2 = np.einsum('%s%s->%s%s' % (bra_indices, ket_indices, bra_indices2, ket_indices2), U2)
+
+        L = 2**(A2)      # Left hangover
+        M = 2**(B2-A2-1) # Middle1 hangover
+        P = 2**(C2-B2-1) # Middle2 hangover
+        R = 2**(N-C2-1)  # Right hangover
+        wfn1v = wfn1.view() 
+        wfn2v = wfn2.view()
+        wfn1v.shape = (L,2,M,2,P,2,R)
+        wfn2v.shape = (L,2,M,2,P,2,R)
+        np.einsum('LlMmPnR,ijklmn->LiMjPkR', wfn1v, U2, out=wfn2v)
 
         return wfn2
 
@@ -3163,7 +3346,7 @@ class Circuit(object):
                 ensuring that the circuit works on O(2^N) rather than U(2^N)
                 and that the output is valid.
         Returns:
-            (Measurement) - a Measurement object containing the results of
+            (MeasurementResult) - a MeasurementResult object containing the results of
                 randomly sampled projective measurements .
         """
     
@@ -3186,11 +3369,11 @@ class Circuit(object):
                 sample.
             nmeasurement (int) - number of measurements to sample.
         Returns:
-            (Measurement) - a Measurement object containing the results of
+            (MeasurementResult) - a MeasurementResult object containing the results of
                 randomly sampled projective measurements .
         """
 
         N = (statevector.shape[0]&-statevector.shape[0]).bit_length()-1
         P = (np.conj(statevector) * statevector).real
         I = list(np.searchsorted(np.cumsum(P), np.random.rand(nmeasurement)))
-        return Measurement({ Ket.from_int(k, N) : I.count(k) for k in list(sorted(set(I))) }) 
+        return MeasurementResult({ Ket.from_int(k, N) : I.count(k) for k in list(sorted(set(I))) }) 
