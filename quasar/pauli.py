@@ -1,6 +1,6 @@
 import collections
 import numpy as np
-import sympy
+import sympy # TODO: Induces 0.26s load time of quasar
 
 class PauliOperator(tuple):
 
@@ -144,7 +144,7 @@ class Pauli(collections.OrderedDict):
         ):
 
         if not isinstance(key, PauliString): raise RuntimeError('Key must be PauliString: %s' % key)
-        if default is not None and not isinstance(default, (float, complex, sympy)): raise RuntimeError('default must be float, complex, or sympy: %s' % default)
+        if default is not None and not isinstance(default, (float, complex, sympy.Basic)): raise RuntimeError('default must be float, complex, or sympy: %s' % default)
         return super(Pauli, self).setdefault(key, default)
 
     def update(self, *args, **kwargs):
