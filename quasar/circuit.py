@@ -674,19 +674,21 @@ class ControlledGate(Gate):
     def __init__(
         self,
         gate,
+        ncontrol=1,
         ):
 
         self.gate = gate
+        self.ncontrol = ncontrol
 
     @property
     def N(self):
-        return self.gate.N + 1
+        return self.gate.N + self.ncontrol
 
     @property
     def Ufun(self):
         def cU(params):        
             U = np.eye(2**self.N, dtype=np.complex128)
-            U[(2**self.N // 2):, (2**self.N // 2):] = self.gate.Ufun(params)
+            U[(2**self.N - 2**self.gate.N):, (2**self.N - 2**self.gate.N):] = self.gate.Ufun(params)
             return U
         return cU
 
@@ -696,14 +698,14 @@ class ControlledGate(Gate):
 
     @property
     def name(self):
-        return 'C' + self.gate.name
+        return 'C'*self.ncontrol + self.gate.name
 
     @property
     def ascii_symbols(self):
-        return ['@'] + self.gate.ascii_symbols
+        return ['@']*self.ncontrol + self.gate.ascii_symbols
 
     def copy(self):
-        return ControlledGate(self.gate.copy())
+        return ControlledGate(gate=self.gate.copy(), ncontrol=self.ncontrol)
 
     def set_param(self, key, param):
         self.gate.set_param(key, param)
