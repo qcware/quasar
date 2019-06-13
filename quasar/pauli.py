@@ -104,6 +104,7 @@ class Pauli(collections.OrderedDict):
         key,
         ):
 
+        if isinstance(key, str): key = PauliString.from_string(key)
         if not isinstance(key, PauliString): raise RuntimeError('Key must be PauliString: %s' % key)
         return super(Pauli, self).__contains__(key)
 
@@ -112,6 +113,7 @@ class Pauli(collections.OrderedDict):
         key,
         ):
 
+        if isinstance(key, str): key = PauliString.from_string(key)
         if not isinstance(key, PauliString): raise RuntimeError('Key must be PauliString: %s' % key)
         return super(Pauli, self).__getitem__(key)
 
@@ -121,6 +123,7 @@ class Pauli(collections.OrderedDict):
         value,
         ):
 
+        if isinstance(key, str): key = PauliString.from_string(key)
         if not isinstance(key, PauliString): raise RuntimeError('Key must be PauliString: %s' % key)
         return super(Pauli, self).__setitem__(key, value)
 
@@ -130,6 +133,7 @@ class Pauli(collections.OrderedDict):
         default=None,
         ):
 
+        if isinstance(key, str): key = PauliString.from_string(key)
         if not isinstance(key, PauliString): raise RuntimeError('Key must be PauliString: %s' % key)
         return super(Pauli, self).get(key, default)
 
@@ -139,6 +143,7 @@ class Pauli(collections.OrderedDict):
         default=None,
         ):
 
+        if isinstance(key, str): key = PauliString.from_string(key)
         if not isinstance(key, PauliString): raise RuntimeError('Key must be PauliString: %s' % key)
         return super(Pauli, self).setdefault(key, default)
 
@@ -482,6 +487,4 @@ class PauliJordanWigner(object):
     @staticmethod
     def substitution1_operator():
         return PauliJordanWigner.Substitution1()
-                
-            
     
