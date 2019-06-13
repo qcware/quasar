@@ -1,5 +1,6 @@
 from .run import run_pauli_expectation
 from .resolution import build_quasar_circuit
+from .circuit import Circuit
 import numpy as np
 import itertools
 
@@ -213,6 +214,9 @@ class RotationTomography(Tomography):
         Os = np.array([self.compute_observable_expectation_value(theta2[:,-2:-1]) for theta2 in thetas])
         return thetas[np.argmin(Os)] 
 
+    def optimize(self):
+        return self.optimize_jacobi_1_best()[:,-1]
+
 def run_observable_expectation_value_tomography(
     backend,
     circuit,
@@ -248,6 +252,55 @@ def run_observable_expectation_value_tomography(
             param_values2[param_index] = T2.ravel()[I]
         circuit.set_param_values(param_values2)
         O.ravel()[I] = run_pauli_expectation(backend, circuit, pauli, nmeasurement, **kwargs).dot(pauli).real # TODO: do we need this to be real
+    
+    # Tomography fitting
+    coefs = RotationTomography.quad_coefs(O) 
+
+    # Finished RotationTomography object
+    return RotationTomography(coefs=coefs) 
+
+def run_ensemble_observable_expectation_value_tomography(
+    backend,
+    reference_circuits,
+    reference_weights,
+    circuit,
+    pauli,
+    nmeasurement=None,
+    param_indices=None,
+    **kwargs):
+    
+    # No dropthrough - always need quasar.Circuit to manipulate
+    reference_circuits = [build_quasar_circuit(_) for _ in reference_circuits]
+    circuit = build_quasar_circuit(circuit).copy()
+    param_values = circuit.param_values
+
+    # Default to doing tomography over all parameters (NOTE: This costs 3**nparam pauli expectation values)
+    if param_indices is None:
+        param_indices = tuple(range(circuit.nparam))
+
+    # Check that the tomography formula is known for these parameters (i.e., Rx, Ry, Rz gates)
+    param_keys = circuit.param_keys
+    for param_index in param_indices:
+        key = param_keys[param_index]
+        time, qubits, name = key
+        gate = circuit.gates[(time, qubits)]
+        if not gate.name in ('Rx', 'Ry', 'Rz'): 
+            raise RuntimeError('Unknown tomography rule: presently can only tomography Rx, Ry, Rz gates: %s' % gate)
+
+    # The tomography quadrature grid
+    T = RotationTomography.quad_x(len(param_indices))
+    O = np.zeros_like(T[0])
+    npoint = T.size // T.shape[0]
+    for I in range(npoint):
+        param_values2 = param_values.copy()
+        for param_index, T2 in zip(param_indices, T):
+            param_values2[param_index] = T2.ravel()[I]
+        circuit.set_param_values(param_values2)
+        Oval = 0.0
+        for ref, w in zip(reference_circuits, reference_weights):
+            circuit2 = Circuit.concatenate([ref, circuit])
+            Oval += w * run_pauli_expectation(backend, circuit2, pauli, nmeasurement, **kwargs).dot(pauli).real # TODO: do we need this to be real
+        O.ravel()[I] = Oval
     
     # Tomography fitting
     coefs = RotationTomography.quad_coefs(O) 

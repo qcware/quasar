@@ -1,3 +1,4 @@
+import collections
 import numpy as np
 
 class Ket(str):
@@ -133,3 +134,102 @@ class MeasurementResult(dict):
             k2 = ''.join(str(k[qubit]) for qubit in qubits)
             measurement[k2] = self[k] + measurement.get(k2, 0)
         return measurement
+
+class OptimizationResult(collections.OrderedDict):    
+
+    """ Ket : (E, N) """
+
+    def __init__(
+        self, 
+        *args,
+        **kwargs,
+        ):
+
+        super(OptimizationResult, self).__init__(*args, **kwargs)
+
+        for k, v in self.items():
+            if not isinstance(k, Ket): raise RuntimeError('Key must be Ket: %s' % k) 
+            if not isinstance(v, tuple): raise RuntimeError('Value must be tuple: %s' % v) 
+
+        if len(self) == 0: return
+        selfN = self.N
+        if not all(_.N == self.N for _ in self.keys()): raise RuntimeError('All keys must have same N')
+
+    def __contains__(
+        self,
+        key,
+        ):
+
+        
+        key = Ket(key)
+        return super(OptimizationResult, self).__contains__(key)
+
+    def __getitem__(
+        self,
+        key,
+        ):
+
+        key = Ket(key)
+        return super(OptimizationResult, self).__getitem__(key)
+
+    def __setitem__(
+        self,
+        key,
+        value,
+        ):
+
+        key = Ket(key)
+        if len(self) and key.N != self.N: raise RuntimeError('All keys must have same N')
+        return super(OptimizationResult, self).__setitem__(key, value)
+
+    def get(
+        self,
+        key,
+        default=None,
+        ):
+
+        key = Ket(key)
+        return super(OptimizationResult, self).get(key, default)
+
+    def setdefault(
+        self,
+        key,
+        default=None,
+        ):
+
+        key = Ket(key)
+        if len(self) and key.N != self.N: raise RuntimeError('All keys must have same N')
+        return super(OptimizationResult, self).setdefault(key, default)
+
+    def update(self, *args, **kwargs):
+        raise RuntimeError('OptimizationResult.update is not a well-defined operation, so we have poisoned this method of dict')
+
+    @property
+    def N(self):
+        return next(iter(self.keys())).N if len(self) else None
+
+    @property
+    def energy_sorted(self):
+        result = OptimizationResult()
+        for E, N, ket in sorted([(v[0], -v[1], k) for k, v in self.items()]):
+            result[ket] = (E, -N)
+        return result
+        
+    def __str__(self):
+        sort = self.energy_sorted
+        maxval = max(_[1] for _ in sort.values())
+        maxlen = max(1, int(np.floor(np.log10(maxval))) + 1)        
+        s = ''
+        for k, v in sort.items():
+            s += '|%s> : %10.6f %*d\n' % (k, v[0], maxlen, v[1])
+        return s
+
+    @staticmethod
+    def merge(results):
+        result = OptimizationResult() 
+        for result2 in results:
+            for ket, v in result2.items():
+                E1, N1 = v
+                E2, N2 = result.get(ket, (np.inf, 0))
+                result[ket] = (min(E1, E2), N1 + N2)
+        return result
