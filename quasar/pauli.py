@@ -292,6 +292,18 @@ class Pauli(collections.OrderedDict):
 
         return NotImplemented
 
+    def __radd__(self, other):
+    
+        pauli2 = self.copy()
+        pauli2[PauliString.I] = pauli2.get(PauliString.I, 0.0) + other
+        return pauli2 
+
+    def __rsub__(self, other):
+    
+        pauli2 = -self
+        pauli2[PauliString.I] = pauli2.get(PauliString.I, 0.0) + other
+        return pauli2 
+
     def __iadd__(self, other):
 
         if isinstance(other, Pauli):
