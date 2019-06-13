@@ -1,6 +1,5 @@
 import collections
 import numpy as np
-import sympy # TODO: Induces 0.26s load time of quasar
 
 class PauliOperator(tuple):
 
@@ -99,7 +98,6 @@ class Pauli(collections.OrderedDict):
 
         for k, v in self.items():
             if not isinstance(k, PauliString): raise RuntimeError('Key must be PauliString: %s' % k) 
-            if not isinstance(v, (float, complex, sympy.Basic)): raise RuntimeError('Value must be float, complex, or sympy: %s' % v) 
 
     def __contains__(
         self,
@@ -124,7 +122,6 @@ class Pauli(collections.OrderedDict):
         ):
 
         if not isinstance(key, PauliString): raise RuntimeError('Key must be PauliString: %s' % key)
-        if not isinstance(value, (float, complex, sympy.Basic)): raise RuntimeError('Value must be float, complex, or sympy: %s' % value)
         return super(Pauli, self).__setitem__(key, value)
 
     def get(
@@ -134,7 +131,6 @@ class Pauli(collections.OrderedDict):
         ):
 
         if not isinstance(key, PauliString): raise RuntimeError('Key must be PauliString: %s' % key)
-        if default is not None and not isinstance(default, (float, complex, sympy.Basic)): raise RuntimeError('default must be float, complex, or sympy: %s' % default)
         return super(Pauli, self).get(key, default)
 
     def setdefault(
@@ -144,7 +140,6 @@ class Pauli(collections.OrderedDict):
         ):
 
         if not isinstance(key, PauliString): raise RuntimeError('Key must be PauliString: %s' % key)
-        if default is not None and not isinstance(default, (float, complex, sympy.Basic)): raise RuntimeError('default must be float, complex, or sympy: %s' % default)
         return super(Pauli, self).setdefault(key, default)
 
     def update(self, *args, **kwargs):
@@ -194,11 +189,7 @@ class Pauli(collections.OrderedDict):
 
     def __mul__(self, other):
         
-        if isinstance(other, (float, complex, sympy.Basic)):
-        
-            return Pauli(collections.OrderedDict((k, other*v) for k, v in self.items()))
-
-        elif isinstance(other, Pauli):
+        if isinstance(other, Pauli):
 
             if self.nterm == 1 and other.nterm == 1:
                 value = list(self.values())[0] * list(other.values())[0]
@@ -248,23 +239,19 @@ class Pauli(collections.OrderedDict):
                         pauli += pauli1 * pauli2 # You see that?!!
                 return pauli
 
-        return NotImplemented
-            
-    def __rmul__(self, other):
-        
-        if isinstance(other, (float, complex, sympy.Basic)):
+        else:
         
             return Pauli(collections.OrderedDict((k, other*v) for k, v in self.items()))
 
         return NotImplemented
+            
+    def __rmul__(self, other):
+        
+        return Pauli(collections.OrderedDict((k, other*v) for k, v in self.items()))
 
     def __truediv__(self, other):
         
-        if isinstance(other, (float, complex, sympy.Basic)):
-        
-            return Pauli(collections.OrderedDict((k, v/other) for k, v in self.items()))
-
-        return NotImplemented
+        return Pauli(collections.OrderedDict((k, v/other) for k, v in self.items()))
 
     def __add__(self, other):
 
@@ -275,7 +262,7 @@ class Pauli(collections.OrderedDict):
                 pauli2[k] = self.get(k, 0.0) + v
             return pauli2
 
-        elif isinstance(other, (float, complex, sympy.Basic)):
+        else:
 
             pauli2 = self.copy()
             pauli2[PauliString.I] = self.get(PauliString.I, 0.0) + other
@@ -292,7 +279,7 @@ class Pauli(collections.OrderedDict):
                 pauli2[k] = self.get(k, 0.0) - v
             return pauli2
 
-        elif isinstance(other, (float, complex, sympy.Basic)):
+        else:
 
             pauli2 = self.copy()
             pauli2[PauliString.I] = self.get(PauliString.I, 0.0) - other
@@ -308,7 +295,7 @@ class Pauli(collections.OrderedDict):
                 self[k] = self.get(k, 0.0) + v
             return self
 
-        elif isinstance(other, (float, complex, sympy.Basic)):
+        else:
 
             self[PauliString.I] = self.get(PauliString.I, 0.0) + other
             return self
@@ -323,8 +310,8 @@ class Pauli(collections.OrderedDict):
                 self[k] = self.get(k, 0.0) - v
             return self
 
-        elif isinstance(other, (float, complex, sympy.Basic)):
-
+        else:
+        
             self[PauliString.I] = self.get(PauliString.I, 0.0) - other
             return self
 
