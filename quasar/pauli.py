@@ -403,6 +403,71 @@ class Pauli(collections.OrderedDict):
     def unique_chars(self):
         
         return tuple(sorted(set(''.join(''.join(_) for _ in self.chars))))
+
+    def compute_hilbert_matrix(
+        self,
+        dtype=np.complex128,
+        ):
+    
+        N = self.N
+        O = np.zeros((2**N,)*2, dtype=np.complex128)
+
+        for string, value in self.items():
+            bra_inds = list(range(2**N))
+            factors = np.ones((2**N,), dtype=np.complex128)
+            for operator in string:
+                qubit, char = operator 
+                test = 1 << (N - qubit - 1)
+                if char == 'Z':
+                    for I in range(2**N):
+                        if I & test: factors[I] *= -1.0
+                elif char == 'X':
+                    for I in range(2**N):
+                        bra_inds[I] ^= test
+                elif char == 'Y':
+                    for I in range(2**N):
+                        bra_inds[I] ^= test
+                    factors *= 1.j
+                    for I in range(2**N):
+                        if I & test: factors[I] *= -1.0
+                else:
+                    raise RuntimeError('Unknown char: %s' % char)
+            O[bra_inds, range(2**N)] += factors * value
+
+        return np.array(O, dtype=dtype)
+
+    def compute_hilbert_matrix_vector_product(
+        self,
+        statevector,
+        ):
+
+        N = self.N
+        if statevector.shape != (2**N,): raise RuntimeError('statevector must be shape (2**N,)')
+        sigmavector = np.zeros((2**N,), dtype=np.complex128)
+
+        for string, value in self.items():
+            bra_inds = list(range(2**N))
+            factors = np.ones((2**N,), dtype=np.complex128)
+            for operator in string:
+                qubit, char = operator 
+                test = 1 << (N - qubit - 1)
+                if char == 'Z':
+                    for I in range(2**N):
+                        if I & test: factors[I] *= -1.0
+                elif char == 'X':
+                    for I in range(2**N):
+                        bra_inds[I] ^= test
+                elif char == 'Y':
+                    for I in range(2**N):
+                        bra_inds[I] ^= test
+                    factors *= 1.j
+                    for I in range(2**N):
+                        if I & test: factors[I] *= -1.0
+                else:
+                    raise RuntimeError('Unknown char: %s' % char)
+            sigmavector[bra_inds] += factors * value * statevector
+
+        return np.array(sigmavector, dtype=statevector.dtype)
     
 class PauliExpectation(Pauli):
 
