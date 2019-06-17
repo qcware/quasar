@@ -167,6 +167,37 @@ class Matrix(object):
             [+np.exp(+1.j*phi)*s, np.exp(+1.j*(phi+lam))*c],
             ], dtype=np.complex128)
     
+    @staticmethod
+    def R_ion(theta=0.0, phi=0.0):
+        c = np.cos(theta / 2.0)
+        s = np.sin(theta / 2.0)
+        fm = np.exp(-1.j * phi)
+        fp = np.exp(+1.j * phi)
+        return np.array([
+            [c, -1.j * fm * s],
+            [-1.j * fp * s, c],
+            ], dtype=np.complex128)
+    
+    @staticmethod
+    def Rz_ion(theta=0.0):
+        fm = np.exp(-0.5j * theta)
+        fp = np.exp(+0.5j * theta)
+        return np.array([
+            [fm, 0.0],
+            [0.0, fp],
+            ], dtype=np.complex128)
+
+    @staticmethod
+    def XX_ion(chi=0.0):
+        c = np.cos(chi)
+        s = np.sin(chi)
+        return np.array([
+            [c, 0.0, 0.0, -1.j * s],
+            [0.0, c, -1.j * s, 0.0],
+            [0.0, -1.j * s, c, 0.0],
+            [-1.j * s, 0.0, 0.0, c],
+            ], dtype=np.complex128)
+    
 # => Gate class <= #
 
 class Gate(object):
@@ -637,6 +668,79 @@ def _CF(theta=0.0):
         )
 
 Gate.CF = _CF
+
+# > Ion trap gates < #
+
+def _GateR_ion(theta=0.0, phi=0.0):
+
+    def Ufun(params):
+        return Matrix.R_ion(theta=params['theta'], phi=params['phi'])
+    
+    return Gate(
+        N=1,
+        Ufun=Ufun,
+        params=collections.OrderedDict([('theta', theta), ('phi', phi)]),
+        name='R_ion',
+        ascii_symbols=['R'],
+        )
+
+def _GateRx_ion(theta=0.0):
+
+    def Ufun(params):
+        return Matrix.R_ion(theta=params['theta'], phi=0.0)
+    
+    return Gate(
+        N=1,
+        Ufun=Ufun,
+        params=collections.OrderedDict([('theta', theta)]),
+        name='Rx_ion',
+        ascii_symbols=['Rx'],
+        )
+
+def _GateRy_ion(theta=0.0):
+
+    def Ufun(params):
+        return Matrix.R_ion(theta=params['theta'], phi=np.pi/2.0)
+    
+    return Gate(
+        N=1,
+        Ufun=Ufun,
+        params=collections.OrderedDict([('theta', theta)]),
+        name='Ry_ion',
+        ascii_symbols=['Ry'],
+        )
+
+def _GateRz_ion(theta=0.0):
+
+    def Ufun(params):
+        return Matrix.Rz_ion(theta=params['theta'])
+    
+    return Gate(
+        N=1,
+        Ufun=Ufun,
+        params=collections.OrderedDict([('theta', theta)]),
+        name='Rz_ion',
+        ascii_symbols=['Rz'],
+        )
+
+def _GateXX_ion(chi=0.0):
+
+    def Ufun(params):
+        return Matrix.XX_ion(chi=params['chi'])
+    
+    return Gate(
+        N=2,
+        Ufun=Ufun,
+        params=collections.OrderedDict([('chi', chi)]),
+        name='XX_ion',
+        ascii_symbols=['XX', 'XX'],
+        )
+
+Gate.R_ion = _GateR_ion
+Gate.Rx_ion = _GateRx_ion
+Gate.Ry_ion = _GateRy_ion
+Gate.Rz_ion = _GateRz_ion
+Gate.XX_ion = _GateXX_ion
 
 # > Special explicit gates < #
 
@@ -2345,6 +2449,200 @@ class Circuit(object):
         """
         return self.add_gate(
             gate=Gate.CF(theta=theta),
+            qubits=(qubitA, qubitB),
+            **kwargs)
+
+    def R_ion(
+        self,
+        qubit,
+        theta=0.0,
+        phi=0.0,
+        **kwargs):
+
+        """ Add an R_ion gate to self at specified qubits and time,
+            updating self. The qubits to add gate to are always explicitly
+            specified. The time to add gate to may be explicitly specified in
+            the time argumet (1st priority), or a recipe for determining the
+            time placement can be specified using the time_placement argument
+            (2nd priority).
+
+        Params:
+            qubit (int) - qubit index in self to add the gate into.
+            theta (float) - the angle parameter of the gate (default - 0.0).
+            phi (float) - the angle parameter of the gate (default - 0.0).
+            time (int) - time moment in self to add the gate into. If None, the
+                time_placement argument will be considered next.
+            time_placement (str - 'early', 'late', or 'next') - recipe to
+                determine time moment in self to add the gate into. The rules
+                are:
+                    'early' -  add the gate as early as possible, just after
+                        any existing gates on self's qubit wires.
+                    'late' - add the gate in the last open time moment in self,
+                        unless a conflict arises, in which case, add the gate
+                        in the next (new) time moment.
+                    'next' - add the gate in the next (new) time moment.
+        Result:
+            self is updated with the added gate. Checks are
+                performed to ensure that the addition is valid.
+        Returns:
+            self - for chaining
+        """
+        return self.add_gate(
+            gate=Gate.R_ion(theta=theta, phi=phi),
+            qubits=(qubit,),
+            **kwargs)
+
+    def Rx_ion(
+        self,
+        qubit,
+        theta=0.0,
+        **kwargs):
+
+        """ Add an Rx_ion gate to self at specified qubits and time,
+            updating self. The qubits to add gate to are always explicitly
+            specified. The time to add gate to may be explicitly specified in
+            the time argumet (1st priority), or a recipe for determining the
+            time placement can be specified using the time_placement argument
+            (2nd priority).
+
+        Params:
+            qubit (int) - qubit index in self to add the gate into.
+            theta (float) - the angle parameter of the gate (default - 0.0).
+            time (int) - time moment in self to add the gate into. If None, the
+                time_placement argument will be considered next.
+            time_placement (str - 'early', 'late', or 'next') - recipe to
+                determine time moment in self to add the gate into. The rules
+                are:
+                    'early' -  add the gate as early as possible, just after
+                        any existing gates on self's qubit wires.
+                    'late' - add the gate in the last open time moment in self,
+                        unless a conflict arises, in which case, add the gate
+                        in the next (new) time moment.
+                    'next' - add the gate in the next (new) time moment.
+        Result:
+            self is updated with the added gate. Checks are
+                performed to ensure that the addition is valid.
+        Returns:
+            self - for chaining
+        """
+        return self.add_gate(
+            gate=Gate.Rx_ion(theta=theta),
+            qubits=(qubit,),
+            **kwargs)
+
+    def Ry_ion(
+        self,
+        qubit,
+        theta=0.0,
+        **kwargs):
+
+        """ Add an Ry_ion gate to self at specified qubits and time,
+            updating self. The qubits to add gate to are always explicitly
+            specified. The time to add gate to may be explicitly specified in
+            the time argumet (1st priority), or a recipe for determining the
+            time placement can be specified using the time_placement argument
+            (2nd priority).
+
+        Params:
+            qubit (int) - qubit index in self to add the gate into.
+            theta (float) - the angle parameter of the gate (default - 0.0).
+            time (int) - time moment in self to add the gate into. If None, the
+                time_placement argument will be considered next.
+            time_placement (str - 'early', 'late', or 'next') - recipe to
+                determine time moment in self to add the gate into. The rules
+                are:
+                    'early' -  add the gate as early as possible, just after
+                        any existing gates on self's qubit wires.
+                    'late' - add the gate in the last open time moment in self,
+                        unless a conflict arises, in which case, add the gate
+                        in the next (new) time moment.
+                    'next' - add the gate in the next (new) time moment.
+        Result:
+            self is updated with the added gate. Checks are
+                performed to ensure that the addition is valid.
+        Returns:
+            self - for chaining
+        """
+        return self.add_gate(
+            gate=Gate.Ry_ion(theta=theta),
+            qubits=(qubit,),
+            **kwargs)
+
+    def Rz_ion(
+        self,
+        qubit,
+        theta=0.0,
+        **kwargs):
+
+        """ Add an Rz_ion gate to self at specified qubits and time,
+            updating self. The qubits to add gate to are always explicitly
+            specified. The time to add gate to may be explicitly specified in
+            the time argumet (1st priority), or a recipe for determining the
+            time placement can be specified using the time_placement argument
+            (2nd priority).
+
+        Params:
+            qubit (int) - qubit index in self to add the gate into.
+            theta (float) - the angle parameter of the gate (default - 0.0).
+            time (int) - time moment in self to add the gate into. If None, the
+                time_placement argument will be considered next.
+            time_placement (str - 'early', 'late', or 'next') - recipe to
+                determine time moment in self to add the gate into. The rules
+                are:
+                    'early' -  add the gate as early as possible, just after
+                        any existing gates on self's qubit wires.
+                    'late' - add the gate in the last open time moment in self,
+                        unless a conflict arises, in which case, add the gate
+                        in the next (new) time moment.
+                    'next' - add the gate in the next (new) time moment.
+        Result:
+            self is updated with the added gate. Checks are
+                performed to ensure that the addition is valid.
+        Returns:
+            self - for chaining
+        """
+        return self.add_gate(
+            gate=Gate.Rz_ion(theta=theta),
+            qubits=(qubit,),
+            **kwargs)
+
+    def XX_ion(
+        self,
+        qubitA,
+        qubitB,
+        chi=0.0,
+        **kwargs):
+
+        """ Add an XX_ion gate to self at specified qubits and time,
+            updating self. The qubits to add gate to are always explicitly
+            specified. The time to add gate to may be explicitly specified in
+            the time argumet (1st priority), or a recipe for determining the
+            time placement can be specified using the time_placement argument
+            (2nd priority).
+
+        Params:
+            qubitA (int) - control qubit index in self to add the gate into.
+            qubitB (int) - target qubit index in self to add the gate into.
+            chi (float) - the angle parameter of the gate (default - 0.0).
+            time (int) - time moment in self to add the gate into. If None, the
+                time_placement argument will be considered next.
+            time_placement (str - 'early', 'late', or 'next') - recipe to
+                determine time moment in self to add the gate into. The rules
+                are:
+                    'early' -  add the gate as early as possible, just after
+                        any existing gates on self's qubit wires.
+                    'late' - add the gate in the last open time moment in self,
+                        unless a conflict arises, in which case, add the gate
+                        in the next (new) time moment.
+                    'next' - add the gate in the next (new) time moment.
+        Result:
+            self is updated with the added gate. Checks are
+                performed to ensure that the addition is valid.
+        Returns:
+            self - for chaining
+        """
+        return self.add_gate(
+            gate=Gate.XX_ion(chi=chi),
             qubits=(qubitA, qubitB),
             **kwargs)
 
