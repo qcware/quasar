@@ -6,6 +6,8 @@ from .backend import Backend
 from .quasar_backend import QuasarSimulatorBackend
 from .qiskit_backend import QiskitBackend, QiskitSimulatorBackend, QiskitHardwareBackend
 from .cirq_backend import CirqBackend, CirqSimulatorBackend
+from .forest_backend import ForestBackend, ForestSimulatorBackend, ForestHardwareBackend
+
 
 from .run import build_native_circuit
 from .run import run_statevector
