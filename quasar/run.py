@@ -43,3 +43,26 @@ def run_pauli_expectation(
         circuit = build_quasar_circuit(circuit)
 
     return backend.run_pauli_expectation(circuit, pauli, nmeasurement, **kwargs)
+
+def run_unitary(
+    backend,
+    circuit,
+    **kwargs):
+
+    if not isinstance(circuit, (backend.native_circuit_type, Circuit)):
+        circuit = build_quasar_circuit(circuit)
+
+    return backend.run_unitary(circuit, **kwargs)    
+    
+def run_density_matrix(
+    backend,
+    circuit,
+    **kwargs):
+
+    if not isinstance(circuit, (backend.native_circuit_type, Circuit)):
+        circuit = build_quasar_circuit(circuit)
+
+    return backend.run_density_matrix(circuit, **kwargs)    
+    
+    
+    

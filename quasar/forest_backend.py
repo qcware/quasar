@@ -27,8 +27,8 @@ class ForestBackend(Backend):
     
     @staticmethod
     def forest_to_quasar_results(results_native, nmeasurement):
-        # [Note] Forest's format: {'qubit1':[0,1,0,1,1,...],'qubit2':[1,1,0,0,1,...], ...}
-        #        Target format: {'000': 52, '001':45, '010': 67, ...}
+        # [Note] Forest's format: {'qubit1':[0,1,0,1,1,...],'qubit2':[1,1,0,0,1,...]}
+        #        Target format: {'00': 52, '01':45, '10': 67, '11': 65}
         results = MeasurementResult()
         qubits = [k for k in results_native.keys()]
         values = [v for v in results_native.values()]
@@ -91,7 +91,7 @@ class ForestBackend(Backend):
                     raise RuntimeError('Gate translation to forest not known: %s' % gate)
             elif gate.N == 2:
                 qubitA = qubits[0]
-                qubitB = qubits[1]
+                qubitB = qubits[1]         
                 if gate.name == 'CNOT':
                     circuit_native += pyquil.gates.CNOT(qubitA, qubitB)
                 elif gate.name == 'CX':
@@ -105,7 +105,7 @@ class ForestBackend(Backend):
                 elif gate.name == 'SWAP':
                     circuit_native += pyquil.gates.SWAP(qubitA, qubitB)
                 else:
-                    raise RuntimeError('Gate translation to qiskit not known: %s' % gate)
+                    raise RuntimeError('Gate translation to forest not known: %s' % gate)
             else:
                 raise RuntimeError('Cannot emit qiskit for N > 2')
                 
@@ -151,6 +151,7 @@ class ForestBackend(Backend):
                     circuit.Rz(qubit, theta=self.forest_to_quasar_angle(float(gate.params[0])))
                 else:
                     raise RuntimeError('Gate translation to quasar not known: %s' % gate)
+            
             elif len(gate.qubits) == 2:
                 qubitA = gate.qubits[0].index
                 qubitB = gate.qubits[1].index
@@ -162,6 +163,7 @@ class ForestBackend(Backend):
                     circuit.SWAP(qubitA, qubitB)
                 else:
                     raise RuntimeError('Gate translation to quasar not known: %s' % gate)
+            
             elif len(gate.qubits) == 3:
                 qubitA = gate.qubits[0].index
                 qubitB = gate.qubits[1].index
@@ -204,13 +206,38 @@ class ForestBackend(Backend):
         circuit,
         ):
         # Note: Might be unecessary
-        import pyquil
         circuit_native = self.build_native_circuit(circuit)
         idx_qubit = circuit_native.get_qubits()
         ro = circuit_native.declare('ro', memory_size=max(idx_qubit))
         circuit_native.measure_all()
         
         return circuit_native
+        
+    def build_native_circuit_unitary(
+        self,
+        circuit,
+        qubit_setup=None
+        ):
+        """
+        qubit_setup (np.ndarray of shape (circuit.N,) or None)
+                - the initial setup of qubit array. If None, the reference setup
+                  [0,0,0,0,0,...] will be used.
+        """
+        import pyquil
+        
+        if qubit_setup is None:
+            qubit_setup = np.zeros((circuit.N,), dtype=np.int)
+        else:
+            qubit_setup = np.array(qubit_setup, dtype=np.int)
+        
+        circuit_setup = pyquil.Program()
+        for i in range(len(qubit_setup)):
+            if qubit_setup[i]==1:
+                circuit_setup += pyquil.gates.X(i)
+        
+        circuit_native = self.build_native_circuit(circuit)
+        
+        return circuit_setup + circuit_native    
 
 
 class ForestSimulatorBackend(ForestBackend):
@@ -251,6 +278,7 @@ class ForestSimulatorBackend(ForestBackend):
 
         return wfn
 
+        
     def run_measurement(
         self,
         circuit,
@@ -263,6 +291,41 @@ class ForestSimulatorBackend(ForestBackend):
         results = self.forest_to_quasar_results(results_native, nmeasurement)
 
         return results
+
+        
+    def run_unitary(
+        self,
+        circuit,
+        ):
+
+        import pyquil
+        circuit_native = self.build_native_circuit(circuit)
+        
+        unitary = []
+        for i in range(2**circuit.N):
+            # initial setup
+            ket_format = '{0:0' + str(circuit.N) + 'b}'
+            ket = ket_format.format(i)
+            qubit_setup = []
+            for k in ket:
+                qubit_setup.append(1) if k=='1' else qubit_setup.append(0)
+            circuit_native_unitary = self.build_native_circuit_unitary(circuit, qubit_setup=qubit_setup)
+            # simulate wfn
+            wfn_native = self.wavefunction_backend.wavefunction(circuit_native_unitary).amplitudes
+            wfn = self.statevector_bit_reversal_permutation(wfn_native)
+            unitary.append(wfn)
+        
+        unitary = np.array(unitary, dtype=np.complex128)
+        return unitary
+
+        
+    def run_density_matrix(
+        self,
+        circuit,
+        ):
+        unitary = self.run_unitary(circuit)
+        dm = np.matmul(unitary, unitary.transpose().conjugate())
+        return dm
         
 
 class ForestHardwareBackend(ForestBackend):

@@ -13,6 +13,8 @@ from .run import build_native_circuit
 from .run import run_statevector
 from .run import run_measurement
 from .run import run_pauli_expectation
+from .run import run_unitary
+from .run import run_density_matrix
 
 from .derivatives import run_observable_expectation_value
 from .derivatives import run_observable_expectation_value_and_pauli
