@@ -291,41 +291,6 @@ class ForestSimulatorBackend(ForestBackend):
         results = self.forest_to_quasar_results(results_native, nmeasurement)
 
         return results
-
-        
-    def run_unitary(
-        self,
-        circuit,
-        ):
-
-        import pyquil
-        circuit_native = self.build_native_circuit(circuit)
-        
-        unitary = []
-        for i in range(2**circuit.N):
-            # initial setup
-            ket_format = '{0:0' + str(circuit.N) + 'b}'
-            ket = ket_format.format(i)
-            qubit_setup = []
-            for k in ket:
-                qubit_setup.append(1) if k=='1' else qubit_setup.append(0)
-            circuit_native_unitary = self.build_native_circuit_unitary(circuit, qubit_setup=qubit_setup)
-            # simulate wfn
-            wfn_native = self.wavefunction_backend.wavefunction(circuit_native_unitary).amplitudes
-            wfn = self.statevector_bit_reversal_permutation(wfn_native)
-            unitary.append(wfn)
-        
-        unitary = np.array(unitary, dtype=np.complex128)
-        return unitary
-
-        
-    def run_density_matrix(
-        self,
-        circuit,
-        ):
-        unitary = self.run_unitary(circuit)
-        dm = np.matmul(unitary, unitary.transpose().conjugate())
-        return dm
         
 
 class ForestHardwareBackend(ForestBackend):

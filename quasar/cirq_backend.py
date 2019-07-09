@@ -237,36 +237,4 @@ class CirqSimulatorBackend(CirqBackend):
             ket = Ket(''.join('1' if table[A,B] else '0' for B in range(table.shape[1])))
             results[ket] = 1 + results.get(ket, 0)
         return results
-    
-    
-    def run_unitary(
-        self,
-        circuit,
-        **kwargs
-        ):
-
-        import cirq
-        circuit_native = self.build_native_circuit(circuit)
         
-        unitary = []
-        for i in range(2**circuit.N):
-            wfn = np.zeros((2**circuit.N,), dtype=np.complex64)
-            wfn[i] = 1.0
-            circuit_native = self.build_native_circuit(circuit)
-            result = self.simulator.simulate(circuit_native, initial_state=wfn, **kwargs)
-            statevector = result.state_vector()
-            unitary.append(statevector)
-        
-        
-        unitary = np.array(unitary, dtype=np.complex128)
-        return unitary
-
-        
-    def run_density_matrix(
-        self,
-        circuit,
-        **kwargs
-        ):
-        unitary = self.run_unitary(circuit,**kwargs)
-        dm = np.matmul(unitary, unitary.transpose().conjugate())
-        return dm

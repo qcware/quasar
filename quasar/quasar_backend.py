@@ -101,36 +101,4 @@ class QuasarSimulatorBackend(Backend):
         # return measurement, summary
         return measurement
 
-    def run_unitary(
-        self,
-        circuit,
-        compressed=True,
-        ):
-        import numpy as np
-        unitary = []
-        for i in range(2**circuit.N):
-            wfn = np.zeros((2**circuit.N,))
-            wfn[i] = 1
-            statevector = (circuit.compressed() if compressed else circuit).simulate(wfn=wfn)
-            unitary.append(statevector)
-        unitary = np.array(unitary, dtype=np.complex128)
-            
-        return unitary
-    
-    def run_density_matrix(
-        self,
-        circuit,
-        compressed=True,
-        ):
-        import numpy as np
-        unitary = self.run_unitary(circuit)
-        dm = np.matmul(unitary, unitary.transpose().conjugate())
-        
-        return dm
-        
-        
-        
-        
-        
-        
-    
+
