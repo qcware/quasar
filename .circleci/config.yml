@@ -6,3 +6,4 @@
      steps:
        - checkout
        - run: echo "A first hello!!"
+       - run: python test/utest/simple_test.py
