@@ -1,11 +1,11 @@
  version: 2
  jobs:
    build:
+     working_directory: /home/circleci/project
      docker:
        - image: circleci/ruby:2.4.1
      steps:
        - checkout
-       - working_directory: /home/circleci/project
        - run: echo "===Starting Test==="
        - run: pwd
        - run: ls
