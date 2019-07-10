@@ -8,6 +8,8 @@
      steps:
        - checkout
        - run: echo "===Starting Test==="
+         command: |
+             sudo pip install -r requirements.txt
        - run: pwd
        - run: ls
        - run: python test/utest/simple_test.py
