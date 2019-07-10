@@ -1,14 +1,14 @@
  version: 2
  jobs:
    build:
-     working_directory: /home/circleci/project
      docker:
        - image: circleci/ruby:2.4.1
+         environment:
+           PYTHONPATH: /home/circleci/project
      steps:
        - checkout
        - run: echo "===Starting Test==="
        - run: pwd
        - run: ls
-       - run: export PYTHONPATH=/home/circleci/project
        - run: python test/utest/simple_test.py
        - run: python test/utest/utest.py
