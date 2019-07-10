@@ -1,5 +1,7 @@
 import unittest
 import simple_test
+import test_simulate
+
 
 class Test(unittest.TestCase):
     def test_test(self):
@@ -8,7 +10,11 @@ class Test(unittest.TestCase):
     def test_test1(self, one=1):
         # First statement should return True. Second should return False.
         self.assertTrue(simple_test.test1(1))
-        #self.assertTrue(simple_test.test1(2))
+        # self.assertTrue(simple_test.test1(2))
+    
+    def test_circuit_simulate(self):
+        # test: Circult.simulate()
+        self.assertTrue(test_simulate.test_simulate())
     
 if __name__ == '__main__':
     unittest.main()
