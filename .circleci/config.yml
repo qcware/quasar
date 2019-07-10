@@ -8,6 +8,6 @@
        - run: echo "===Starting Test==="
        - run: pwd
        - run: ls
-       - run: export PYTHONPATH=pwd
+       - run: export PYTHONPATH=/home/circleci/project
        - run: python test/utest/simple_test.py
        - run: python test/utest/utest.py
