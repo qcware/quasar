@@ -2,7 +2,7 @@
  jobs:
    build:
      docker:
-       - image: circleci/ruby:2.4.1
+       - image: circleci/python:3.6.4  # primary container for the build job
      environment:
        PYTHONPATH: /home/circleci/project
      steps:
