@@ -6,6 +6,8 @@
      steps:
        - checkout
        - run: echo "===Starting Test==="
+       - run: pwd
+       - run: ls
        - run: export PYTHONPATH=~/quasar
        - run: python test/utest/simple_test.py
        - run: python test/utest/utest.py
