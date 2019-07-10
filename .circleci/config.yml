@@ -10,9 +10,7 @@
        - run: echo "===Starting Test==="
        - run:
           command: |  # use pipenv to install dependencies
-            sudo pip install pipenv
-            pipenv install numpy
-            pipenv shell
+            pip install numpy
        - run: pwd
        - run: ls
        - run: python test/utest/simple_test.py
