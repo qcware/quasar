@@ -7,3 +7,4 @@
        - checkout
        - run: echo "A first hello!!"
        - run: python test/utest/simple_test.py
+       - run: python test/utest/utest.py
