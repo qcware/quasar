@@ -35,13 +35,10 @@ def test_simulate_steps():
     error += np.sum(np.abs(np.subtract(wfn0[1], [np.sqrt(1/2),0,np.sqrt(1/2),0] )))
     error += np.sum(np.abs(np.subtract(wfn1[1], [np.sqrt(1/2),0,0,np.sqrt(1/2)] )))
     return error<10-4
-    
 
-def test_all():    
-    test_simulate()
-    test_simulate_steps()
     
 if __name__ == "__main__()":
-    test_all()
+    test_simulate()
+    test_simulate_steps()
 
 # test_simulate_steps()
