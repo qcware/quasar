@@ -12,23 +12,24 @@ def random_circuit(seed=2019, N=3, depth=6, type='all'):
         gate = np.random.choice(gate_list)
         add_gate(gate, circuit)
     
-    return circuit
+    return circuit, None
 
     
 def simple_circuit(index):
     if index==0:
         # Bell State
         circuit = quasar.Circuit(N=2).H(0).CX(0,1)
+        answer = [np.sqrt(1/2),0,0,np.sqrt(1/2)]
     if index==1:
         # GHZ State
         circuit = quasar.Circuit(N=3).H(0).CX(0,1).CX(1,2)
+        answer = [np.sqrt(1/2),0,0,0,0,0,0,np.sqrt(1/2)]
+    
+    return circuit, answer
     
     
-    return circuit
     
-    
-    
-# => Static Function <= 
+# ====>  Static Function  <==== 
 def get_gete_list(type):
     if type == 'all':
         gate_list = ['I','X','Y','Z','S','T','H','RX','RY','RZ','CX','CZ','SWAP']

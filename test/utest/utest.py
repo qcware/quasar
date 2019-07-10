@@ -14,7 +14,8 @@ class Test(unittest.TestCase):
     
     def test_circuit_simulate(self):
         # test: Circult.simulate()
-        self.assertTrue(test_simulate.test_simulate())
+        self.assertTrue(test_simulate.test_all())
+        
     
 if __name__ == '__main__':
     unittest.main()
