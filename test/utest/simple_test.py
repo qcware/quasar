@@ -21,7 +21,7 @@ def test1(a):
     else:
         return False
 
-if __name__ == "__main__()":
+if __name__ == "__main__":
     test()
-    test1()
+    test1(1)
 
