@@ -5,6 +5,7 @@
        - image: circleci/ruby:2.4.1
      steps:
        - checkout
-       - run: echo "A first hello!!"
+       - run: echo "===Starting Test==="
+       - run: export PYTHONPATH=~/quasar
        - run: python test/utest/simple_test.py
        - run: python test/utest/utest.py
