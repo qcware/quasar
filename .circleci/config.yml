@@ -3,10 +3,13 @@
    build:
      docker:
        - image: circleci/ruby:2.4.1
-         environment:
-           PYTHONPATH: /home/circleci/project
+     environment:
+       PYTHONPATH: /home/circleci/project
      steps:
        - checkout
+       - run: 
+           command: |
+           echo 'export PYTHONPATH="/home/circleci/project"' >> $BASH_ENV
        - run: echo "===Starting Test==="
        - run: pwd
        - run: ls
