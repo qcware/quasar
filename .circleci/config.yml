@@ -5,10 +5,10 @@
        - image: circleci/ruby:2.4.1
      steps:
        - checkout
+       - working_directory: /home/circleci/project
        - run: echo "===Starting Test==="
        - run: pwd
        - run: ls
-       - run: working_directory: /home/circleci/project
        - run: export PYTHONPATH=/home/circleci/project
        - run: python test/utest/simple_test.py
        - run: python test/utest/utest.py
