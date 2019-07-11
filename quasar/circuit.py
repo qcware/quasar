@@ -993,10 +993,10 @@ class Circuit(object):
             (Gate) - the gate at the specified circuit coordinates
 
         For one body gate, can use as either of:
-            gate = circuit.gate(time, A)
-            gate = circuit.gate(time, (A,))
+            gate = circuit.gate(A, time)
+            gate = circuit.gate((A,), time)
         For two body gate, must use as:
-            gate = circuit.gate(time, (A, B))
+            gate = circuit.gate((A, B), time)
         """
 
         # Make qubits a tuple regardless of input
