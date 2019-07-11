@@ -9,7 +9,7 @@ Test "Circuit.simulate()"
 
 def simulate():
     """
-    Test "Circuit.simulate()"
+    Validate "Circuit.simulate()"
     """
     result = []
     # test case 0: run simulate() with simple_circuit(0)
@@ -25,7 +25,7 @@ def simulate():
     
 def simulate_steps():
     """
-    Test "Circuit.simulate_steps()"
+    Validate "Circuit.simulate_steps()"
     """
     circuit, _ = simple_circuit(0)
     result = []
@@ -38,7 +38,7 @@ def simulate_steps():
     
 def apply_gate_1():
     """
-    Test "Circuit.apply_gate_1()"
+    Validate "Circuit.apply_gate_1()"
     """
     result = []
     # test case 1
@@ -68,7 +68,7 @@ def apply_gate_1():
     
 def apply_gate_1():
     """
-    Test "Circuit.apply_gate_1()"
+    Validate "Circuit.apply_gate_1()"
     """
     result = []
     # test case 1 (X)
@@ -116,7 +116,7 @@ def apply_gate_1_format():
 
 def apply_gate_2():
     """
-    Valid "Circuit.apply_gate_2()"
+    Validate "Circuit.apply_gate_2()"
     """
     result = []
     # test case 1 (CX)
@@ -157,7 +157,7 @@ def apply_gate_2_format():
 
 def apply_gate_3():
     """
-    Valid "Circuit.apply_gate_3()"
+    Validate "Circuit.apply_gate_3()"
     """
     result = []
     # test case 1 (CCX)
@@ -198,7 +198,7 @@ def apply_gate_3_format():
     
 def compute_1pdm():
     """
-    Valid "Circuit.compute_1pdm()"
+    Validate "Circuit.compute_1pdm()"
     """
     circuit = quasar.Circuit(N=1)
     wfn = np.array([0,1], dtype=np.complex128)
@@ -210,7 +210,7 @@ def compute_1pdm():
     
 def compute_1pdm_format():
     """
-    Valid the shape and dtype "Circuit.compute_1pdm()"
+    Validate the shape and dtype "Circuit.compute_1pdm()"
     """
     circuit = quasar.Circuit(N=1)
     wfn = np.array([0,1], dtype=np.complex128)
@@ -226,7 +226,7 @@ def compute_1pdm_format():
 
 def compute_2pdm():
     """
-    Valid "Circuit.compute_2pdm()"
+    Validate "Circuit.compute_2pdm()"
     """
     circuit = quasar.Circuit(N=2)
     wfn = np.array([0,1,0,0], dtype=np.complex128)
@@ -238,7 +238,7 @@ def compute_2pdm():
     
 def compute_2pdm_format():
     """
-    Valid the shape and dtype "Circuit.compute_2pdm()"
+    Validate the shape and dtype "Circuit.compute_2pdm()"
     """
     circuit = quasar.Circuit(N=2)
     wfn = np.array([0,1,0,0], dtype=np.complex128)
@@ -254,7 +254,7 @@ def compute_2pdm_format():
 
 def compute_3pdm():
     """
-    Valid "Circuit.compute_3pdm()"
+    Validate "Circuit.compute_3pdm()"
     """
     circuit = quasar.Circuit(N=3)
     wfn = np.zeros((8,), dtype=np.complex128)
@@ -268,7 +268,7 @@ def compute_3pdm():
     
 def compute_3pdm_format():
     """
-    Valid the shape and dtype "Circuit.compute_3pdm()"
+    Validate the shape and dtype "Circuit.compute_3pdm()"
     """
     circuit = quasar.Circuit(N=3)
     wfn = np.zeros((8,), dtype=np.complex128)
@@ -285,7 +285,7 @@ def compute_3pdm_format():
 
 def compute_4pdm():
     """
-    Valid "Circuit.compute_4pdm()"
+    Validate "Circuit.compute_4pdm()"
     """
     circuit = quasar.Circuit(N=4)
     wfn = np.zeros((16,), dtype=np.complex128)
@@ -299,7 +299,7 @@ def compute_4pdm():
     
 def compute_4pdm_format():
     """
-    Valid the shape and dtype "Circuit.compute_4pdm()"
+    Validate the shape and dtype "Circuit.compute_4pdm()"
     """
     circuit = quasar.Circuit(N=4)
     wfn = np.zeros((16,), dtype=np.complex128)
@@ -316,7 +316,7 @@ def compute_4pdm_format():
     
 def compute_npdm():
     """
-    Valid "Circuit.compute_npdm()"
+    Validate "Circuit.compute_npdm()"
     """
     circuit = quasar.Circuit(N=4)
     wfn = np.zeros((2**7,), dtype=np.complex128)
@@ -330,7 +330,7 @@ def compute_npdm():
     
 def compute_npdm_format():
     """
-    Valid the shape and dtype "Circuit.compute_npdm()"
+    Validate the shape and dtype "Circuit.compute_npdm()"
     """
     circuit = quasar.Circuit(N=7)
     wfn = np.zeros((2**7,), dtype=np.complex128)
@@ -347,7 +347,7 @@ def compute_npdm_format():
     
 def compute_pauli_1():
     """
-    Valid "Circuit.compute_pauli_1()"
+    Validate "Circuit.compute_pauli_1()"
     """
     circuit = quasar.Circuit(N=1)
     wfn = np.array([0,1], dtype=np.complex128)
@@ -359,7 +359,7 @@ def compute_pauli_1():
     
 def compute_pauli_2():
     """
-    Valid "Circuit.compute_pauli_2()"
+    Validate "Circuit.compute_pauli_2()"
     """
     circuit = quasar.Circuit(N=2)
     wfn = np.array([0,0,1,0], dtype=np.complex128)
@@ -371,7 +371,7 @@ def compute_pauli_2():
     
 def compute_pauli_3():
     """
-    Valid "Circuit.compute_pauli_3()"
+    Validate "Circuit.compute_pauli_3()"
     """
     circuit = quasar.Circuit(N=3)
     wfn = np.zeros((8,), dtype=np.complex128)
@@ -388,7 +388,7 @@ def compute_pauli_3():
     
 def compute_pauli_4():
     """
-    Valid "Circuit.compute_pauli_4()"
+    Validate "Circuit.compute_pauli_4()"
     """
     circuit = quasar.Circuit(N=4)
     wfn = np.zeros((16,), dtype=np.complex128)
@@ -403,12 +403,13 @@ def compute_pauli_4():
     ans[3,0,3,:] = [1,0,0,1]
     ans[3,3,0,:] = [1,0,0,1]
     ans[3,3,3,:] = [1,0,0,1]
+
     return L1_error([(expectation, ans)])
     
     
 def compute_pauli_n():
     """
-    Valid "Circuit.compute_pauli_n()"
+    Validate "Circuit.compute_pauli_n()"
     Only verify the shape and dtype of output.
     """
     circuit = quasar.Circuit(N=5)
@@ -424,33 +425,115 @@ def compute_pauli_n():
     return True  
         
 
-# def measure():
-    # """
-    # Valid "Circuit.measure()"
-    # """
-    # circuit, ans = simple_circuit(0)
-    # result = circuit.measure()
-    # result = [result.get(k) for ]
-    # print(result)
-    # print(ans)
+def measure():
+    """
+    Validate "Circuit.measure()"
+    """
+    circuit, ans = simple_circuit(0)
+    measurement = circuit.measure(nmeasurement=10000)
+    measurement = [measurement.get('{0:02b}'.format(k)) for k in range(4)]
+    measurement = np.where(measurement, measurement, np.zeros_like(measurement)) 
+    measurement = measurement / np.linalg.norm(measurement)
+    ans    = ans / np.linalg.norm(ans)
+
+    return L1_error([(measurement, ans)], margin=1e-1)
+
+    
+def compute_measurements_from_statevector():
+    """
+    Validate "Circuit.compute_measurements_from_statevector()"
+    """
+    circuit = quasar.Circuit(N=2)
+    statevector = [1,0,0,1]
+    statevector = statevector / np.linalg.norm(statevector)
+    measurement = circuit.compute_measurements_from_statevector(statevector=statevector, nmeasurement=10000)
+    measurement = [measurement.get('{0:02b}'.format(k)) for k in range(4)]
+    measurement = np.where(measurement, measurement, np.zeros_like(measurement)) 
+    measurement = measurement / np.linalg.norm(measurement)
+    
+    return L1_error([(measurement, statevector)], margin=1e-1)
     
     
+def nparam():
+    """
+    Validate "Circuit.nparam()"
+    """
+    circuit = quasar.Circuit(N=2).H(0).Rx(0,1.5).CX(0,1).Rz(1,0.7)  
+    return circuit.nparam == 2
+
+    
+def param_keys():
+    """
+    Validate "Circuit.param_keys()"
+    """
+    circuit = quasar.Circuit(N=2).H(0).Rx(1,1.5).CX(0,1).Rz(0,0.5)  
+    param_keys = circuit.param_keys
+    # The following 3 checks are: (1)length (2)timestamp (3)qubit indices
+    if not len(param_keys)==2: return False
+    if not (param_keys[0][0]==0 and param_keys[1][0]==2): return False
+    if not (param_keys[0][1]==(1,) and param_keys[1][1]==(0,)): return False
+    return True
+    
+
+def param_values():
+    """
+    Validate "Circuit.param_values()"
+    """
+    circuit = quasar.Circuit(N=2).H(0).Rx(1,1.5).CX(0,1).Rz(0,0.5)  
+    param_values = circuit.param_values
+    # The following 2 checks are: (1)length (2)values    
+    if not len(param_values)==2: return False
+    if not (param_values[0]==1.5 and param_values[1]==0.5): return False
+    return True
+    
+
+def set_param_values():
+    """
+    Validate "Circuit.set_param_values()"
+    """
+    circuit = quasar.Circuit(N=2).H(0).Rx(1,1.5).CX(0,1).Rz(0,0.5).Ry(1,2.5)
+    circuit = circuit.set_param_values([0.7,1.7],[0,2])
+    return circuit.param_values == [0.7, 0.5, 1.7]
+       
+    
+def params():
+    """
+    Validate "Circuit.params()"
+    """
+    circuit = quasar.Circuit(N=2).H(0).Rx(1,1.5).CX(0,1).Rz(0,0.5)
+    params = circuit.params.items()
+    if not len(params)==2: return False
+
+    # The following 2 checks are: (1)timestamp (2)qubit indices
+    param_keys = [x[0] for x in params]
+    if not (param_keys[0][0]==0 and param_keys[1][0]==2): return False
+    if not (param_keys[0][1]==(1,) and param_keys[1][1]==(0,)): return False
+    # The following 1 check is: (1)values
+    param_values = [x[1] for x in params]
+    if not (param_values[0]==1.5 and param_values[1]==0.5): return False
+
+    return True
+    
+
+def set_param():
+    """
+    Validate "Circuit.set_param_values()"
+    """
+    from collections import OrderedDict
+    circuit = quasar.Circuit(N=2).H(0).Rx(1,1.5).CX(0,1).Rz(0,0.5).Ry(1,2.5)
+    param = OrderedDict({ (2, (0,), 'theta'): 0.8 })
+    circuit = circuit.set_params(param)
+    return circuit.param_values == [1.5, 0.8, 2.5]    
     
     
+def param_str():
+    """
+    Validate "Circuit.param_str()"
+    We decide not to test simple printing function. 
+    """
+    return True
     
-    
-    
-    
-# measure()
-    
-    
-if __name__ == "__main__()":
-    simulate()
-    simulate_steps()
-    apply_gate_1()
-    apply_gate_1_format()
-    apply_gate_2()
-    
+
     
     
     

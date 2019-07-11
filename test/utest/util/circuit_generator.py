@@ -12,7 +12,7 @@ def random_circuit(seed=2019, N=3, depth=6, type='all'):
         gate = np.random.choice(gate_list)
         add_gate(gate, circuit)
     
-    return circuit, None
+    return circuit
 
     
 def simple_circuit(index):

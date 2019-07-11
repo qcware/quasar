@@ -1,6 +1,6 @@
 import numpy as np
 
-def L1_error(result):
+def L1_error(result, margin=1e-4):
     """
     Input: 
             result (List(Tuple)): A list of tuples. The 1st element of tuple is the predition, the 2nd is the answer.
@@ -9,6 +9,6 @@ def L1_error(result):
     """
     error = 0.0
     for a, b in result:
-        error += np.linalg.norm(np.subtract(a, b))
+        error += np.linalg.norm(np.subtract(a, b).flatten(), ord=1)
         
-    return error < 1e-4
+    return error < margin
