@@ -15,3 +15,4 @@
        - run: ls
        - run: python test/utest/simple_test.py
        - run: python test/utest/utest.py
+       - run: python test/utest/Utest.py
