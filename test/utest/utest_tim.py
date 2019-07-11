@@ -22,6 +22,29 @@ class Test(unittest.TestCase):
         self.assertTrue(test_circuit.apply_gate_2_format())
         self.assertTrue(test_circuit.apply_gate_3())
         self.assertTrue(test_circuit.apply_gate_3_format())
+        self.assertTrue(test_circuit.compute_1pdm())
+        self.assertTrue(test_circuit.compute_1pdm_format())
+        self.assertTrue(test_circuit.compute_2pdm())
+        self.assertTrue(test_circuit.compute_2pdm_format())
+        self.assertTrue(test_circuit.compute_3pdm())
+        self.assertTrue(test_circuit.compute_3pdm_format())
+        self.assertTrue(test_circuit.compute_4pdm())
+        self.assertTrue(test_circuit.compute_4pdm_format())
+        self.assertTrue(test_circuit.compute_npdm())
+        self.assertTrue(test_circuit.compute_npdm_format())
+        self.assertTrue(test_circuit.compute_pauli_1())
+        self.assertTrue(test_circuit.compute_pauli_2())
+        self.assertTrue(test_circuit.compute_pauli_3())
+        self.assertTrue(test_circuit.compute_pauli_4())
+        self.assertTrue(test_circuit.compute_pauli_n())
+
+        
+        
+        
+        
+        
+        
+        
         
     
 if __name__ == '__main__':
