@@ -1,6 +1,6 @@
 import unittest
 import simple_test
-import test_simulate
+import test_circuit
 
 
 class Test(unittest.TestCase):
@@ -12,11 +12,16 @@ class Test(unittest.TestCase):
         self.assertTrue(simple_test.test1(1))
         # self.assertTrue(simple_test.test1(2))
     
-    def test_circuit_simulate(self):
+    def test_circuit_class(self):
         # test: Circult.simulate()
-        self.assertTrue(test_simulate.test_simulate())
-        self.assertTrue(test_simulate.test_simulate_steps())
-        self.assertTrue(test_simulate.test_apply_gate_1())
+        self.assertTrue(test_circuit.simulate())
+        self.assertTrue(test_circuit.simulate_steps())
+        self.assertTrue(test_circuit.apply_gate_1())
+        self.assertTrue(test_circuit.apply_gate_1_format())
+        self.assertTrue(test_circuit.apply_gate_2())
+        self.assertTrue(test_circuit.apply_gate_2_format())
+        self.assertTrue(test_circuit.apply_gate_3())
+        self.assertTrue(test_circuit.apply_gate_3_format())
         
     
 if __name__ == '__main__':
