@@ -2673,7 +2673,6 @@ class Circuit(object):
     def U1(
         self,
         qubitA,
-        qubitB,
         U,
         **kwargs):
 
@@ -2706,7 +2705,7 @@ class Circuit(object):
         """
         return self.add_gate(
             gate=Gate.U1(U=U),
-            qubits=(qubitA, qubitB),
+            qubits=(qubitA,),
             **kwargs)
 
     def U2(
