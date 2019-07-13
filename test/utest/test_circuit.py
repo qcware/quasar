@@ -533,24 +533,343 @@ def param_str():
     """
     return True
     
+    
+def I():
+    """
+    Validate "Circuit.I()"
+    """
+    circuit = quasar.Circuit(N=1).I(0)
+    wfn = circuit.simulate()
+    ans = [1,0]
+    
+    return L1_error([(wfn, ans)])
+    
+    
+def X():
+    """
+    Validate "Circuit.X()"
+    """
+    circuit = quasar.Circuit(N=1).X(0)
+    wfn = circuit.simulate()
+    ans = [0,1]
+    return L1_error([(wfn, ans)])
+
+
+def Y():
+    """
+    Validate "Circuit.Y()"
+    """
+    circuit = quasar.Circuit(N=1).Y(0)
+    wfn = circuit.simulate()
+    ans = [0,1j]
+    return L1_error([(wfn, ans)])
+
+
+def Z():
+    """
+    Validate "Circuit.Z()"
+    """
+    circuit = quasar.Circuit(N=1).Z(0)
+    wfn = circuit.simulate([0,1])
+    ans = [0,-1]
+    return L1_error([(wfn, ans)])
+    
+
+def H():
+    """
+    Validate "Circuit.H()"
+    """
+    circuit = quasar.Circuit(N=1).H(0)
+    wfn = circuit.simulate()
+    ans = [np.sqrt(1/2),np.sqrt(1/2)]
+    return L1_error([(wfn, ans)])
+    
+
+def S():
+    """
+    Validate "Circuit.S()"
+    """
+    circuit = quasar.Circuit(N=1).S(0)
+    wfn = circuit.simulate([0,1])
+    ans = [0,1j]
+    return L1_error([(wfn, ans)])
 
     
+def T():
+    """
+    Validate "Circuit.T()"
+    """
+    circuit = quasar.Circuit(N=1).T(0)
+    wfn = circuit.simulate([0,1])
+    ans = [0,(1.0+1.0j)*np.sqrt(1/2)]
+    return L1_error([(wfn, ans)])
     
     
+def Rx2():
+    """
+    Validate "Circuit.Rx2()"
+    """
+    circuit = quasar.Circuit(N=1).Rx2(0)
+    wfn = circuit.simulate([0,1])
+    ans = [np.sqrt(1/2)*1j, np.sqrt(1/2)]
+    return L1_error([(wfn, ans)])
     
     
+def Rx2T():
+    """
+    Validate "Circuit.Rx2T()"
+    """
+    circuit = quasar.Circuit(N=1).Rx2T(0)
+    wfn = circuit.simulate([0,1])
+    ans = [-np.sqrt(1/2)*1j, np.sqrt(1/2)]
+    return L1_error([(wfn, ans)])
     
     
+def CX():
+    """
+    Validate "Circuit.CX()"
+    """
+    circuit = quasar.Circuit(N=2).CX(0,1)
+    wfn = circuit.simulate([0,0,1,0])
+    ans = [0,0,0,1]
+    return L1_error([(wfn, ans)])    
+    
+
+def CY():
+    """
+    Validate "Circuit.CY()"
+    """
+    circuit = quasar.Circuit(N=2).CY(0,1)
+    wfn = circuit.simulate([0,0,1,0])
+    ans = [0,0,0,1j]
+    return L1_error([(wfn, ans)])    
     
     
+def CZ():
+    """
+    Validate "Circuit.CZ()"
+    """
+    circuit = quasar.Circuit(N=2).CZ(0,1)
+    wfn = circuit.simulate([0,0,0,1])
+    ans = [0,0,0,-1]
+    return L1_error([(wfn, ans)])      
+    
+
+def CS():
+    """
+    Validate "Circuit.CS()"
+    """
+    circuit = quasar.Circuit(N=2).CS(0,1)
+    wfn = circuit.simulate([0,0,0,1])
+    ans = [0,0,0,1j]
+    return L1_error([(wfn, ans)])    
     
     
+def SWAP():
+    """
+    Validate "Circuit.SWAP()"
+    """
+    circuit = quasar.Circuit(N=2).SWAP(0,1)
+    wfn = circuit.simulate([0,0,1,0])
+    ans = [0,1,0,0]
+    return L1_error([(wfn, ans)])       
+    
+
+def CCX():
+    """
+    Validate "Circuit.CCX()"
+    """
+    circuit = quasar.Circuit(N=3).CCX(0,1,2)
+    wfn = np.zeros((8,))
+    wfn[6] = 1
+    wfn = circuit.simulate(wfn)
+    ans = np.zeros((8,))
+    ans[7] = 1
+    return L1_error([(wfn, ans)])    
     
     
+def CSWAP():
+    """
+    Validate "Circuit.CSWAP()"
+    """
+    circuit = quasar.Circuit(N=3).CSWAP(0,1,2)
+    wfn = np.zeros((8,))
+    wfn[6] = 1
+    wfn = circuit.simulate(wfn)
+    ans = np.zeros((8,))
+    ans[5] = 1
+    return L1_error([(wfn, ans)])    
     
     
+def Rx():
+    """
+    Validate "Circuit.Rx()"
+    """
+    circuit = quasar.Circuit(N=1).Rx(0, np.pi/6)
+    wfn = circuit.simulate([0,1])
+    ans = [-1/2*1j, np.sqrt(3)/2]
+    return L1_error([(wfn, ans)])
     
     
+def Ry():
+    """
+    Validate "Circuit.Ry()"
+    """
+    circuit = quasar.Circuit(N=1).Ry(0, np.pi/6)
+    wfn = circuit.simulate([0,1])
+    ans = [-1/2, np.sqrt(3)/2]
+    return L1_error([(wfn, ans)])
     
+    
+def Rz():
+    """
+    Validate "Circuit.Rz()"
+    """
+    circuit = quasar.Circuit(N=1).Rz(0, np.pi/6)
+    wfn = circuit.simulate([0,1])
+    ans = [0, np.sqrt(3)/2+1/2*1j]
+    return L1_error([(wfn, ans)])
+    
+    
+def u1():
+    """
+    Validate "Circuit.u1()"
+    """
+    circuit = quasar.Circuit(N=1).u1(0, np.pi/6)
+    wfn = circuit.simulate([0,1])
+    ans = [0, np.sqrt(3)/2+1/2*1j]
+    return L1_error([(wfn, ans)])
+    
+    
+def u2():
+    """
+    Validate "Circuit.u2()"
+    """
+    circuit = quasar.Circuit(N=1).u2(0, np.pi/2, np.pi/2)
+    wfn = circuit.simulate([0,1])
+    ans = [-np.sqrt(1/2)*1j, -np.sqrt(1/2)]
+    return L1_error([(wfn, ans)])
+    
+    
+def u3():
+    """
+    Validate "Circuit.u3()"
+    """
+    circuit = quasar.Circuit(N=1).u3(0, np.pi/2 ,np.pi/4, np.pi/4)
+    wfn = circuit.simulate([0,1])
+    ans = [-1/2-1/2*1j, np.sqrt(1/2)*1j]
+    return L1_error([(wfn, ans)])
+    
+
+def SO4():
+    """
+    Validate "Circuit.SO4()"
+    """
+    circuit = quasar.Circuit(N=2).SO4(0, 1, A=np.pi/2, F=np.pi/2)
+    wfn = circuit.simulate([0.0,np.sqrt(1/2),0.0,np.sqrt(1/2)])
+    ans = [np.sqrt(1/2),0,np.sqrt(1/2),0]
+    return L1_error([(wfn, ans)])
+    
+    
+def SO42():
+    """
+    Validate "Circuit.SO42()"
+    """
+    circuit = quasar.Circuit(N=2).SO42(0, 1, thetaIY=np.pi/4, thetaZY=-np.pi/4)
+    wfn = circuit.simulate([0.0,np.sqrt(1/2),0.0,np.sqrt(1/2)])
+    ans = [0,np.sqrt(1/2),-np.sqrt(1/2),0] 
+    return L1_error([(wfn, ans)])
+    
+    
+def CF():
+    """
+    Validate "Circuit.CF()"
+    """
+    circuit = quasar.Circuit(N=2).CF(0, 1, theta=np.pi/4)
+    wfn = circuit.simulate([0,0,0,1])
+    ans = [0,0,np.sqrt(1/2),-np.sqrt(1/2)]
+    return L1_error([(wfn, ans)])
+
+    
+def R_ion():
+    """
+    Validate "Circuit.R_ion()"
+    """
+    circuit = quasar.Circuit(N=1).R_ion(0, np.pi/3, np.pi/2)
+    wfn = circuit.simulate([0,1])
+    ans = [-0.5, np.sqrt(3)/2]
+    return L1_error([(wfn, ans)])
+
+    
+def Rx_ion():
+    """
+    Validate "Circuit.Rx_ion()"
+    """
+    circuit = quasar.Circuit(N=1).Rx_ion(0, np.pi/3)
+    wfn = circuit.simulate([0,1])
+    ans = [-0.5*1j, np.sqrt(3)/2]
+    return L1_error([(wfn, ans)])    
+    
+    
+def Ry_ion():
+    """
+    Validate "Circuit.Ry_ion()"
+    """
+    circuit = quasar.Circuit(N=1).Ry_ion(0, np.pi/3)
+    wfn = circuit.simulate([0,1])
+    ans = [-0.5, np.sqrt(3)/2]
+    return L1_error([(wfn, ans)])       
+    
+    
+def Rz_ion():
+    """
+    Validate "Circuit.Rz_ion()"
+    """
+    circuit = quasar.Circuit(N=1).Rz_ion(0, np.pi/3)
+    wfn = circuit.simulate([0,1])
+    ans = [0, np.sqrt(3)/2+0.5*1j]
+    return L1_error([(wfn, ans)])   
+    
+
+def XX_ion():
+    """
+    Validate "Circuit.XX_ion()"
+    """
+    result = []
+    # test case 1: wfn = [0,0,0,1]
+    circuit = quasar.Circuit(N=2).XX_ion(0,1, chi = np.pi/3)
+    wfn = circuit.simulate([0,0,0,1])
+    ans = [np.sqrt(3)/2*1j, 0, 0, 0.5]
+    result.append((wfn,ans))
+    # test case 2: wfn = [0,1,0,0]
+    circuit = quasar.Circuit(N=2).XX_ion(0,1, chi = np.pi/3)
+    wfn = circuit.simulate([0,1,0,0])
+    ans = [0, 0.5, -np.sqrt(3)/2*1j, 0]
+    result.append((wfn,ans))
+    print(L1_error([(wfn, ans)])  )
+    return L1_error([(wfn, ans)])  
+
+
+def U1():
+    """
+    Validate "Circuit.U1()"
+    """
+    U = quasar.Matrix.H
+    circuit = quasar.Circuit(N=1).U1(0, U)
+    wfn = circuit.simulate([0,1])
+    ans = [np.sqrt(1/2), -np.sqrt(1/2)]
+    return L1_error([(wfn, ans)])   
+
+
+def U2():
+    """
+    Validate "Circuit.U2()"
+    """
+    U = quasar.Matrix.XX_ion(chi=np.pi/4)
+    circuit = quasar.Circuit(N=2).U2(0, 1, U)
+    wfn = circuit.simulate([0,1,0,0])
+    ans = [0, np.sqrt(1/2), -np.sqrt(1/2)*1j, 0]
+    return L1_error([(wfn, ans)])   
+
     
     

@@ -69,7 +69,82 @@ class Test(unittest.TestCase):
         self.assertTrue(test_circuit.set_param())
     def test_circuit_param_str(self):
         self.assertTrue(test_circuit.param_str())    
+    def test_circuit_I(self):
+        self.assertTrue(test_circuit.I())      
+    def test_circuit_X(self):
+        self.assertTrue(test_circuit.X()) 
+    def test_circuit_Y(self):
+        self.assertTrue(test_circuit.Y())      
+    def test_circuit_Z(self):
+        self.assertTrue(test_circuit.Z())     
+    def test_circuit_H(self):
+        self.assertTrue(test_circuit.H())  
+    def test_circuit_S(self):
+        self.assertTrue(test_circuit.S()) 
+    def test_circuit_T(self):
+        self.assertTrue(test_circuit.T()) 
+    def test_circuit_Rx2(self):
+        self.assertTrue(test_circuit.Rx2()) 
+    def test_circuit_Rx2T(self):
+        self.assertTrue(test_circuit.Rx2T()) 
+    def test_circuit_CX(self):
+        self.assertTrue(test_circuit.CX())
+    def test_circuit_CY(self):
+        self.assertTrue(test_circuit.CY())
+    def test_circuit_CZ(self):
+        self.assertTrue(test_circuit.CZ())        
+    def test_circuit_CS(self):
+        self.assertTrue(test_circuit.CS())        
+    def test_circuit_SWAP(self):
+        self.assertTrue(test_circuit.SWAP())
+    def test_circuit_CCX(self):
+        self.assertTrue(test_circuit.CCX())        
+    def test_circuit_CSWAP(self):
+        self.assertTrue(test_circuit.CSWAP())        
+    def test_circuit_Rx(self):
+        self.assertTrue(test_circuit.Rx()) 
+    def test_circuit_Ry(self):
+        self.assertTrue(test_circuit.Ry())         
+    def test_circuit_Rz(self):
+        self.assertTrue(test_circuit.Rz())         
+    def test_circuit_u1(self):
+        self.assertTrue(test_circuit.u1())         
+    def test_circuit_u2(self):
+        self.assertTrue(test_circuit.u2())         
+    def test_circuit_u3(self):
+        self.assertTrue(test_circuit.u3())      
+    def test_circuit_SO4(self):
+        self.assertTrue(test_circuit.SO4())          
+    def test_circuit_SO42(self):
+        self.assertTrue(test_circuit.SO42())          
+    def test_circuit_CF(self):
+        self.assertTrue(test_circuit.CF()) 
+    def test_circuit_R_ion(self):
+        self.assertTrue(test_circuit.R_ion())        
+    def test_circuit_Rx_ion(self):
+        self.assertTrue(test_circuit.Rx_ion()) 
+    def test_circuit_Ry_ion(self):
+        self.assertTrue(test_circuit.Ry_ion()) 
+    def test_circuit_Rz_ion(self):
+        self.assertTrue(test_circuit.Rz_ion()) 
+    def test_circuit_XX_ion(self):
+        self.assertTrue(test_circuit.XX_ion())         
+    def test_circuit_U1(self):
+        self.assertTrue(test_circuit.U1())          
+    def test_circuit_U2(self):
+        self.assertTrue(test_circuit.U2())         
         
-    
+        
 if __name__ == '__main__':
     unittest.main()
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
