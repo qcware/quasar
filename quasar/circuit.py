@@ -1214,7 +1214,7 @@ class Circuit(object):
 
         """ Return an equivalent time-dense circuit with 1- and 2-body gates
             merged together to minimize the number of gates by using composite
-            1- and 2-body gate operations. This operation is designed to reduct
+            1- and 2-body gate operations. This operation is designed to reduce
             the runtime of state vector simulation by reducing the number of 1-
             and 2-body gate operations that must be simulated.
 
@@ -1433,6 +1433,10 @@ class Circuit(object):
         Returns:
             self - for chaining
         """
+
+        # Make sure the composite circuit has enough register to add to 
+        if self.N < circuit.N: 
+            raise RuntimeError('Circuit argument must have a fewer or equal number of qubit registers than the circuit you are adding to. Cannot add circuit of size %d to circuit of size %d.' % (circuit.N, self.N))
 
         # Make qubits a tuple regardless of input
         qubits = (qubits,) if isinstance(qubits, int) else qubits
