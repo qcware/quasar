@@ -37,6 +37,14 @@ class Test(unittest.TestCase):
         self.assertTrue(some_tests.adjoin())
     def test_reversed(self):
         self.assertTrue(some_tests.test_reversed())
+    def test_is_equivalent(self):
+        self.assertTrue(some_tests.is_equivalent())
+    def test_nonredundant(self):
+        self.assertTrue(some_tests.nonredundant())
+    def test_compressed(self):
+        self.assertTrue(some_tests.compressed())
+    def test_subcircuit(self):
+        self.assertTrue(some_tests.subcircuit())
 
 if __name__ == '__main__':
     unittest.main()
