@@ -1434,10 +1434,6 @@ class Circuit(object):
             self - for chaining
         """
 
-        # Make sure the composite circuit has enough register to add to 
-        if self.N < circuit.N: 
-            raise RuntimeError('Circuit argument must have a fewer or equal number of qubit registers than the circuit you are adding to. Cannot add circuit of size %d to circuit of size %d.' % (circuit.N, self.N))
-
         # Make qubits a tuple regardless of input
         qubits = (qubits,) if isinstance(qubits, int) else qubits
 
