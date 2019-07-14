@@ -1,6 +1,7 @@
 """
 Testing functions in Circuit.py from the top down
 """
+import numpy as np
 import quasar
 import collections
 
@@ -193,6 +194,123 @@ def test_reversed():
 
     return True
 
+def is_equivalent():
+    circ1 = quasar.Circuit(1) 
+    circ2 = quasar.Circuit(1) 
+    # Check that empty circuits of 1 qubit are equivalent
+    if not circ1.is_equivalent(circ2):
+        return False
+
+    # Check that circuits of different number of qubit registers are unequal 
+    circ3 = quasar.Circuit(2) 
+    if circ1.is_equivalent(circ3):
+        return False
+
+    # Circuits comprised of the same gates are equal
+    circ4 = quasar.Circuit(2).H(0).CX(0,1).X(1)
+    circ5 = quasar.Circuit(2).H(0).CX(0,1).X(1)
+    if not circ4.is_equivalent(circ5):
+        return False
+
+    # Check that circuits with same gates at different times are not equal
+    circ6 = quasar.Circuit(2).H(0).CX(0,1)
+    circ6.add_gate(quasar.Gate.X, 1, time=10)
+    if circ6.is_equivalent(circ5):
+        return False
+
+    return True
+
+def nonredundant():
+    circ1 = quasar.Circuit(2).H(0).CX(0,1)
+    # Putting a lot of empty time in circ1
+    circ1.add_gate(quasar.Gate.X, 1, time=10)
+    circ2 = quasar.Circuit(2).H(0).CX(0,1).X(1)
+    
+    # Removing empty time so that it should be equivalent to circ2
+    rn_circ = circ1.nonredundant()
+    if not rn_circ.is_equivalent(circ2):
+        return False
+    
+    return True
+
+def compressed():
+    circ1 = quasar.Circuit(3).H(0).CX(0,1).X(1).CZ(1,2).CZ(1,2).Rx(2, np.pi).u1(0, -np.pi)
+    c_circ = circ1.compressed()
+    
+    circ1_vec = circ1.simulate()
+    c_circ_vec = c_circ.simulate()
+
+    # Statevector for original circ and compressed circ should be equalivalent
+    if not np.array_equal(circ1_vec,  c_circ_vec):
+        return False
+
+    return True
+
+def subcircuit():
+    circ = quasar.Circuit(3).H(0)
+    circ.add_gate(quasar.Gate.Y, 0, time=3)
+    circ.add_gate(quasar.Gate.Z, 1, time=5)
+    circ.add_gate(quasar.Gate.CZ, (0,1), time=7)
+    circ.add_gate(quasar.Gate.Ry(np.pi), 0, time=10)
+    circ.add_gate(quasar.Gate.Z, 2, time=12)
+    
+    qubits = [0,1]
+    times = [0,2,3,5,7]
+    sub_circ = circ.subcircuit(qubits, times)
+
+    circ2 = quasar.Circuit(2).H(0)
+    circ2.add_gate(quasar.Gate.Y, 0, time=2)
+    circ2.add_gate(quasar.Gate.Z, 1, time=3)
+    circ2.CZ(0,1)
+
+    if not sub_circ.is_equivalent(circ2):
+        return False
+    
+    return True
+
+def add_circuit():
+    circ1 = quasar.Circuit(2).H(0)
+    circ1.add_gate(quasar.Gate.CX, (0,1), time=5)
+    #print(circ1)
+
+    circ2 = quasar.Circuit(3).H(0).H(1).H(2)
+    #print(circ2)
+
+    circ6 = circ2.add_circuit(circ1, (0,1), time=2)
+    circ7 = quasar.Circuit(1).X(0)
+    circ7 = circ7.add_gate(quasar.Gate.Y, 0, time=3)
+    #print("circ7", circ7)
+    #print(circ4)
+    circ5 = quasar.Circuit(1).X(0)
+    circ6 = circ6.add_circuit(circ5, qubits=2, time_placement= "early")
+    circ6 = circ6.add_circuit(circ5, qubits=2, time_placement="late")
+    circ6 = circ6.add_circuit(circ5, qubits=2, time_placement= "next")
+    circ6 = circ6.add_circuit(circ7, qubits=2, times=[10,11,12,13])
+    #print("circ6")
+    
+    test_circ = quasar.Circuit(3).H(0).H(1).H(2)
+    test_circ = test_circ.add_gate(quasar.Gate.H, 0, 2)
+    test_circ = test_circ.add_gate(quasar.Gate.CX, (0,1), 7)
+    test_circ = test_circ.add_gate(quasar.Gate.X, 2, 1)
+    test_circ = test_circ.add_gate(quasar.Gate.X, 2, 7).X(2)
+    test_circ = test_circ.add_gate(quasar.Gate.X, 2, 10).add_gate(quasar.Gate.Y, 2, 13)
+    
+
+    if not circ6.is_equivalent(test_circ):
+        print("it's here")
+        return False
+
+    # Adding a single qubit register to a new register in self circuit
+    circ8 = quasar.Circuit(2).H(0)
+    circ9 = quasar.Circuit(1).X(0)
+    circ10 = circ8.add_circuit(circ9, qubits=1)
+    if not circ10.is_equivalent(quasar.Circuit(2).H(0).X(1)):
+        return Fasle
+    #print(circ10)
+
+    return True
+
+
 if __name__ == "__main__":
     init_circuit()
     ntime()
@@ -207,5 +325,9 @@ if __name__ == "__main__":
     deadjoin()
     adjoin()
     test_reversed()
-    print(test_reversed())
-
+    test_reversed()
+    is_equivalent()
+    nonredundant()
+    compressed()
+    subcircuit()
+    add_circuit()

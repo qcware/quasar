@@ -45,6 +45,8 @@ class Test(unittest.TestCase):
         self.assertTrue(some_tests.compressed())
     def test_subcircuit(self):
         self.assertTrue(some_tests.subcircuit())
+    def test_add_circuit(self):
+        self.assertTrue(some_tests.add_circuit())
 
 if __name__ == '__main__':
     unittest.main()
