@@ -3935,4 +3935,4 @@ class Circuit(object):
         N = (statevector.shape[0]&-statevector.shape[0]).bit_length()-1
         P = (np.conj(statevector) * statevector).real
         I = list(np.searchsorted(np.cumsum(P), np.random.rand(nmeasurement)))
-        return MeasurementResult({ Ket.from_int(k, N) : I.count(k) for k in list(sorted(set(I))) }) 
+        return MeasurementResult({ Ket.from_int(int(k), N) : I.count(k) for k in list(sorted(set(I))) }) 
