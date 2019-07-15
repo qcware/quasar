@@ -85,6 +85,18 @@ def add_gate():
 
     return True
 
+def add_gate_qubit_validation():
+    # Assert statements have been added to the function add_gate to validate qubit arguments
+    # Uncommenting the following lines activate the assert statements
+    circ2 = quasar.Circuit(2)
+    #circ2.add_gate(quasar.Gate.X, -1, time=0)
+    #circ2.add_gate(quasar.Gate.CX, (-1,0), time=1)
+    #circ2.add_gate(quasar.Gate.CX, (1,1), time=2)
+
+    #print(circ2)
+    #print(circ2.simulate())
+ 
+
 def gate():
     circuit = quasar.Circuit(2).X(0).CX(0,1).H(1)
     if circuit.gate(0, 0).name != "X":
@@ -318,6 +330,7 @@ if __name__ == "__main__":
     ngate1()
     ngate2()
     add_gate()
+    add_gate_qubit_validation()
     gate()
     copy()
     subset()
