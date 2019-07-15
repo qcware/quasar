@@ -4,7 +4,7 @@ from util.circuit_generator import random_circuit, simple_circuit
 from util.error import L1_error
 
 """
-Test "Circuit.simulate()"
+Test "Circuit" Class
 """
 
 def simulate():
