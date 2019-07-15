@@ -47,6 +47,11 @@ class Test(unittest.TestCase):
         self.assertTrue(some_tests.subcircuit())
     def test_add_circuit(self):
         self.assertTrue(some_tests.add_circuit())
+    def test_sort_gates(self):
+        self.assertTrue(some_tests.sort_gates())
+    def test_is_equivalent_order(self):
+        self.assertTrue(some_tests.is_equivalent_order())
+
 
 if __name__ == '__main__':
     unittest.main()

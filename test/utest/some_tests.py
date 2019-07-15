@@ -322,6 +322,49 @@ def add_circuit():
 
     return True
 
+def is_equivalent_order():
+    # Inserted out of order, but same as circ2
+    circ1 = quasar.Circuit(3).Y(1)
+    circ1.add_gate(quasar.Gate.X, 0, time=0)
+    circ1.add_gate(quasar.Gate.CX, (0,2), time=2)
+    circ1.add_gate(quasar.Gate.Z, 1, time=1)
+    circ1.add_gate(quasar.Gate.X, 1, time=2)
+
+    # Inserted in time and qubit order
+    circ2 = quasar.Circuit(3).X(0).Y(1)
+    circ2.add_gate(quasar.Gate.Z, 1, time=1)
+    circ2.add_gate(quasar.Gate.CX, (0,2), time=2)
+    circ2.add_gate(quasar.Gate.X, 1, time=2)
+    #print(circ2)
+    
+    # Not explicitly sorting circ1
+    if circ1.is_equivalent(circ2):
+        return True
+    else:
+        return False
+
+
+def sort_gates():
+    # Needs to be sorted
+    circ1 = quasar.Circuit(3).Y(1)
+    circ1.add_gate(quasar.Gate.X, 0, time=0)
+    circ1.add_gate(quasar.Gate.CX, (0,2), time=2)
+    circ1.add_gate(quasar.Gate.Z, 1, time=1)
+    circ1.add_gate(quasar.Gate.X, 1, time=2)
+
+    # Inserted in time and qubit order
+    circ2 = quasar.Circuit(3).X(0).Y(1)
+    circ2.add_gate(quasar.Gate.Z, 1, time=1)
+    circ2.add_gate(quasar.Gate.CX, (0,2), time=2)
+    circ2.add_gate(quasar.Gate.X, 1, time=2)
+    #print(circ2)
+    
+    # Sort circ1
+    circ1.sort_gates()
+    if circ1.is_equivalent(circ2):
+        return True
+    else:
+        return False
 
 if __name__ == "__main__":
     init_circuit()
@@ -344,3 +387,5 @@ if __name__ == "__main__":
     compressed()
     subcircuit()
     add_circuit()
+    sort_gates()
+    is_equivalent_order()
