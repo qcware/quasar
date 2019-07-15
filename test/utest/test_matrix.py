@@ -1,7 +1,5 @@
 import quasar
 import numpy as np
-from util.circuit_generator import random_circuit, simple_circuit
-from util.error import L1_error
 
 """
 Test "Matrix" Class
