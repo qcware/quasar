@@ -1,6 +1,6 @@
 import unittest
 import simple_test
-import test_circuit
+import test_circuit, test_matrix
 
 
 class Test(unittest.TestCase):
@@ -134,6 +134,33 @@ class Test(unittest.TestCase):
     def test_circuit_U2(self):
         self.assertTrue(test_circuit.U2())         
         
+
+    # ==> Test Matrix class <==
+    def test_matrix_1qubit_constant_matrices(self):
+        self.assertTrue(test_matrix.one_qubit_constant_matrices())
+    def test_matrix_2qubit_constant_matrices(self):
+        self.assertTrue(test_matrix.two_qubit_constant_matrices())
+    def test_matrix_3qubit_constant_matrices(self):
+        self.assertTrue(test_matrix.three_qubit_constant_matrices())
+    def test_matrix_1qubit_1param_matrices(self):
+        self.assertTrue(test_matrix.one_qubit_1param_matrices())
+    def test_matrix_1qubit_2param_matrices(self):
+        self.assertTrue(test_matrix.one_qubit_2param_matrices())
+    def test_matrix_1qubit_2param_matrices(self):
+        self.assertTrue(test_matrix.one_qubit_3param_matrices())
+    def test_matrix_2qubit_1param_matrices(self):
+        self.assertTrue(test_matrix.two_qubit_1param_matrices())
+
+
+
+
+
+
+
+
+
+
+
         
 if __name__ == '__main__':
     unittest.main()
