@@ -895,7 +895,11 @@ class Circuit(object):
         return len([gate for gate in list(self.gates.values()) if gate.N == 2])
 
     def is_equivalent(self, other):
-        """ Returns True if two circuits have the same values for all attributes. """
+        """ Returns True if two circuits have the same values for all attributes.
+            Also calls sort_gates() on both circuits. 
+        """
+        self.sort_gates()
+        other.sort_gates()
         if self.N != other.N:
             return False
         if self.Ts != other.Ts:
@@ -914,6 +918,13 @@ class Circuit(object):
                 return False
 
         return True
+
+    def sort_gates(self):
+        """ Orders the gate dictionary of self.gates based on time then qubit index """
+        sorted_gates = collections.OrderedDict()
+        for key in sorted(self.gates.keys()):
+            sorted_gates[key] = self.gates[key]
+        self.gates = sorted_gates
 
     # > Gate addition < #
 
