@@ -27,6 +27,8 @@ class Ket(str):
     @staticmethod
     def from_int(value, N):
         if value >= (1 << N): raise RuntimeError('value >= 2**N: value=%s, N=%s' % (value, N))
+        if value<0: raise RuntimeError('value must be a positive int')
+        if not isinstance(value, int): raise RuntimeError('value must be int')
         start = bin(value)[2:]
         padded = ('0' * (N - len(start))) + start
         return Ket(padded)
@@ -47,7 +49,6 @@ class MeasurementResult(dict):
             if v < 0: raise RuntimeError('Value must be positive: %s' % v)
 
         if len(self) == 0: return
-        selfN = self.N
         if not all(_.N == self.N for _ in self.keys()): raise RuntimeError('All keys must have same N')
 
     def __contains__(
@@ -152,7 +153,6 @@ class OptimizationResult(collections.OrderedDict):
             if not isinstance(v, tuple): raise RuntimeError('Value must be tuple: %s' % v) 
 
         if len(self) == 0: return
-        selfN = self.N
         if not all(_.N == self.N for _ in self.keys()): raise RuntimeError('All keys must have same N')
 
     def __contains__(

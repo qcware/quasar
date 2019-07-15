@@ -1,6 +1,6 @@
 import unittest
 import simple_test
-import test_circuit, test_matrix
+import test_circuit, test_matrix, test_ket, test_MeasurementResult, test_OptimizationResult
 
 
 class Test(unittest.TestCase):
@@ -12,7 +12,7 @@ class Test(unittest.TestCase):
         self.assertTrue(simple_test.test1(1))
         # self.assertTrue(simple_test.test1(2))
     
-    # ==> Test Circuit class <==
+    # ==> Test Circuit class in circuit.py <==
     def test_circuit_simulate(self):
         self.assertTrue(test_circuit.simulate())
     def test_circuit_simulate_steps(self):
@@ -135,7 +135,7 @@ class Test(unittest.TestCase):
         self.assertTrue(test_circuit.U2())         
         
 
-    # ==> Test Matrix class <==
+    # ==> Test Matrix class in circuit.py <==
     def test_matrix_1qubit_constant_matrices(self):
         self.assertTrue(test_matrix.one_qubit_constant_matrices())
     def test_matrix_2qubit_constant_matrices(self):
@@ -152,12 +152,61 @@ class Test(unittest.TestCase):
         self.assertTrue(test_matrix.two_qubit_1param_matrices())
 
 
+    # ==> Test Ket class in measurement.py <==
+    def test_ket_initialization(self):
+        self.assertTrue(test_ket.initialization())
+    def test_ket_getitem(self):
+        self.assertTrue(test_ket.getitem())
+    def test_ket_N(self):
+        self.assertTrue(test_ket.N())
+    def test_ket_from_int(self):
+        self.assertTrue(test_ket.from_int())
 
 
+    # ==> Test MeasurementResult class in measurement.py <==
+    def test_MeasurementResult_initialization(self):
+        self.assertTrue(test_MeasurementResult.initialization())
+    def test_MeasurementResult_contains(self):
+        self.assertTrue(test_MeasurementResult.contains())
+    def test_MeasurementResult_getitem(self):
+        self.assertTrue(test_MeasurementResult.getitem())
+    def test_MeasurementResult_setitem(self):
+        self.assertTrue(test_MeasurementResult.setitem())
+    def test_MeasurementResult_get(self):
+        self.assertTrue(test_MeasurementResult.get())
+    def test_MeasurementResult_setdefault(self):
+        self.assertTrue(test_MeasurementResult.setdefault())
+    def test_MeasurementResult_N(self):
+        self.assertTrue(test_MeasurementResult.N())
+    def test_MeasurementResult_nmeasurement(self):
+        self.assertTrue(test_MeasurementResult.nmeasurement())
+    def test_MeasurementResult_str(self):
+        self.assertTrue(test_MeasurementResult.str())
+    def test_MeasurementResult_subset(self):
+        self.assertTrue(test_MeasurementResult.subset())
 
 
-
-
+    # ==> Test OptimizationResult class in measurement.py <==
+    def test_OptimizationResult_initialization(self):
+        self.assertTrue(test_OptimizationResult.initialization())
+    def test_OptimizationResult_contains(self):
+        self.assertTrue(test_OptimizationResult.contains())
+    def test_OptimizationResult_getitem(self):
+        self.assertTrue(test_OptimizationResult.getitem())
+    def test_OptimizationResult_setitem(self):
+        self.assertTrue(test_OptimizationResult.setitem())
+    def test_OptimizationResult_get(self):
+        self.assertTrue(test_OptimizationResult.get())
+    def test_OptimizationResult_setdefault(self):
+        self.assertTrue(test_OptimizationResult.setdefault())
+    def test_OptimizationResult_N(self):
+        self.assertTrue(test_OptimizationResult.N())
+    def test_OptimizationResult_str(self):
+        self.assertTrue(test_OptimizationResult.str())
+    def test_OptimizationResult_energy_sorted(self):
+        self.assertTrue(test_OptimizationResult.energy_sorted())
+    def test_OptimizationResult_merge(self):
+        self.assertTrue(test_OptimizationResult.merge())
 
 
 
