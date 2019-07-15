@@ -965,6 +965,11 @@ class Circuit(object):
 
         # Make qubits a tuple regardless of input
         qubits = (qubits,) if isinstance(qubits, int) else qubits
+        
+        # Qubit validation
+        assert all(q >= 0 for q in qubits), "All qubits indices must be non-negative integers."
+        assert len(set(qubits)) == len(qubits), "Qubit list must not contain repeated indices."
+        # Qubit validation
 
         # Time determination
         if time is None:
@@ -1436,7 +1441,16 @@ class Circuit(object):
 
         # Make qubits a tuple regardless of input
         qubits = (qubits,) if isinstance(qubits, int) else qubits
+        # Also make times a tuple 
+        times = (times,) if isinstance(times, int) else times
 
+        # circuit validation
+        # Make sure the composite circuit has enough registers to add to 
+        assert self.N >= circuit.N, ('Circuit argument must have a fewer or equal number of qubit registers than the circuit you are adding to. Cannot add circuit of size %d to circuit of size %d.' % (circuit.N, self.N))
+    
+        assert circuit.N == len(qubits), "len(qubits) must be equal to the number of registers in circuit."
+        # circuit validation
+        
         if times is None:
             if time is not None:
                 times = list(range(time,time+circuit.ntime))
