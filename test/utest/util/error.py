@@ -7,6 +7,8 @@ def L1_error(result, margin=1e-4):
     Output:
             (Bool): If the L1 error between predictions and answers is smaller than 1e-4, return True.
     """
+    if not isinstance(result, list): result=[result]
+    
     error = 0.0
     for a, b in result:
         error += np.linalg.norm(np.subtract(a, b).flatten(), ord=1)
