@@ -919,6 +919,12 @@ class Circuit(object):
 
         return True
 
+ 
+    def __eq__(self, other):
+        """ Equality of Circuit objects. """
+        return self.is_equivalent(other)
+    
+        
     def sort_gates(self):
         """ Orders the gate dictionary of self.gates based on time then qubit index """
         sorted_gates = collections.OrderedDict()
