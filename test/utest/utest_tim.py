@@ -1,6 +1,6 @@
 import unittest
 import simple_test
-import test_circuit, test_matrix, test_ket, test_MeasurementResult, test_OptimizationResult
+import test_circuit, test_matrix, test_ket, test_MeasurementResult, test_OptimizationResult, test_Pauli
 
 
 class Test(unittest.TestCase):
@@ -208,8 +208,113 @@ class Test(unittest.TestCase):
     def test_OptimizationResult_merge(self):
         self.assertTrue(test_OptimizationResult.merge())
 
+        
+    # ==> Test PauliOperator class in pauli.py <==
+    def test_PauliOperator_qubit(self):
+        self.assertTrue(test_Pauli.qubit())
+    def test_PauliOperator_char(self):
+        self.assertTrue(test_Pauli.char())
+    def test_PauliOperator_str(self):
+        self.assertTrue(test_Pauli.str())
+    def test_PauliOperator_from_string(self):
+        self.assertTrue(test_Pauli.from_string())
+
+        
+    # ==> Test PauliString class in pauli.py <==
+    def test_PauliString_order(self):
+        self.assertTrue(test_Pauli.order())
+    def test_PauliString_qubits(self):
+        self.assertTrue(test_Pauli.qubits())
+    def test_PauliString_chars(self):
+        self.assertTrue(test_Pauli.chars())
+    def test_PauliString_str(self):
+        self.assertTrue(test_Pauli.str())        
+    def test_PauliString_from_string(self):
+        self.assertTrue(test_Pauli.from_string())
+    def test_PauliString_I(self):
+        self.assertTrue(test_Pauli.I())         
+        
+        
+    # ==> Test Pauli class in pauli.py <==
+    def test_Pauli_contains(self):
+        self.assertTrue(test_Pauli.contains())
+    def test_Pauli_getitem(self):
+        self.assertTrue(test_Pauli.getitem())
+    def test_Pauli_setitem(self):
+        self.assertTrue(test_Pauli.setitem())
+    def test_Pauli_get(self):
+        self.assertTrue(test_Pauli.get())        
+    def test_Pauli_setdefault(self):
+        self.assertTrue(test_Pauli.setdefault())
+    def test_Pauli_str(self):
+        self.assertTrue(test_Pauli.str())
+    def test_Pauli_summary_str(self):
+        self.assertTrue(test_Pauli.summary_str())
+    def test_Pauli_N(self):
+        self.assertTrue(test_Pauli.N())
+    def test_Pauli_nterm(self):
+        self.assertTrue(test_Pauli.nterm())        
+    def test_Pauli_max_order(self):
+        self.assertTrue(test_Pauli.max_order())
+    def test_Pauli_pos(self):
+        self.assertTrue(test_Pauli.pos())
+    def test_Pauli_neg(self):
+        self.assertTrue(test_Pauli.neg())
+    def test_Pauli_mul(self):
+        self.assertTrue(test_Pauli.mul())
+    def test_Pauli_rmul(self):
+        self.assertTrue(test_Pauli.rmul())        
+    def test_Pauli_truediv(self):
+        self.assertTrue(test_Pauli.truediv())        
+    def test_Pauli_add(self):
+        self.assertTrue(test_Pauli.add())
+    def test_Pauli_sub(self):
+        self.assertTrue(test_Pauli.sub())
+    def test_Pauli_radd(self):
+        self.assertTrue(test_Pauli.radd())
+    def test_Pauli_rsub(self):
+        self.assertTrue(test_Pauli.rsub())        
+    def test_Pauli_iadd(self):
+        self.assertTrue(test_Pauli.iadd())
+    def test_Pauli_isub(self):
+        self.assertTrue(test_Pauli.isub())
+    def test_Pauli_dot(self):
+        self.assertTrue(test_Pauli.dot())
+    def test_Pauli_conj(self):
+        self.assertTrue(test_Pauli.conj())
+    def test_Pauli_norm2(self):
+        self.assertTrue(test_Pauli.norm2())        
+    def test_Pauli_norminf(self):
+        self.assertTrue(test_Pauli.norminf())
+    def test_Pauli_zero(self):
+        self.assertTrue(test_Pauli.zero())
+    def test_Pauli_zeros_like(self):
+        self.assertTrue(test_Pauli.zeros_like())
+    def test_Pauli_sieved(self):
+        self.assertTrue(test_Pauli.sieved())
+    def test_Pauli_I(self):
+        self.assertTrue(test_Pauli.I())        
+    def test_Pauli_IXYZ(self):
+        self.assertTrue(test_Pauli.IXYZ())  
+    def test_Pauli_extract_orders(self):
+        self.assertTrue(test_Pauli.extract_orders())
+    def test_Pauli_qubits(self):
+        self.assertTrue(test_Pauli.qubits())  
+    def test_Pauli_chars(self):
+        self.assertTrue(test_Pauli.chars())        
+    def test_Pauli_unique_chars(self):
+        self.assertTrue(test_Pauli.unique_chars())  
+    def test_Pauli_compute_hilbert_matrix(self):
+        self.assertTrue(test_Pauli.compute_hilbert_matrix())        
+    def test_Pauli_compute_hilbert_matrix_vector_product(self):
+        self.assertTrue(test_Pauli.compute_hilbert_matrix_vector_product())  
 
 
+    # ==> Test PauliStarter class in pauli.py <==
+    def test_PauliStarter_paulistarter(self):
+        self.assertTrue(test_Pauli.paulistarter())
+
+        
         
 if __name__ == '__main__':
     unittest.main()

@@ -381,12 +381,13 @@ class Pauli(collections.OrderedDict):
         """ Return a subset of Pauli with only terms with specific orders retained.
         
         Params:
-            orders (tuple of int) - tuple of orders to retain
+            orders (int, or tuple of int) - tuple of orders to retain
         Returns:
             (Pauli) - a version of this Pauli, but with only strings with order
                 present in orders retained.
         """
-
+        if isinstance(orders, int): orders=(orders,)
+        
         return Pauli(collections.OrderedDict([(k, v) for k, v in self.items() if k.order in orders]))
 
     @property
