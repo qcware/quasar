@@ -1,6 +1,6 @@
 import unittest
 import simple_test
-import test_circuit, test_matrix, test_ket, test_MeasurementResult, test_OptimizationResult, test_Pauli
+import test_circuit, test_matrix, test_ket, test_MeasurementResult, test_OptimizationResult, test_Pauli, test_quasar_backend
 
 
 class Test(unittest.TestCase):
@@ -314,6 +314,20 @@ class Test(unittest.TestCase):
     def test_PauliStarter_paulistarter(self):
         self.assertTrue(test_Pauli.paulistarter())
 
+        
+    # ==> Test QuasarSimulatorBackend class in quasar_backend.py <==
+    def test_QuasarSimulatorBackend_quasar_simulator_backend(self):
+        self.assertTrue(test_quasar_backend.quasar_simulator_backend())
+    def test_QuasarSimulatorBackend_build_native_circuit(self):
+        self.assertTrue(test_quasar_backend.build_native_circuit())
+    def test_QuasarSimulatorBackend_build_native_circuit_in_basis(self):
+        self.assertTrue(test_quasar_backend.build_native_circuit_in_basis())
+    def test_QuasarSimulatorBackend_build_quasar_circuit(self):
+        self.assertTrue(test_quasar_backend.build_quasar_circuit())
+    def test_QuasarSimulatorBackend_run_statevector(self):
+        self.assertTrue(test_quasar_backend.run_statevector())
+    def test_QuasarSimulatorBackend_run_measurement(self):
+        self.assertTrue(test_quasar_backend.run_measurement())
         
         
 if __name__ == '__main__':
