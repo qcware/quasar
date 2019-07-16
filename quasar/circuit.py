@@ -257,7 +257,7 @@ class Gate(object):
         if self.U.shape != (2**self.N,)*2: raise RuntimeError('U must be shape (2**N,)*2')
         if not isinstance(self.params, collections.OrderedDict): raise RuntimeError('params must be collections.OrderedDict')
         if not all(isinstance(_, str) for _ in list(self.params.keys())): raise RuntimeError('params keys must all be str')
-        if not all(isinstance(_, float) for _ in list(self.params.values())): raise RuntimeError('params values must all be float')
+        if not all(isinstance(_, float) or isinstance(_, int) for _ in list(self.params.values())): raise RuntimeError('params values must all be float or int')
         if not isinstance(self.name, str): raise RuntimeError('name must be str')
         if not isinstance(self.ascii_symbols, list): raise RuntimeError('ascii_symbols must be list')
         if len(self.ascii_symbols) != self.N: raise RuntimeError('len(ascii_symbols) != N')
