@@ -205,10 +205,8 @@ class ForestBackend(Backend):
         self,
         circuit,
         ):
-        # Note: Might be unecessary
+        # Note: Might be unecessary because there is a run_and_measure() function in simulation.
         circuit_native = self.build_native_circuit(circuit)
-        idx_qubit = circuit_native.get_qubits()
-        ro = circuit_native.declare('ro', memory_size=max(idx_qubit))
         circuit_native.measure_all()
         
         return circuit_native
@@ -219,6 +217,8 @@ class ForestBackend(Backend):
         qubit_setup=None
         ):
         """
+        -Rigetti does not support initial wavefunction for simulation. This function 
+        -Input:
         qubit_setup (np.ndarray of shape (circuit.N,) or None)
                 - the initial setup of qubit array. If None, the reference setup
                   [0,0,0,0,0,...] will be used.
@@ -282,7 +282,7 @@ class ForestSimulatorBackend(ForestBackend):
     def run_measurement(
         self,
         circuit,
-        nmeasurement,
+        nmeasurement=1000,
         ):
     
         import pyquil
