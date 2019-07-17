@@ -219,7 +219,7 @@ class CirqSimulatorBackend(CirqBackend):
         result = self.simulator.simulate(circuit_native, **kwargs)
         statevector = result.state_vector()
         statevector = np.array(statevector, dtype=np.complex128)
-        # TODO: verify ordering, particularly for large qubit counts
+        # TODO: verify ordering, particularly for large qubit counts (looks corrects! -Tim)
         return statevector
 
     def run_measurement(

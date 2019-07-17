@@ -1,6 +1,7 @@
 import quasar
 import numpy as np
 from util.error import L1_error
+from util.circuit_generator import random_circuit
 
 """
 Test "CirqBackend" Class
@@ -126,13 +127,18 @@ def run_statevector():
     Validate run_statevector() in the "CirqSimulatorBackend" class.
     """
     backend = quasar.CirqSimulatorBackend()
+    # test case 1: Bell's state
     circuit = util_build_circuit()
     result = backend.run_statevector(circuit)
     ans = [np.sqrt(1/2),0,0,np.sqrt(1/2)]
+    # test case 2: Random circuit
+    circuit = random_circuit(seed=5566, depth=10)
+    result = backend.run_statevector(circuit)
+    ans = circuit.simulate()
     
     return L1_error((result, ans))   
     
-    
+   
 def run_measurement():
     """
     Validate run_measurement() in the "CirqSimulatorBackend" class.
