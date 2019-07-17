@@ -4,7 +4,7 @@ import itertools
 from .pauli import Pauli, PauliExpectation, PauliString
 from .circuit import Circuit
 
-""" File backend.py contains some utility classes the standardize the
+""" File backend.py contains some utility classes that standardize the
     input/output data for quantum circuits and some utility functions that
     abstract the details of the quantum backend from the user.
 
@@ -27,7 +27,7 @@ from .circuit import Circuit
         (2) the discrete quantum measurements - A set of kets |AB...Z> and the
             corresponding count of observations. Here, we represent this by the
             MeasurementResult class, which is a dict of Ket : count pairs. Class Ket
-            wraps an str an makes it unambiguous as to the qubit ordering in
+            wraps an str and makes it unambiguous as to the qubit ordering in
             the ket.
         (3) the simulated statevector - a 2**N-dimensional real or complex
             vector of Hilbert-space amplitudes. Here, we use a np.ndarray of
@@ -297,9 +297,9 @@ class Backend(object):
         for i in range(2**circuit.N):
             wfn = np.zeros((2**circuit.N,))
             wfn[i] = 1
-            statevector = (circuit.compressed() if compressed else circuit).simulate(wfn=wfn)
-            unitary.append(statevector)
-        unitary = np.array(unitary, dtype=np.complex128)
+            column = (circuit.compressed() if compressed else circuit).simulate(wfn=wfn)
+            unitary.append(column)
+        unitary = np.array(unitary, dtype=np.complex128).T
             
         return unitary
     
