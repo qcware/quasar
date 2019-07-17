@@ -1,6 +1,6 @@
 import unittest
 import simple_test
-import test_circuit, test_matrix, test_ket, test_MeasurementResult, test_OptimizationResult, test_Pauli, test_quasar_backend, test_qiskit_backend
+import test_circuit, test_matrix, test_ket, test_MeasurementResult, test_OptimizationResult, test_Pauli, test_quasar_backend, test_qiskit_backend, test_cirq_backend
 
 
 class Test(unittest.TestCase):
@@ -336,9 +336,7 @@ class Test(unittest.TestCase):
     def test_QiskitBackend_build_native_circuit(self):
         self.assertTrue(test_qiskit_backend.build_native_circuit())        
     def test_QiskitBackend_build_quasar_circuit(self):
-        self.assertTrue(test_qiskit_backend.build_quasar_circuit())        
-    def test_QiskitBackend_build_quasar_circuit(self):
-        self.assertTrue(test_qiskit_backend.build_quasar_circuit())        
+        self.assertTrue(test_qiskit_backend.build_quasar_circuit())           
     def test_QiskitBackend_build_native_circuit_in_basis(self):
         self.assertTrue(test_qiskit_backend.build_native_circuit_in_basis())        
     def test_QiskitBackend_build_native_circuit_measurement(self):
@@ -354,7 +352,26 @@ class Test(unittest.TestCase):
         self.assertTrue(test_qiskit_backend.run_measurement())        
 
 
+    # ==> Test CirqBackend class in qiskit_backend.py <==
+    def test_CirqBackend_angle(self):
+        self.assertTrue(test_cirq_backend.angle())        
+    def test_CirqBackend_build_native_circuit(self):
+        self.assertTrue(test_cirq_backend.build_native_circuit())        
+    def test_CirqBackend_build_quasar_circuit(self):
+        self.assertTrue(test_cirq_backend.build_quasar_circuit())           
+    def test_CirqBackend_build_native_circuit_in_basis(self):
+        self.assertTrue(test_cirq_backend.build_native_circuit_in_basis())        
+    def test_CirqBackend_build_native_circuit_measurement(self):
+        self.assertTrue(test_cirq_backend.build_native_circuit_measurement())
 
+
+    # ==> Test QiskitSimulatorBackend class in qiskit_backend.py <==
+    def test_CirqSimulatorBackend_cirq_simulator_backend(self):
+        self.assertTrue(test_cirq_backend.cirq_simulator_backend())        
+    def test_CirqSimulatorBackend_run_statevector(self):
+        self.assertTrue(test_cirq_backend.run_statevector())        
+    def test_CirqSimulatorBackend_run_measurement(self):
+        self.assertTrue(test_cirq_backend.run_measurement())
 
 
 
