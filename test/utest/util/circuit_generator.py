@@ -4,7 +4,8 @@ import random
 import math
 
 
-def random_circuit(seed=2019, N=3, depth=6, type='all'):
+def random_circuit(seed=None, N=3, depth=6, type='all'):
+    np.random.seed(seed)
     gate_list = get_gete_list(type)
     
     circuit = quasar.Circuit(N=N)
