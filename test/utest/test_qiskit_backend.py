@@ -1,5 +1,4 @@
 import quasar
-import quasar
 import numpy as np
 from util.error import L1_error
 
@@ -36,25 +35,6 @@ def build_native_circuit():
     bell.cx(q[0],q[1])
 
     return qiskit_circuit==bell
-
-
-def build_quasar_circuit():
-    """
-    Validate build_quasar_circuit() of the "QiskitBackend" class. 
-    """
-    # translate circuit from qiskit circuit
-    import qiskit
-    q = qiskit.QuantumRegister(2)
-    qiskit_circuit = qiskit.QuantumCircuit(q)
-    qiskit_circuit.h(q[0])
-    qiskit_circuit.cx(q[0],q[1])
-    qiskit_backend = quasar.QiskitBackend()
-    quasar_circuit = qiskit_backend.build_quasar_circuit(qiskit_circuit)
-    
-    # directly build a quasar circuit
-    bell = quasar.Circuit(N=2).H(0).CX(0,1)
-
-    return quasar_circuit==bell
 
     
 def build_quasar_circuit():
