@@ -898,6 +898,7 @@ class Circuit(object):
         """ Returns True if two circuits have the same values for all attributes.
             Also calls sort_gates() on both circuits. 
         """
+        if not isinstance(other, Circuit): raise RuntimeError('Circuit object can only compare with Circuit object.')
         self.sort_gates()
         other.sort_gates()
         if self.N != other.N:
@@ -922,6 +923,7 @@ class Circuit(object):
  
     def __eq__(self, other):
         """ Equality of Circuit objects. """
+        
         return self.is_equivalent(other)
     
         
