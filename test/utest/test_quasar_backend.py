@@ -91,7 +91,7 @@ def run_measurement():
     result = [result.get('{0:02b}'.format(k), 0) for k in range(4)]
     result = np.array(result)/np.linalg.norm(result)
     
-    return L1_error((result, ans), margin=0.1)
+    return L1_error((result, ans), margin=0.2)
     
 
     
