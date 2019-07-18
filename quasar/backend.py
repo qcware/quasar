@@ -88,6 +88,7 @@ class Backend(object):
         
         Backend subclasses should OVERLOAD this method.
         """ 
+        raise NotImplementedError
 
     @property
     def has_statevector(self):
@@ -356,7 +357,7 @@ class Backend(object):
         pauli,
         nmeasurement,
         **kwargs):
-    
+
         if not self.has_measurement: 
             raise RuntimeError('Backend does not have measurement')
 
