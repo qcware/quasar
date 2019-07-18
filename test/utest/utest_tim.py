@@ -1,6 +1,6 @@
 import unittest
 import simple_test
-import test_circuit, test_matrix, test_ket, test_MeasurementResult, test_OptimizationResult, test_Pauli, test_quasar_backend, test_qiskit_backend, test_cirq_backend, test_forest_backend, test_resolution
+import test_circuit, test_matrix, test_ket, test_MeasurementResult, test_OptimizationResult, test_Pauli, test_quasar_backend, test_qiskit_backend, test_cirq_backend, test_forest_backend, test_resolution, test_run
 
 
 class Test(unittest.TestCase):
@@ -403,12 +403,28 @@ class Test(unittest.TestCase):
         self.assertTrue(test_resolution.build_quasar_circuit_from_forest())        
         
         
-        
-        
-        
-        
-        
-        
+    # ==> Test functions in run.py <==
+    '''
+    Tests for Forest is disabled for now. (see test_run.py)
+    '''
+    def test_build_native_circuit_to_quasar(self):
+        self.assertTrue(test_run.build_native_circuit_to_quasar())        
+    def test_build_native_circuit_to_cirq(self):
+        self.assertTrue(test_run.build_native_circuit_to_cirq())        
+    def test_build_native_circuit_to_qiskit(self):
+        self.assertTrue(test_run.build_native_circuit_to_qiskit())
+    #def test_build_native_circuit_to_forest(self):
+    #    self.assertTrue(test_run.build_native_circuit_to_forest())    
+    def test_run_measurement(self):
+        self.assertTrue(test_run.run_measurement())        
+    def test_run_statevector(self):
+        self.assertTrue(test_run.run_statevector())         
+    def test_run_pauli_expectation(self):
+        self.assertTrue(test_run.run_pauli_expectation())         
+    def test_run_unitary(self):
+        self.assertTrue(test_run.run_unitary())         
+    def test_run_density_matrix(self):
+        self.assertTrue(test_run.run_density_matrix())         
         
         
         
