@@ -1,16 +1,9 @@
 import unittest
 import simple_test
-import test_circuit, test_matrix, test_ket, test_MeasurementResult, test_OptimizationResult, test_Pauli, test_quasar_backend, test_qiskit_backend, test_cirq_backend, test_forest_backend
+import test_circuit, test_matrix, test_ket, test_MeasurementResult, test_OptimizationResult, test_Pauli, test_quasar_backend, test_qiskit_backend, test_cirq_backend, test_forest_backend, test_resolution
 
 
 class Test(unittest.TestCase):
-    def test_test(self):
-        # should always be true
-        self.assertTrue(simple_test.test())
-    def test_test1(self, one=1):
-        # First statement should return True. Second should return False.
-        self.assertTrue(simple_test.test1(1))
-        # self.assertTrue(simple_test.test1(2))
     
     # ==> Test Circuit class in circuit.py <==
     def test_circuit_simulate(self):
@@ -375,26 +368,50 @@ class Test(unittest.TestCase):
 
         
     # ==> Test ForestBackend class in forest_backend.py <==
-    # def test_ForestBackend_angle(self):
-        # self.assertTrue(test_forest_backend.angle())        
-    # def test_ForestBackend_build_native_circuit(self):
-        # self.assertTrue(test_forest_backend.build_native_circuit())        
-    # def test_ForestBackend_build_quasar_circuit(self):
-        # self.assertTrue(test_forest_backend.build_quasar_circuit())           
-    # def test_ForestBackend_build_native_circuit_in_basis(self):
-        # self.assertTrue(test_forest_backend.build_native_circuit_in_basis())        
-    # def test_ForestBackend_build_native_circuit_measurement(self):
-        # self.assertTrue(test_forest_backend.build_native_circuit_measurement())
-
+    '''
+    def test_ForestBackend_angle(self):
+        self.assertTrue(test_forest_backend.angle())        
+    def test_ForestBackend_build_native_circuit(self):
+        self.assertTrue(test_forest_backend.build_native_circuit())        
+    def test_ForestBackend_build_quasar_circuit(self):
+        self.assertTrue(test_forest_backend.build_quasar_circuit())           
+    def test_ForestBackend_build_native_circuit_in_basis(self):
+        self.assertTrue(test_forest_backend.build_native_circuit_in_basis())        
+    def test_ForestBackend_build_native_circuit_measurement(self):
+        self.assertTrue(test_forest_backend.build_native_circuit_measurement())
+    '''
 
     # ==> Test ForestSimulatorBackend class in forest_backend.py <==
+    '''
     # def test_CirqSimulatorBackend_cirq_simulator_backend(self):
         # self.assertTrue(test_forest_backend.forest_simulator_backend())        
     # def test_CirqSimulatorBackend_run_statevector(self):
         # self.assertTrue(test_forest_backend.run_statevector())        
     # def test_CirqSimulatorBackend_run_measurement(self):
         # self.assertTrue(test_forest_backend.run_measurement())
+    '''
 
+        
+    # ==> Test build_quasar_circuit function in resolution.py <==
+    def test_build_quasar_circuit_from_quasar(self):
+        self.assertTrue(test_resolution.build_quasar_circuit_from_quasar())        
+    def test_build_quasar_circuit_from_cirq(self):
+        self.assertTrue(test_resolution.build_quasar_circuit_from_cirq())        
+    def test_build_quasar_circuit_from_qiskit(self):
+        self.assertTrue(test_resolution.build_quasar_circuit_from_qiskit())
+    def test_build_quasar_circuit_from_forest(self):
+        self.assertTrue(test_resolution.build_quasar_circuit_from_forest())        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
         
 if __name__ == '__main__':
     unittest.main()
