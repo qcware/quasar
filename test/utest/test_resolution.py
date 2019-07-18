@@ -3,6 +3,9 @@ import numpy as np
 
 
 def build_quasar_circuit_from_quasar():
+    """
+    Validate "build_quasar_circuit()"
+    """
     native_circuit = quasar.Circuit(N=2)
     quasar_circuit = quasar.build_quasar_circuit(native_circuit)
     
@@ -10,6 +13,9 @@ def build_quasar_circuit_from_quasar():
     
     
 def build_quasar_circuit_from_cirq():
+    """
+    Validate "build_quasar_circuit()"
+    """
     # build a testing native circuit
     import cirq 
     native_circuit = cirq.Circuit()
@@ -21,6 +27,9 @@ def build_quasar_circuit_from_cirq():
     
     
 def build_quasar_circuit_from_qiskit():
+    """
+    Validate "build_quasar_circuit()"
+    """
     # build a testing native circuit
     import qiskit
     q = qiskit.QuantumRegister(1)
@@ -32,6 +41,9 @@ def build_quasar_circuit_from_qiskit():
     
     
 def build_quasar_circuit_from_forest():
+    """
+    Validate "build_quasar_circuit()"
+    """
     # build a testing native circuit
     import pyquil
     native_circuit = pyquil.Program(pyquil.gates.I(0))
