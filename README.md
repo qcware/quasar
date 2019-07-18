@@ -8,15 +8,16 @@ virtualenv quasar-venv --python=python3.7
 ```
 Then, activate your virtual environment (command to activate is OS dependent). <br>
 
+Install requirements with:
+```
+pip install -r requirements.txt
+```
 To use with jupyter notebooks, inside your virtual environment run:
 ```
 pip install ipykernel
 ipython kernel install --user --name=quasar-venv
 ```
-Install requirements with:
-```
-pip install -r requirements.txt
-```
+You may then have to change kernel inside the jupyter notebook you are working on.
 
 ## To use Forest + PyQuil:
 1. Install Forest SDK (request here: https://www.rigetti.com/forest)<br/>
