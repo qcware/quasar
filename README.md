@@ -2,16 +2,18 @@
 [![Build Status](https://circleci.com/gh/qcware/quasar.svg?style=svg&circle-token=e85544db6236d5ecb720ac042a9a40d2f819a4ec)](https://circleci.com/gh/qcware/quasar.svg?style=svg&circle-token=e85544db6236d5ecb720ac042a9a40d2f819a4ec)
 
 ## Environment setup:
-Reccommened: create a virtual environment with virtualenv or conda e.g on linux:
+Reccommened: create a virtual environment with virtualenv or conda. E.g.:
 ```
 virtualenv quasar-venv --python=python3.7
 ```
-To use with jupyter notebooks
+Then, activate your virtual environment (command to activate is OS dependent). <br>
+
+To use with jupyter notebooks, inside your virtual environment run:
 ```
 pip install ipykernel
 ipython kernel install --user --name=quasar-venv
 ```
-Install requirements with
+Install requirements with:
 ```
 pip install -r requirements.txt
 ```
