@@ -1,3 +1,5 @@
+.. currentmodule:: quasar
+
 Circuit
 =======
 
@@ -9,11 +11,14 @@ can be created using the function documented in this section::
     >>> circuit = quasar.Circuit(N=2)
     >>> circuit = circuit.X(0).CX(0,1)
 
-.. autoclass:: quasar.Circuit
+.. autoclass:: Circuit
 .. autofunction:: quasar.Circuit.__init__
 
-.. rubric:: Properties
+Properties
+----------
 .. autosummary::
+    :toctree: _autosummary
+        
     ~quasar.Circuit.ntime
     ~quasar.Circuit.ngate
     ~quasar.Circuit.ngate1
@@ -26,20 +31,29 @@ can be created using the function documented in this section::
     ~quasar.Circuit.param_values
     ~quasar.Circuit.param_str
 
-.. rubric:: Circuits/Gates
+Circuits/Gates
+--------------
 .. autosummary::
+    :toctree: _autosummary
+ 
     ~quasar.Circuit.is_equivalent
     ~quasar.Circuit.sort_gates
     ~quasar.Circuit.add_gate
     ~quasar.Circuit.gate   
 
-.. rubric:: Simulation/Measurement
+Simulation/Measurement
+----------------------
 .. autosummary::
+    :toctree: _autosummary
+    
     ~quasar.Circuit.simulate
     ~quasar.Circuit.measure 
     
-.. rubric:: Copy/Subsets/Concatenation
+Copy/Subsets/Concatenation
+--------------------------
 .. autosummary::
+    :toctree: _autosummary
+ 
     ~quasar.Circuit.copy
     ~quasar.Circuit.subset
     ~quasar.Circuit.concatenate
@@ -51,13 +65,19 @@ can be created using the function documented in this section::
     ~quasar.Circuit.subcircuit
     ~quasar.Circuit.add_circuit
 
-.. rubric:: Parameters
+Parameters
+----------
 .. autosummary::
+    :toctree: _autosummary
+ 
     ~quasar.Circuit.set_param_values     
     ~quasar.Circuit.set_params
-    
-.. rubric:: Gate Addition
+
+Gate Addition
+-------------
 .. autosummary::
+    :toctree: _autosummary
+ 
     ~quasar.Circuit.I
     ~quasar.Circuit.X
     ~quasar.Circuit.Y
@@ -76,11 +96,5 @@ can be created using the function documented in this section::
     ~quasar.Circuit.Ry
     ~quasar.Circuit.Rz
 
-    
-    
-    
-.. autofunction:: quasar.Circuit.is_equivalent
-
-    
     
         
