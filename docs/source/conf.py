@@ -17,7 +17,7 @@
 
 # -- Project information -----------------------------------------------------
 
-project = 'quasar_doc'
+project = 'QUASAR'
 copyright = '2019, qcware'
 author = 'qcware'
 
@@ -47,16 +47,20 @@ exclude_patterns = []
 # html_theme = 'alabaster'
 html_theme = "sphinx_rtd_theme"
 
-
-# Register the theme as an extension to generate a sitemap.xml
-extensions.append("guzzle_sphinx_theme")
-
-# Guzzle theme options (see theme.conf for more information)
+# rtd theme options (see theme.conf for more information)
 html_theme_options = {
-    # Set the name of the project to appear in the sidebar
-    "project_nav_name": "quasar_doc",
+    'analytics_id': 'UA-XXXXXXX-1',  #  Provided by Google in your dashboard
+    'logo_only': False,
+    'display_version': True,
+    'prev_next_buttons_location': 'bottom',
+    'style_external_links': False,
+    # Toc options
+    'collapse_navigation': True,
+    'sticky_navigation': True,
+    'navigation_depth': 4,
+    'includehidden': True,
+    'titles_only': False
 }
-
 
 
 # Add any paths that contain custom static files (such as style sheets) here,
