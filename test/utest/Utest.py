@@ -1,49 +1,50 @@
 import unittest
-import test_circuit
+import simple_test
+import test_circuit, test_matrix, test_ket, test_MeasurementResult, test_OptimizationResult, test_Pauli, test_quasar_backend, test_qiskit_backend, test_cirq_backend, test_forest_backend, test_resolution, test_run
 
 class Test(unittest.TestCase):
    
     # ==> Tests for circuit class (ordered from top to bottom) <==
     def test_init_circuit(self):
-        self.assertTrue(some_tests.init_circuit())
+        self.assertTrue(test_circuit.init_circuit())
     def test_ntime(self):
-        self.assertTrue(some_tests.ntime())
+        self.assertTrue(test_circuit.ntime())
     def test_ngate(self):
-        self.assertTrue(some_tests.ngate())
+        self.assertTrue(test_circuit.ngate())
     def test_ngate1(self):
-        self.assertTrue(some_tests.ngate1())
+        self.assertTrue(test_circuit.ngate1())
     def test_ngate2(self):
-        self.assertTrue(some_tests.ngate2())
+        self.assertTrue(test_circuit.ngate2())
     def test_add_gate(self):
-        self.assertTrue(some_tests.add_gate())
+        self.assertTrue(test_circuit.add_gate())
     def test_gate(self):
-        self.assertTrue(some_tests.gate())
+        self.assertTrue(test_circuit.gate())
     def test_copy(self):
-        self.assertTrue(some_tests.copy())
+        self.assertTrue(test_circuit.copy())
     def test_subset(self):
-        self.assertTrue(some_tests.subset())
+        self.assertTrue(test_circuit.subset())
     def test_concatenate(self):
-        self.assertTrue(some_tests.concatenate())
+        self.assertTrue(test_circuit.concatenate())
     def test_deadjoin(self):
-        self.assertTrue(some_tests.deadjoin())
+        self.assertTrue(test_circuit.deadjoin())
     def test_adjoin(self):
-        self.assertTrue(some_tests.adjoin())
+        self.assertTrue(test_circuit.adjoin())
     def test_reversed(self):
-        self.assertTrue(some_tests.test_reversed())
+        self.assertTrue(test_circuit.test_reversed())
     def test_is_equivalent(self):
-        self.assertTrue(some_tests.is_equivalent())
+        self.assertTrue(test_circuit.is_equivalent())
     def test_nonredundant(self):
-        self.assertTrue(some_tests.nonredundant())
+        self.assertTrue(test_circuit.nonredundant())
     def test_compressed(self):
-        self.assertTrue(some_tests.compressed())
+        self.assertTrue(test_circuit.compressed())
     def test_subcircuit(self):
-        self.assertTrue(some_tests.subcircuit())
+        self.assertTrue(test_circuit.subcircuit())
     def test_add_circuit(self):
-        self.assertTrue(some_tests.add_circuit())
+        self.assertTrue(test_circuit.add_circuit())
     def test_sort_gates(self):
-        self.assertTrue(some_tests.sort_gates())
+        self.assertTrue(test_circuit.sort_gates())
     def test_is_equivalent_order(self):
-        self.assertTrue(some_tests.is_equivalent_order())
+        self.assertTrue(test_circuit.is_equivalent_order())
     # ==> Test Circuit class in circuit.py (ordered from bottom to top) <==
     def test_circuit_simulate(self):
         self.assertTrue(test_circuit.simulate())
