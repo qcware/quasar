@@ -1,6 +1,5 @@
 import unittest
-import simple_test
-import some_tests
+import test_circuit
 
 class Test(unittest.TestCase):
    
