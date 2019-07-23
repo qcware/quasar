@@ -1,6 +1,7 @@
 import unittest
-import simple_test
 import test_circuit, test_matrix, test_ket, test_MeasurementResult, test_OptimizationResult, test_Pauli, test_quasar_backend, test_qiskit_backend, test_cirq_backend, test_forest_backend, test_resolution, test_run
+
+import test_backend, test_gate
 
 class Test(unittest.TestCase):
    
@@ -166,6 +167,371 @@ class Test(unittest.TestCase):
         self.assertTrue(test_circuit.U1())          
     def test_circuit_U2(self):
         self.assertTrue(test_circuit.U2())         
+
+
+    # ==> Test Matrix class in circuit.py <==
+    def test_matrix_1qubit_constant_matrices(self):
+        self.assertTrue(test_matrix.one_qubit_constant_matrices())
+    def test_matrix_2qubit_constant_matrices(self):
+        self.assertTrue(test_matrix.two_qubit_constant_matrices())
+    def test_matrix_3qubit_constant_matrices(self):
+        self.assertTrue(test_matrix.three_qubit_constant_matrices())
+    def test_matrix_1qubit_1param_matrices(self):
+        self.assertTrue(test_matrix.one_qubit_1param_matrices())
+    def test_matrix_1qubit_2param_matrices(self):
+        self.assertTrue(test_matrix.one_qubit_2param_matrices())
+    def test_matrix_1qubit_2param_matrices(self):
+        self.assertTrue(test_matrix.one_qubit_3param_matrices())
+    def test_matrix_2qubit_1param_matrices(self):
+        self.assertTrue(test_matrix.two_qubit_1param_matrices())
+
+
+    # ==> Test Ket class in measurement.py <==
+    def test_ket_initialization(self):
+        self.assertTrue(test_ket.initialization())
+    def test_ket_getitem(self):
+        self.assertTrue(test_ket.getitem())
+    def test_ket_N(self):
+        self.assertTrue(test_ket.N())
+    def test_ket_from_int(self):
+        self.assertTrue(test_ket.from_int())
+
+
+    # ==> Test MeasurementResult class in measurement.py <==
+    def test_MeasurementResult_initialization(self):
+        self.assertTrue(test_MeasurementResult.initialization())
+    def test_MeasurementResult_contains(self):
+        self.assertTrue(test_MeasurementResult.contains())
+    def test_MeasurementResult_getitem(self):
+        self.assertTrue(test_MeasurementResult.getitem())
+    def test_MeasurementResult_setitem(self):
+        self.assertTrue(test_MeasurementResult.setitem())
+    def test_MeasurementResult_get(self):
+        self.assertTrue(test_MeasurementResult.get())
+    def test_MeasurementResult_setdefault(self):
+        self.assertTrue(test_MeasurementResult.setdefault())
+    def test_MeasurementResult_N(self):
+        self.assertTrue(test_MeasurementResult.N())
+    def test_MeasurementResult_nmeasurement(self):
+        self.assertTrue(test_MeasurementResult.nmeasurement())
+    def test_MeasurementResult_str(self):
+        self.assertTrue(test_MeasurementResult.str())
+    def test_MeasurementResult_subset(self):
+        self.assertTrue(test_MeasurementResult.subset())
+
+
+    # ==> Test OptimizationResult class in measurement.py <==
+    def test_OptimizationResult_initialization(self):
+        self.assertTrue(test_OptimizationResult.initialization())
+    def test_OptimizationResult_contains(self):
+        self.assertTrue(test_OptimizationResult.contains())
+    def test_OptimizationResult_getitem(self):
+        self.assertTrue(test_OptimizationResult.getitem())
+    def test_OptimizationResult_setitem(self):
+        self.assertTrue(test_OptimizationResult.setitem())
+    def test_OptimizationResult_get(self):
+        self.assertTrue(test_OptimizationResult.get())
+    def test_OptimizationResult_setdefault(self):
+        self.assertTrue(test_OptimizationResult.setdefault())
+    def test_OptimizationResult_N(self):
+        self.assertTrue(test_OptimizationResult.N())
+    def test_OptimizationResult_str(self):
+        self.assertTrue(test_OptimizationResult.str())
+    def test_OptimizationResult_energy_sorted(self):
+        self.assertTrue(test_OptimizationResult.energy_sorted())
+    def test_OptimizationResult_merge(self):
+        self.assertTrue(test_OptimizationResult.merge())
+
+        
+    # ==> Test PauliOperator class in pauli.py <==
+    def test_PauliOperator_qubit(self):
+        self.assertTrue(test_Pauli.qubit())
+    def test_PauliOperator_char(self):
+        self.assertTrue(test_Pauli.char())
+    def test_PauliOperator_str(self):
+        self.assertTrue(test_Pauli.str())
+    def test_PauliOperator_from_string(self):
+        self.assertTrue(test_Pauli.from_string())
+
+        
+    # ==> Test PauliString class in pauli.py <==
+    def test_PauliString_order(self):
+        self.assertTrue(test_Pauli.order())
+    def test_PauliString_qubits(self):
+        self.assertTrue(test_Pauli.qubits())
+    def test_PauliString_chars(self):
+        self.assertTrue(test_Pauli.chars())
+    def test_PauliString_str(self):
+        self.assertTrue(test_Pauli.str())        
+    def test_PauliString_from_string(self):
+        self.assertTrue(test_Pauli.from_string())
+    def test_PauliString_I(self):
+        self.assertTrue(test_Pauli.I())         
+        
+        
+    # ==> Test Pauli class in pauli.py <==
+    def test_Pauli_contains(self):
+        self.assertTrue(test_Pauli.contains())
+    def test_Pauli_getitem(self):
+        self.assertTrue(test_Pauli.getitem())
+    def test_Pauli_setitem(self):
+        self.assertTrue(test_Pauli.setitem())
+    def test_Pauli_get(self):
+        self.assertTrue(test_Pauli.get())        
+    def test_Pauli_setdefault(self):
+        self.assertTrue(test_Pauli.setdefault())
+    def test_Pauli_str(self):
+        self.assertTrue(test_Pauli.str())
+    def test_Pauli_summary_str(self):
+        self.assertTrue(test_Pauli.summary_str())
+    def test_Pauli_N(self):
+        self.assertTrue(test_Pauli.N())
+    def test_Pauli_nterm(self):
+        self.assertTrue(test_Pauli.nterm())        
+    def test_Pauli_max_order(self):
+        self.assertTrue(test_Pauli.max_order())
+    def test_Pauli_pos(self):
+        self.assertTrue(test_Pauli.pos())
+    def test_Pauli_neg(self):
+        self.assertTrue(test_Pauli.neg())
+    def test_Pauli_mul(self):
+        self.assertTrue(test_Pauli.mul())
+    def test_Pauli_rmul(self):
+        self.assertTrue(test_Pauli.rmul())        
+    def test_Pauli_truediv(self):
+        self.assertTrue(test_Pauli.truediv())        
+    def test_Pauli_add(self):
+        self.assertTrue(test_Pauli.add())
+    def test_Pauli_sub(self):
+        self.assertTrue(test_Pauli.sub())
+    def test_Pauli_radd(self):
+        self.assertTrue(test_Pauli.radd())
+    def test_Pauli_rsub(self):
+        self.assertTrue(test_Pauli.rsub())        
+    def test_Pauli_iadd(self):
+        self.assertTrue(test_Pauli.iadd())
+    def test_Pauli_isub(self):
+        self.assertTrue(test_Pauli.isub())
+    def test_Pauli_dot(self):
+        self.assertTrue(test_Pauli.dot())
+    def test_Pauli_conj(self):
+        self.assertTrue(test_Pauli.conj())
+    def test_Pauli_norm2(self):
+        self.assertTrue(test_Pauli.norm2())        
+    def test_Pauli_norminf(self):
+        self.assertTrue(test_Pauli.norminf())
+    def test_Pauli_zero(self):
+        self.assertTrue(test_Pauli.zero())
+    def test_Pauli_zeros_like(self):
+        self.assertTrue(test_Pauli.zeros_like())
+    def test_Pauli_sieved(self):
+        self.assertTrue(test_Pauli.sieved())
+    def test_Pauli_I(self):
+        self.assertTrue(test_Pauli.I())        
+    def test_Pauli_IXYZ(self):
+        self.assertTrue(test_Pauli.IXYZ())  
+    def test_Pauli_extract_orders(self):
+        self.assertTrue(test_Pauli.extract_orders())
+    def test_Pauli_qubits(self):
+        self.assertTrue(test_Pauli.qubits())  
+    def test_Pauli_chars(self):
+        self.assertTrue(test_Pauli.chars())        
+    def test_Pauli_unique_chars(self):
+        self.assertTrue(test_Pauli.unique_chars())  
+    def test_Pauli_compute_hilbert_matrix(self):
+        self.assertTrue(test_Pauli.compute_hilbert_matrix())        
+    def test_Pauli_compute_hilbert_matrix_vector_product(self):
+        self.assertTrue(test_Pauli.compute_hilbert_matrix_vector_product())  
+
+
+    # ==> Test PauliStarter class in pauli.py <==
+    def test_PauliStarter_paulistarter(self):
+        self.assertTrue(test_Pauli.paulistarter())
+
+        
+    # ==> Test QuasarSimulatorBackend class in quasar_backend.py <==
+    def test_QuasarSimulatorBackend_quasar_simulator_backend(self):
+        self.assertTrue(test_quasar_backend.quasar_simulator_backend())
+    def test_QuasarSimulatorBackend_build_native_circuit(self):
+        self.assertTrue(test_quasar_backend.build_native_circuit())
+    def test_QuasarSimulatorBackend_build_native_circuit_in_basis(self):
+        self.assertTrue(test_quasar_backend.build_native_circuit_in_basis())
+    def test_QuasarSimulatorBackend_build_quasar_circuit(self):
+        self.assertTrue(test_quasar_backend.build_quasar_circuit())
+    def test_QuasarSimulatorBackend_run_statevector(self):
+        self.assertTrue(test_quasar_backend.run_statevector())
+    def test_QuasarSimulatorBackend_run_measurement(self):
+        self.assertTrue(test_quasar_backend.run_measurement())
+        
+
+    # ==> Test QiskitBackend class in qiskit_backend.py <==
+    def test_QiskitBackend_angle(self):
+        self.assertTrue(test_qiskit_backend.angle())        
+    def test_QiskitBackend_build_native_circuit(self):
+        self.assertTrue(test_qiskit_backend.build_native_circuit())        
+    def test_QiskitBackend_build_quasar_circuit(self):
+        self.assertTrue(test_qiskit_backend.build_quasar_circuit())           
+    def test_QiskitBackend_build_native_circuit_in_basis(self):
+        self.assertTrue(test_qiskit_backend.build_native_circuit_in_basis())        
+    def test_QiskitBackend_build_native_circuit_measurement(self):
+        self.assertTrue(test_qiskit_backend.build_native_circuit_measurement())
+
+
+    # ==> Test QiskitSimulatorBackend class in qiskit_backend.py <==
+    def test_QiskitSimulatorBackend_qiskit_simulator_backend(self):
+        self.assertTrue(test_qiskit_backend.qiskit_simulator_backend())        
+    def test_QiskitSimulatorBackend_run_statevector(self):
+        self.assertTrue(test_qiskit_backend.run_statevector())        
+    def test_QiskitSimulatorBackend_run_measurement(self):
+        self.assertTrue(test_qiskit_backend.run_measurement())        
+
+
+    # ==> Test CirqBackend class in cirq_backend.py <==
+    def test_CirqBackend_angle(self):
+        self.assertTrue(test_cirq_backend.angle())        
+    def test_CirqBackend_build_native_circuit(self):
+        self.assertTrue(test_cirq_backend.build_native_circuit())        
+    def test_CirqBackend_build_quasar_circuit(self):
+        self.assertTrue(test_cirq_backend.build_quasar_circuit())           
+    def test_CirqBackend_build_native_circuit_in_basis(self):
+        self.assertTrue(test_cirq_backend.build_native_circuit_in_basis())        
+    def test_CirqBackend_build_native_circuit_measurement(self):
+        self.assertTrue(test_cirq_backend.build_native_circuit_measurement())
+
+
+    # ==> Test CirqSimulatorBackend class in cirq_backend.py <==
+    def test_CirqSimulatorBackend_cirq_simulator_backend(self):
+        self.assertTrue(test_cirq_backend.cirq_simulator_backend())        
+    def test_CirqSimulatorBackend_run_statevector(self):
+        self.assertTrue(test_cirq_backend.run_statevector())        
+    def test_CirqSimulatorBackend_run_measurement(self):
+        self.assertTrue(test_cirq_backend.run_measurement())
+
+        
+    # ==> Test ForestBackend class in forest_backend.py <==
+    '''
+    def test_ForestBackend_angle(self):
+        self.assertTrue(test_forest_backend.angle())        
+    def test_ForestBackend_build_native_circuit(self):
+        self.assertTrue(test_forest_backend.build_native_circuit())        
+    def test_ForestBackend_build_quasar_circuit(self):
+        self.assertTrue(test_forest_backend.build_quasar_circuit())           
+    def test_ForestBackend_build_native_circuit_in_basis(self):
+        self.assertTrue(test_forest_backend.build_native_circuit_in_basis())        
+    def test_ForestBackend_build_native_circuit_measurement(self):
+        self.assertTrue(test_forest_backend.build_native_circuit_measurement())
+    '''
+
+    # ==> Test ForestSimulatorBackend class in forest_backend.py <==
+    '''
+    # def test_CirqSimulatorBackend_cirq_simulator_backend(self):
+        # self.assertTrue(test_forest_backend.forest_simulator_backend())        
+    # def test_CirqSimulatorBackend_run_statevector(self):
+        # self.assertTrue(test_forest_backend.run_statevector())        
+    # def test_CirqSimulatorBackend_run_measurement(self):
+        # self.assertTrue(test_forest_backend.run_measurement())
+    '''
+
+        
+    # ==> Test build_quasar_circuit function in resolution.py <==
+    def test_build_quasar_circuit_from_quasar(self):
+        self.assertTrue(test_resolution.build_quasar_circuit_from_quasar())        
+    def test_build_quasar_circuit_from_cirq(self):
+        self.assertTrue(test_resolution.build_quasar_circuit_from_cirq())        
+    def test_build_quasar_circuit_from_qiskit(self):
+        self.assertTrue(test_resolution.build_quasar_circuit_from_qiskit())
+    def test_build_quasar_circuit_from_forest(self):
+        self.assertTrue(test_resolution.build_quasar_circuit_from_forest())        
+        
+        
+    # ==> Test functions in run.py <==
+    '''
+    Tests for Forest is disabled for now. (see test_run.py)
+    '''
+    def test_build_native_circuit_to_quasar(self):
+        self.assertTrue(test_run.build_native_circuit_to_quasar())        
+    def test_build_native_circuit_to_cirq(self):
+        self.assertTrue(test_run.build_native_circuit_to_cirq())        
+    def test_build_native_circuit_to_qiskit(self):
+        self.assertTrue(test_run.build_native_circuit_to_qiskit())
+    #def test_build_native_circuit_to_forest(self):
+    #    self.assertTrue(test_run.build_native_circuit_to_forest())    
+    def test_run_measurement(self):
+        self.assertTrue(test_run.run_measurement())        
+    def test_run_statevector(self):
+        self.assertTrue(test_run.run_statevector())         
+    def test_run_pauli_expectation(self):
+        self.assertTrue(test_run.run_pauli_expectation())         
+    def test_run_unitary(self):
+        self.assertTrue(test_run.run_unitary())         
+    def test_run_density_matrix(self):
+        self.assertTrue(test_run.run_density_matrix())         
+    
+    # ==> Test functions in backend.py <==
+    def test_run_unitary(self):
+        self.assertTrue(test_backend.run_unitary())
+    def test_run_unitary1(self):
+        self.assertTrue(test_backend.run_unitary1())
+    def test_run_density_matrix(self):
+        self.assertTrue(test_backend.run_density_matrix())
+    def test_run_density_matrix1(self):
+        self.assertTrue(test_backend.run_density_matrix1())
+    def test_run_density_matrix_compressed(self):
+        self.assertTrue(test_backend.run_density_matrix_compressed())
+    def test_run_pauli_expectation_from_statevector(self):
+        self.assertTrue(test_backend.run_pauli_expectation_from_statevector())
+    def test_run_pauli_expectation_from_measurment(self):
+        self.assertTrue(test_backend.run_pauli_expectation_from_measurment())
+    def test_bit_reversal_permutation(self):
+        self.assertTrue(test_backend.bit_reversal_permutation())
+    def test_statevector_bit_reversal_permutation(self):
+        self.assertTrue(test_backend.statevector_bit_reversal_permutation())
+    def test_statevector_bit_reversal_permutation1(self):
+        self.assertTrue(test_backend.statevector_bit_reversal_permutation1())
+   
+    # ==> Testing functions of Gate and ControlledGate class in circuit.py
+    def test_init_gate(self):
+        self.assertTrue(test_gate.init_gate())
+    def test_init_param_gate(self):
+        self.assertTrue(test_gate.init_param_gate())
+    def test_same_unitary1(self):
+        self.assertTrue(test_gate.same_unitary1())
+    def test_same_unitary2(self):
+        self.assertTrue(test_gate.same_unitary2())
+    def test_same_unitary3(self):
+        self.assertTrue(test_gate.same_unitary3())
+    def test_U(self):
+        self.assertTrue(test_gate.U())
+    def test_U1(self):
+        self.assertTrue(test_gate.U1())
+    def test_copy(self):
+        self.assertTrue(test_gate.copy())
+    def test_set_params(self):
+        self.assertTrue(test_gate.set_params())
+    def test_set_params1(self):
+        self.assertTrue(test_gate.set_params1())
+    def test_set_param(self):
+        self.assertTrue(test_gate.set_param())
+    def test_set_param1(self):
+        self.assertTrue(test_gate.set_param1())
+    def test_gateRx(self):
+        self.assertTrue(test_gate.gateRx())
+    def test_gateRy(self):
+        self.assertTrue(test_gate.gateRy())
+    def test_gateRz(self):
+        self.assertTrue(test_gate.gateRz())
+    def test_gateSO4(self):
+        self.assertTrue(test_gate.gateSO4())
+    def test_gateSO42(self):
+        self.assertTrue(test_gate.gateSO42())
+    def test_gateCF(self):
+        self.assertTrue(test_gate.gateCF())
+    def test_gateU1(self):
+        self.assertTrue(test_gate.gateU1())
+    def test_gateU2(self):
+        self.assertTrue(test_gate.gateU2())
+    def test_init_controlled_gate(self):
+        self.assertTrue(test_gate.init_controlled_gate())   
 
 if __name__ == '__main__':
     unittest.main()
