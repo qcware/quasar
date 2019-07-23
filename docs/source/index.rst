@@ -10,7 +10,8 @@ Welcome to quasar_doc's documentation!
    :maxdepth: 2
    :caption: Contents:
    
-   circuit
+   Circuit <circuit>
+   Any Name you like for Backend <backend>
 
 
 Indices and tables

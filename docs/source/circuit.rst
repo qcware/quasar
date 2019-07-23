@@ -18,7 +18,7 @@ Properties
 ----------
 .. autosummary::
     :toctree: _autosummary
-        
+    
     ~quasar.Circuit.ntime
     ~quasar.Circuit.ngate
     ~quasar.Circuit.ngate1
@@ -30,7 +30,7 @@ Properties
     ~quasar.Circuit.param_keys
     ~quasar.Circuit.param_values
     ~quasar.Circuit.param_str
-
+    
 Circuits/Gates
 --------------
 .. autosummary::
@@ -40,7 +40,7 @@ Circuits/Gates
     ~quasar.Circuit.sort_gates
     ~quasar.Circuit.add_gate
     ~quasar.Circuit.gate   
-
+    
 Simulation/Measurement
 ----------------------
 .. autosummary::
@@ -64,7 +64,7 @@ Copy/Subsets/Concatenation
     ~quasar.Circuit.compressed
     ~quasar.Circuit.subcircuit
     ~quasar.Circuit.add_circuit
-
+    
 Parameters
 ----------
 .. autosummary::
@@ -72,7 +72,7 @@ Parameters
  
     ~quasar.Circuit.set_param_values     
     ~quasar.Circuit.set_params
-
+    
 Gate Addition
 -------------
 .. autosummary::
@@ -95,6 +95,6 @@ Gate Addition
     ~quasar.Circuit.Rx
     ~quasar.Circuit.Ry
     ~quasar.Circuit.Rz
-
+    
     
         
