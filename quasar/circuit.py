@@ -980,8 +980,10 @@ class Circuit(object):
         qubits = (qubits,) if isinstance(qubits, int) else qubits
         
         # Qubit validation
-        assert all(q >= 0 for q in qubits), "All qubits indices must be non-negative integers."
-        assert len(set(qubits)) == len(qubits), "Qubit list must not contain repeated indices."
+        if not all(q >= 0 for q in qubits):
+            raise RuntimeError("All qubits indices must be non-negative integers.")
+        if len(set(qubits)) != len(qubits):
+            raise RuntimeError("Qubit list must not contain repeated indices.")
         # Qubit validation
 
         # Time determination
@@ -1459,9 +1461,10 @@ class Circuit(object):
 
         # circuit validation
         # Make sure the composite circuit has enough registers to add to 
-        assert self.N >= circuit.N, ('Circuit argument must have a fewer or equal number of qubit registers than the circuit you are adding to. Cannot add circuit of size %d to circuit of size %d.' % (circuit.N, self.N))
-    
-        assert circuit.N == len(qubits), "len(qubits) must be equal to the number of registers in circuit."
+        if self.N <= circuit.N:
+            raise RuntimeError('Circuit argument must have a fewer or equal number of qubit registers than the circuit you are adding to. Cannot add circuit of size %d to circuit of size %d.' % (circuit.N, self.N))
+        if circuit.N != len(qubits):
+            raise RuntimeError("len(qubits) must be equal to the number of registers in circuit.")
         # circuit validation
         
         if times is None:
