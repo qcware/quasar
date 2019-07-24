@@ -51,7 +51,7 @@ def build_quasar_circuit():
     # directly build a quasar circuit
     bell = quasar.Circuit(N=2).H(0).CX(0,1)
 
-    return quasar_circuit==bell
+    return quasar_circuit.is_equivalent(bell)
 
     
 def build_native_circuit_in_basis():

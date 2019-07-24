@@ -38,7 +38,7 @@ def build_native_circuit():
     circuit1 = util_build_circuit()
     circuit2 = backend.build_native_circuit(circuit1)
 
-    return circuit1==circuit2
+    return circuit1.is_equivalent(circuit2)
     
     
 def build_native_circuit_in_basis():
@@ -51,7 +51,7 @@ def build_native_circuit_in_basis():
     basis = ['Z','X']
     circuit2 = backend.build_native_circuit_in_basis(circuit1, basis)
 
-    return circuit2==circuit1.H(1)
+    return circuit2.is_equivalent(circuit1.H(1))
     
     
 def build_quasar_circuit():
@@ -63,7 +63,7 @@ def build_quasar_circuit():
     circuit1 = util_build_circuit()
     circuit2 = backend.build_quasar_circuit(circuit1)
 
-    return circuit1==circuit2    
+    return circuit1.is_equivalent(circuit2)
     
     
 def run_statevector():
