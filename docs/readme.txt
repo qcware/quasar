@@ -13,3 +13,6 @@ It will generate a .rst file for each item in autosummary fields.
 
 == add contents ==
 6. To append the newly created .rst file, type the file name of the .rst file in the toc tree in the index.rst.
+
+== github ==
+Usually, people only put source folder in repo, but not the build folder.
