@@ -284,6 +284,7 @@ class Backend(object):
 
         return pauli_expectation
 
+    # => Utility Methods (Users should generally not call these) <= #
     def run_unitary(
         self,
         circuit,
@@ -294,23 +295,33 @@ class Backend(object):
         if not isinstance(circuit, Circuit):
             circuit = self.build_quasar_circuit(circuit)
         
-        unitary = np.array((2**circuit.N,)*2, dtype=dtype)
+        unitary = np.zeros((2**circuit.N,2**circuit.N), dtype=dtype)
         for i in range(2**circuit.N):
             wfn = np.zeros((2**circuit.N,), dtype=dtype)
             wfn[i] = 1.0
-            U[:, i] = (circuit.compressed() if compressed else circuit).simulate(wfn=wfn)
+            unitary[:, i] = (circuit.compressed() if compressed else circuit).simulate(wfn=wfn)
     
         return unitary
     
     def run_density_matrix(
         self,
         circuit,
-        **kwargs):
+        wavefunction=None,
+        compressed=True,
+        ):
 
-        U = self.run_unitary(circuit, **kwargs)
-        return np.dot(U, U.T.conj())
+        if not isinstance(circuit, Circuit):
+            circuit = self.build_quasar_circuit(circuit)
 
-    # => Utility Methods (Users should generally not call these) <= #
+        if wavefunction is None:
+            wfn1 = circuit.simulate()
+        else:
+            wfn1 = circuit.simulate(wfn=wavefunction)
+
+        # outer product of the wafefunction after running the circuit
+        dm = np.outer(wfn1, wfn1.conj())
+        
+        return dm    
     
     def run_pauli_expectation_from_statevector(
         self,
