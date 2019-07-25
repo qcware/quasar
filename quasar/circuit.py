@@ -60,32 +60,80 @@ class Matrix(object):
     """
 
     I = np.array([[1.0, 0.0], [0.0, 1.0]], dtype=np.complex128)
+    """ The 1-qubit I (identity) matrix """
+
     X = np.array([[0.0, 1.0], [1.0, 0.0]], dtype=np.complex128)
+    """ The 1-qubit X (NOT) matrix """
+
     Y = np.array([[0.0, -1.0j], [+1.0j, 0.0]], dtype=np.complex128)
+    """ The 1-qubit Y matrix """
+
     Z = np.array([[1.0, 0.0], [0.0, -1.0]], dtype=np.complex128)
+    """ The 1-qubit Z matrix """
+
     S = np.array([[1.0, 0.0], [0.0, 1.0j]], dtype=np.complex128)
+    """ The 1-qubit S (Phase) matrix """
+
     T = np.array([[1.0, 0.0], [0.0, np.exp(np.pi/4.0*1.j)]], dtype=np.complex128)
+    """ The 1-qubit T (sqrt-S) matrix """
+
     H = 1.0 / np.sqrt(2.0) * np.array([[1.0, 1.0], [1.0, -1.0]], dtype=np.complex128)
+    """ The 1-qubit H (Hadamard) matrix """
+
     # exp(+i (pi/4) * X) : Z -> Y basis transformation
     Rx2 = 1.0 / np.sqrt(2.0) * np.array([[1.0, +1.0j], [+1.0j, 1.0]], dtype=np.complex128)
+    """ The 1-qubit Z -> Y basis transformation matrix (a specific Rx matrix) """
+
     Rx2T = 1.0 / np.sqrt(2.0) * np.array([[1.0, -1.0j], [-1.0j, 1.0]], dtype=np.complex128)
+    """ The 1-qubit Y -> Z basis transformation matrix (a specific Rx matrix) """
 
     II = np.kron(I, I)
+    """ The 2-qubit I \otimes I matrix """
+    
     IX = np.kron(I, X)
+    """ The 2-qubit I \otimes X matrix """
+
     IY = np.kron(I, Y)
+    """ The 2-qubit I \otimes Y matrix """
+
     IZ = np.kron(I, Z)
+    """ The 2-qubit I \otimes Z matrix """
+
     XI = np.kron(X, I)
+    """ The 2-qubit X \otimes I matrix """
+
     XX = np.kron(X, X)
+    """ The 2-qubit X \otimes X matrix """
+
     XY = np.kron(X, Y)
+    """ The 2-qubit X \otimes Y matrix """
+
     XZ = np.kron(X, Z)
+    """ The 2-qubit X \otimes Z matrix """
+
     YI = np.kron(Y, I)
+    """ The 2-qubit Y \otimes I matrix """
+
     YX = np.kron(Y, X)
+    """ The 2-qubit Y \otimes X matrix """
+
     YY = np.kron(Y, Y)
+    """ The 2-qubit Y \otimes Y matrix """
+
     YZ = np.kron(Y, Z)
+    """ The 2-qubit Y \otimes Z matrix """
+
     ZI = np.kron(Z, I)
+    """ The 2-qubit Z \otimes I matrix """
+
     ZX = np.kron(Z, X)
+    """ The 2-qubit Z \otimes X matrix """
+
     ZY = np.kron(Z, Y)
+    """ The 2-qubit Z \otimes Y matrix """
+
     ZZ = np.kron(Z, Z)
+    """ The 2-qubit Z \otimes Z matrix """
 
     CX = np.array([
         [1.0, 0.0, 0.0, 0.0],
@@ -93,33 +141,43 @@ class Matrix(object):
         [0.0, 0.0, 0.0, 1.0],
         [0.0, 0.0, 1.0, 0.0],
         ], dtype=np.complex128)
+    """ The 2-qubit CX (controlled-X) matrix """
+
     CY = np.array([
         [1.0, 0.0, 0.0, 0.0],
         [0.0, 1.0, 0.0, 0.0],
         [0.0, 0.0, 0.0, -1.0j],
         [0.0, 0.0, +1.0j, 0.0],
         ], dtype=np.complex128)
+    """ The 2-qubit CY (controlled-Y) matrix """
+
     CZ = np.array([
         [1.0, 0.0, 0.0, 0.0],
         [0.0, 1.0, 0.0, 0.0],
         [0.0, 0.0, 1.0, 0.0],
         [0.0, 0.0, 0.0, -1.0],
         ], dtype=np.complex128)
+    """ The 2-qubit CZ (controlled-Z) matrix """
+
     CS = np.array([
         [1.0, 0.0, 0.0, 0.0],
         [0.0, 1.0, 0.0, 0.0],
         [0.0, 0.0, 1.0, 0.0],
         [0.0, 0.0, 0.0, 1.0j],
         ], dtype=np.complex128)
+    """ The 2-qubit CS (controlled-S) matrix """
+
     SWAP = np.array([
         [1.0, 0.0, 0.0, 0.0],
         [0.0, 0.0, 1.0, 0.0],
         [0.0, 1.0, 0.0, 0.0],
         [0.0, 0.0, 0.0, 1.0],
         ], dtype=np.complex128)
+    """ The 2-qubit SWAP matrix """
 
     # Toffoli
     CCX = np.eye(8, dtype=np.complex128)
+    """ The 3-qubit CCX (Toffoli) matrix """
     CCX[6,6] = 0.0
     CCX[7,7] = 0.0
     CCX[6,7] = 1.0
@@ -127,6 +185,7 @@ class Matrix(object):
 
     # Fredkin
     CSWAP = np.eye(8, dtype=np.complex128)
+    """ The 3-qubit CSWAP (Fredkin) matrix """
     CSWAP[5,5] = 0.0
     CSWAP[6,6] = 0.0
     CSWAP[5,6] = 1.0
@@ -134,18 +193,51 @@ class Matrix(object):
 
     @staticmethod
     def Rx(theta=0.0):
+        """ The 1-qubit Rx (rotation about X) matrix
+
+        Defined as,
+
+            U = exp(-i*theta*X)
+
+        Params:
+            theta (float) - rotation angle.
+        Returns:
+            (np.ndarray) - Rx matrix for the specified value of theta.
+        """
         c = np.cos(theta)
         s = np.sin(theta)
         return np.array([[c, -1.j*s], [-1.j*s, c]], dtype=np.complex128)
 
     @staticmethod
     def Ry(theta=0.0):
+        """ The 1-qubit Ry (rotation about Y) matrix
+
+        Defined as,
+
+            U = exp(-i*theta*Y)
+
+        Params:
+            theta (float) - rotation angle.
+        Returns:
+            (np.ndarray) - Ry matrix for the specified value of theta.
+        """
         c = np.cos(theta)
         s = np.sin(theta)
         return np.array([[c, -s], [+s, c]], dtype=np.complex128)
 
     @staticmethod
     def Rz(theta=0.0):
+        """ The 1-qubit Rz (rotation about Z) matrix
+
+        Defined as,
+
+            U = exp(-i*theta*Z)
+
+        Params:
+            theta (float) - rotation angle.
+        Returns:
+            (np.ndarray) - Rz matrix for the specified value of theta.
+        """
         c = np.cos(theta)
         s = np.sin(theta)
         return np.array([[c-1.j*s, 0.0], [0.0, c+1.j*s]], dtype=np.complex128)
@@ -245,7 +337,7 @@ class Gate(object):
                 ['@', 'X'] for CX.
         """
         
-        self.N = N
+        self.N = N 
         self.Ufun = Ufun
         self.params = params
         self.name = name
@@ -335,7 +427,6 @@ class Gate(object):
 
 # > Explicit 1-body gates < #
 
-""" I (identity) gate """
 Gate.I = Gate(
     N=1,
     Ufun = lambda params : Matrix.I,
@@ -343,7 +434,8 @@ Gate.I = Gate(
     name='I',
     ascii_symbols=['I'],
     )
-""" X (NOT) gate """
+""" I (identity) gate """
+
 Gate.X = Gate(
     N=1,
     Ufun = lambda params : Matrix.X,
@@ -351,7 +443,8 @@ Gate.X = Gate(
     name='X',
     ascii_symbols=['X'],
     )
-""" Y gate """
+""" X (NOT) gate """
+
 Gate.Y = Gate(
     N=1,
     Ufun = lambda params : Matrix.Y,
@@ -359,7 +452,8 @@ Gate.Y = Gate(
     name='Y',
     ascii_symbols=['Y'],
     )
-""" Z gate """
+""" Y gate """
+
 Gate.Z = Gate(
     N=1,
     Ufun = lambda params : Matrix.Z,
@@ -367,7 +461,8 @@ Gate.Z = Gate(
     name='Z',
     ascii_symbols=['Z'],
     )
-""" H (Hadamard) gate """
+""" Z gate """
+
 Gate.H = Gate(
     N=1,
     Ufun = lambda params : Matrix.H,
@@ -375,7 +470,8 @@ Gate.H = Gate(
     name='H',
     ascii_symbols=['H'],
     )
-""" S gate """
+""" H (Hadamard) gate """
+
 Gate.S = Gate(
     N=1,
     Ufun = lambda params : Matrix.S,
@@ -383,7 +479,8 @@ Gate.S = Gate(
     name='S',
     ascii_symbols=['S'],
     )
-""" T gate """
+""" S gate """
+
 Gate.T = Gate(
     N=1,
     Ufun = lambda params : Matrix.T,
@@ -391,7 +488,8 @@ Gate.T = Gate(
     params=collections.OrderedDict(),
     ascii_symbols=['T'],
     )
-""" Rx2 gate """
+""" T gate """
+
 Gate.Rx2 = Gate(
     N=1,
     Ufun = lambda params : Matrix.Rx2,
@@ -399,7 +497,8 @@ Gate.Rx2 = Gate(
     name='Rx2',
     ascii_symbols=['Rx2'],
     )
-""" Rx2T gate """
+""" Rx2 gate """
+
 Gate.Rx2T = Gate(
     N=1,
     Ufun = lambda params : Matrix.Rx2T,
@@ -407,6 +506,7 @@ Gate.Rx2T = Gate(
     name='Rx2T',
     ascii_symbols=['Rx2T'],
     )
+""" Rx2T gate """
 
 # > Explicit 2-body gates < #
 
@@ -779,6 +879,10 @@ Gate.U2 = _GateU2
 
 class ControlledGate(Gate):
 
+    """ Class ControlledGate extends Gate to allow an arbitrary number of controls.
+
+    """
+
     def __init__(
         self,
         gate,
@@ -876,7 +980,7 @@ class Circuit(object):
 
     @property
     def ntime(self):
-        """ The total number of time moments in the circuit (including blank moments) """
+        """ The total number of time moments in the circuit (including blank moments). """
         return self.Ts[-1] + 1 if len(self.Ts) else 0
 
     @property

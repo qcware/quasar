@@ -1,6 +1,5 @@
 from .backend import Backend
 from .circuit import Circuit
-from .jobsummary import JobSummary
 
 class QuasarSimulatorBackend(Backend):
 
@@ -79,11 +78,6 @@ class QuasarSimulatorBackend(Backend):
         ):
 
         statevector = (circuit.compressed() if compressed else circuit).simulate()
-        # summary = JobSummary(
-        #     resources={ 'nstatevector' : 1, },
-        #     attributes={ 'name' : str(self), },
-        #     )
-        # return statevector, summary
         return statevector
 
     def run_measurement(
@@ -94,11 +88,6 @@ class QuasarSimulatorBackend(Backend):
         ):
 
         measurement = (circuit.compressed() if compressed else circuit).measure(nmeasurement)
-        # summary = JobSummary(
-        #     resources={ 'nstatevector' : 1, 'nmeasurement' : nmeasurement, 'nmeasurent_call' : 1, },
-        #     attributes={ 'name' : str(self), },
-        #     )
-        # return measurement, summary
         return measurement
 
 

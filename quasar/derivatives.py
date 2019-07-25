@@ -4,94 +4,6 @@ from .pauli import Pauli
 from .circuit import Circuit
 import numpy as np
 
-def run_ensemble_observable_expectation_value_and_pauli(
-    backend,
-    reference_circuits,
-    reference_weights,
-    circuit,
-    pauli,
-    nmeasurement=None,
-    **kwargs):
-
-    # No dropthrough - always need quasar.Circuit to manipulate
-    reference_circuits = [build_quasar_circuit(_) for _ in reference_circuits]
-    circuit = build_quasar_circuit(circuit).copy()
-
-    E = 0.0
-    pauli_dm = Pauli.zeros_like(pauli)
-    for ref, w in zip(reference_circuits, reference_weights):
-        circuit2 = Circuit.concatenate([ref, circuit])
-        pauli2 = run_pauli_expectation(backend, circuit2, pauli, nmeasurement, **kwargs)
-        E += w * pauli2.dot(pauli).real
-        pauli_dm += w * pauli2
-
-    return E, pauli_dm
-
-def run_ensemble_observable_expectation_value(
-    backend,
-    reference_circuits,
-    reference_weights,
-    circuit,
-    pauli,
-    nmeasurement=None,
-    **kwargs):
-
-    return run_ensemble_observable_expectation_value_and_pauli(
-        backend,
-        reference_circuits,
-        reference_weights,
-        circuit,
-        pauli,
-        nmeasurement,
-        **kwargs)[0]
-
-def run_ensemble_observable_expectation_value_gradient(
-    backend,
-    reference_circuits,
-    reference_weights,
-    circuit,
-    pauli,
-    nmeasurement=None,
-    param_indices=None,
-    **kwargs):
-
-    # No dropthrough - always need quasar.Circuit to manipulate
-    reference_circuits = [build_quasar_circuit(_) for _ in reference_circuits]
-    circuit = build_quasar_circuit(circuit).copy()
-    param_values = circuit.param_values
-
-    # Default to taking the gradient with respect to all params
-    if param_indices is None:
-        param_indices = tuple(range(circuit.nparam))
-
-    # Check that the gradient formula is known for these parameters (i.e., Rx, Ry, Rz gates)
-    param_keys = circuit.param_keys
-    for param_index in param_indices:
-        key = param_keys[param_index]
-        time, qubits, name = key
-        gate = circuit.gates[(time, qubits)]
-        if not gate.name in ('Rx', 'Ry', 'Rz'): 
-            raise RuntimeError('Unknown gradient rule: presently can only differentiate Rx, Ry, Rz gates: %s' % gate)
-
-    # Evaluate the gradient
-    G = np.zeros((len(param_indices),))
-    for I, param_index in enumerate(param_indices):
-        for ref, w in zip(reference_circuits, reference_weights):
-            param_values2 = param_values.copy()
-            param_values2[param_index] += np.pi / 4.0
-            circuit.set_param_values(param_values2)
-            circuit2 = Circuit.concatenate([ref, circuit])
-            Ep = run_pauli_expectation(backend, circuit2, pauli, nmeasurement, **kwargs).dot(pauli)
-            param_values2 = param_values.copy()
-            param_values2[param_index] -= np.pi / 4.0
-            circuit.set_param_values(param_values2)
-            circuit2 = Circuit.concatenate([ref, circuit])
-            Em = run_pauli_expectation(backend, circuit2, pauli, nmeasurement, **kwargs).dot(pauli)
-            G[I] += w * (Ep - Em).real # TODO: do we need this to be real?
-
-    return G
-
-
 def run_observable_expectation_value_and_pauli(
     backend,
     circuit,
@@ -328,3 +240,91 @@ def run_observable_expectation_value_gradient_pauli_contraction(
         pauli_G += param_coefs[I] * (paulip - paulim)
 
     return pauli_G
+
+def run_ensemble_observable_expectation_value_and_pauli(
+    backend,
+    reference_circuits,
+    reference_weights,
+    circuit,
+    pauli,
+    nmeasurement=None,
+    **kwargs):
+
+    # No dropthrough - always need quasar.Circuit to manipulate
+    reference_circuits = [build_quasar_circuit(_) for _ in reference_circuits]
+    circuit = build_quasar_circuit(circuit).copy()
+
+    E = 0.0
+    pauli_dm = Pauli.zeros_like(pauli)
+    for ref, w in zip(reference_circuits, reference_weights):
+        circuit2 = Circuit.concatenate([ref, circuit])
+        pauli2 = run_pauli_expectation(backend, circuit2, pauli, nmeasurement, **kwargs)
+        E += w * pauli2.dot(pauli).real
+        pauli_dm += w * pauli2
+
+    return E, pauli_dm
+
+def run_ensemble_observable_expectation_value(
+    backend,
+    reference_circuits,
+    reference_weights,
+    circuit,
+    pauli,
+    nmeasurement=None,
+    **kwargs):
+
+    return run_ensemble_observable_expectation_value_and_pauli(
+        backend,
+        reference_circuits,
+        reference_weights,
+        circuit,
+        pauli,
+        nmeasurement,
+        **kwargs)[0]
+
+def run_ensemble_observable_expectation_value_gradient(
+    backend,
+    reference_circuits,
+    reference_weights,
+    circuit,
+    pauli,
+    nmeasurement=None,
+    param_indices=None,
+    **kwargs):
+
+    # No dropthrough - always need quasar.Circuit to manipulate
+    reference_circuits = [build_quasar_circuit(_) for _ in reference_circuits]
+    circuit = build_quasar_circuit(circuit).copy()
+    param_values = circuit.param_values
+
+    # Default to taking the gradient with respect to all params
+    if param_indices is None:
+        param_indices = tuple(range(circuit.nparam))
+
+    # Check that the gradient formula is known for these parameters (i.e., Rx, Ry, Rz gates)
+    param_keys = circuit.param_keys
+    for param_index in param_indices:
+        key = param_keys[param_index]
+        time, qubits, name = key
+        gate = circuit.gates[(time, qubits)]
+        if not gate.name in ('Rx', 'Ry', 'Rz'): 
+            raise RuntimeError('Unknown gradient rule: presently can only differentiate Rx, Ry, Rz gates: %s' % gate)
+
+    # Evaluate the gradient
+    G = np.zeros((len(param_indices),))
+    for I, param_index in enumerate(param_indices):
+        for ref, w in zip(reference_circuits, reference_weights):
+            param_values2 = param_values.copy()
+            param_values2[param_index] += np.pi / 4.0
+            circuit.set_param_values(param_values2)
+            circuit2 = Circuit.concatenate([ref, circuit])
+            Ep = run_pauli_expectation(backend, circuit2, pauli, nmeasurement, **kwargs).dot(pauli)
+            param_values2 = param_values.copy()
+            param_values2[param_index] -= np.pi / 4.0
+            circuit.set_param_values(param_values2)
+            circuit2 = Circuit.concatenate([ref, circuit])
+            Em = run_pauli_expectation(backend, circuit2, pauli, nmeasurement, **kwargs).dot(pauli)
+            G[I] += w * (Ep - Em).real # TODO: do we need this to be real?
+
+    return G
+

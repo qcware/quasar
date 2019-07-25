@@ -1,15 +1,112 @@
 .. currentmodule:: quasar
 
+Matrix
+======
+
+.. autoclass:: Matrix
+
+Common Matrices
+---------------
+.. autosummary::
+    :toctree: _autosummary
+    
+    ~quasar.Matrix.I
+    ~quasar.Matrix.X
+    ~quasar.Matrix.Y
+    ~quasar.Matrix.Z
+    ~quasar.Matrix.S
+    ~quasar.Matrix.T
+    ~quasar.Matrix.H
+    ~quasar.Matrix.Rx2
+    ~quasar.Matrix.Rx2T
+    ~quasar.Matrix.II
+    ~quasar.Matrix.IX
+    ~quasar.Matrix.IY
+    ~quasar.Matrix.IZ
+    ~quasar.Matrix.XI
+    ~quasar.Matrix.XX
+    ~quasar.Matrix.XY
+    ~quasar.Matrix.XZ
+    ~quasar.Matrix.YI
+    ~quasar.Matrix.YX
+    ~quasar.Matrix.YY
+    ~quasar.Matrix.YZ
+    ~quasar.Matrix.ZI
+    ~quasar.Matrix.ZX
+    ~quasar.Matrix.ZY
+    ~quasar.Matrix.ZZ
+    ~quasar.Matrix.CX
+    ~quasar.Matrix.CY
+    ~quasar.Matrix.CZ
+    ~quasar.Matrix.CS
+    ~quasar.Matrix.SWAP
+    ~quasar.Matrix.CSWAP
+    ~quasar.Matrix.CCX
+    ~quasar.Matrix.Rx
+    ~quasar.Matrix.Ry
+    ~quasar.Matrix.Rz
+    ~quasar.Matrix.u1
+    ~quasar.Matrix.u2
+    ~quasar.Matrix.u3
+    ~quasar.Matrix.R_ion
+    ~quasar.Matrix.Rz_ion
+    ~quasar.Matrix.XX_ion
+    
+Gate
+====
+
+.. autoclass:: Gate
+.. autofunction:: quasar.Gate.__init__
+
+Properties
+----------
+.. autosummary::
+    :toctree: _autosummary
+    
+    ~quasar.Gate.U
+
+ControlledGate
+==============
+
+.. autoclass:: ControlledGate
+.. autofunction:: quasar.ControlledGate.__init__
+
+Properties
+----------
+.. autosummary::
+    :toctree: _autosummary
+    
+    ~quasar.ControlledGate.U
+
+
+Methods
+-------
+
+.. autosummary::
+    :toctree: _autosummary
+
+    ~quasar.Gate.copy
+    ~quasar.Gate.same_unitary
+    ~quasar.Gate.set_param
+    ~quasar.Gate.set_params
+
+Static Methods
+--------------
+.. autosummary::
+    :toctree: _autosummary
+    
+    ~quasar.Gate.I
+    ~quasar.Gate.X
+    ~quasar.Gate.Y
+    ~quasar.Gate.Z
+    ~quasar.Gate.S
+    ~quasar.Gate.T
+    ~quasar.Gate.H
+    ~quasar.Gate.Rx2
+    ~quasar.Gate.Rx2T
+
 Circuit
 =======
-
-A :py:class:`~quasar.Circuit` is effectively a list of gates and instructions which
-can be created using the function documented in this section::
-
-    >>> import quasar
-    >>>
-    >>> circuit = quasar.Circuit(N=2)
-    >>> circuit = circuit.X(0).CX(0,1)
 
 .. autoclass:: Circuit
 .. autofunction:: quasar.Circuit.__init__
