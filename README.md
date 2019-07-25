@@ -1,5 +1,5 @@
 # Quasar
-[![Build Status](https://circleci.com/gh/qcware/quasar.svg?style=svg&circle-token=e85544db6236d5ecb720ac042a9a40d2f819a4ec)](https://circleci.com/gh/qcware/quasar.svg?style=svg&circle-token=e85544db6236d5ecb720ac042a9a40d2f819a4ec)
+Autotests: [![Build Status](https://circleci.com/gh/qcware/quasar.svg?style=svg&circle-token=e85544db6236d5ecb720ac042a9a40d2f819a4ec)](https://circleci.com/gh/qcware/quasar.svg?style=svg&circle-token=e85544db6236d5ecb720ac042a9a40d2f819a4ec)
 
 ## Environment setup:
 Reccommened: create a virtual environment with virtualenv or conda. E.g.:
