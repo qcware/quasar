@@ -64,16 +64,21 @@ class QFD(object):
         # > QFD Options < #
 
         opt.add_option(
-            key='kappa_method',
+            key='qfd_kappa_method',
             value='gorshgorin',
             allowed_types=[str],
             allowed_values=['gorshgorin', 'evals',],
             doc='Method to determine kappa scaling parameter')
         opt.add_option(
-            key='kmax',
+            key='qfd_kmax',
             value=1,
             allowed_types=[int],
             doc='Number of k points to include in QFD expansion')
+        opt.add_option(
+            key='qfd_cutoff',
+            value=1.0E-7,
+            allowed_types=[float],
+            doc='Cutoff in QFD metric orthogonalization')
 
         QFD._default_options = opt
         return QFD._default_options.copy()
@@ -146,6 +151,11 @@ class QFD(object):
         return AIEMUtil.aiem_pauli_to_pauli(self.aiem_hamiltonian_pauli, self_energy=False)
 
     @memoized_property
+    def mu_pauli(self):
+        """ Normal Ordered (self dipole mu removed) """
+        return [AIEMUtil.aiem_pauli_to_pauli(_, self_energy=False) for _ in self.aiem_mu_pauli]
+
+    @memoized_property
     def hamiltonian_matrix(self):
         """ Normal Ordered Hamiltonian in computational basis """
         return self.hamiltonian_pauli.compute_hilbert_matrix(dtype=np.float64) 
@@ -172,8 +182,12 @@ class QFD(object):
         return self.hamiltonian_diags[-1] - self.hamiltonian_diags[0] + self.hamiltonian_gorshgorin_disks[-1] + self.hamiltonian_gorshgorin_disks[0]        
 
     @property
-    def kmax(self):
-        return self.options['kmask']
+    def qfd_kmax(self):
+        return self.options['qfd_kmax']
+
+    @property
+    def qfd_cutoff(self):
+        return self.options['qfd_cutoff']
 
     def compute_energy(
         self,
@@ -196,7 +210,7 @@ class QFD(object):
             print('  %-12s = %s' % ('Connectivity', self.aiem_monomer.connectivity_str))
             print('')
     
-        # => CIS States <= #
+        # => CIS <= #
 
         # > CIS States < #
 
@@ -247,7 +261,7 @@ class QFD(object):
             cis_O.append(O)
         self.cis_O = np.array(cis_O)
 
-        # => FCI States <= #
+        # => FCI <= #
 
         # > FCI States < #
 
@@ -271,24 +285,66 @@ class QFD(object):
 
         # => Kappa Determination <= #
 
-        if self.options['kappa_method'] == 'evals':
+        if self.options['qfd_kappa_method'] == 'evals':
             self.kappa = self.kappa_evals
-        elif self.options['kappa_method'] == 'gorshgorin':
+        elif self.options['qfd_kappa_method'] == 'gorshgorin':
             self.kappa = self.kappa_gorshgorin
         else:
-            raise RuntimeError('Unknown kappa method: %s' % self.option['kappa_method'])
+            raise RuntimeError('Unknown qfd_kappa_method: %s' % self.option['qfd_kappa_method'])
 
         if self.print_level:
             print('Kappa Spectral Range:') 
-            print('  Kappa method = %11s' % (self.options['kappa_method']))
+            print('  Kappa method = %11s' % (self.options['qfd_kappa_method']))
             print('  Kappa        = %11.3E' % (self.kappa))
             print('  Kappa evals  = %11.3E' % (self.kappa_evals))
             print('  Kappa ratio  = %11.3E' % (self.kappa / self.kappa_evals))
             print('')
 
-        # => 
+        # => QFD <= #
 
-        
+        if self.print_level:
+            print('QFD Matrix Elements:') 
+            print('  Kmax   = %11d' % self.qfd_kmax)
+            print('  Cutoff = %11.3E' % self.qfd_cutoff)
+            print('')
+    
+        # > QFD Matrix Elements < #
+
+        I, X, Y, Z = quasar.Pauli.IXYZ()
+        pauli_I = 1.0 * I
+        self.qfd_H, self.qfd_S, self.qfd_mu_X, self.qfd_mu_Y, self.qfd_mu_Z = QFD.build_qfd_brute_force(
+            cis_C=self.cis_C,
+            hamiltonian=self.hamiltonian_pauli,
+            kmax=self.qfd_kmax,
+            kappa=self.kappa,
+            paulis=[
+                self.hamiltonian_pauli,
+                pauli_I,
+                self.mu_pauli[0],
+                self.mu_pauli[1],
+                self.mu_pauli[2],
+                ],
+            )
+
+        # > QFD Subspace Diagonalization < #
+
+        self.qfd_E, self.qfd_C, self.qfd_O, self.qfd_s = self.diagonalize_qfd(
+            nref=self.nstate,
+            kmax=self.qfd_kmax,
+            cutoff=self.qfd_cutoff,
+            )
+
+        # > Total Energies (Incl. Reference Energies) < #
+
+        self.fci_tot_E = self.fci_E + self.aiem_hamiltonian_pauli.E
+        self.qfd_tot_E = self.qfd_E + self.aiem_hamiltonian_pauli.E
+        self.cis_tot_E = self.cis_E + self.aiem_hamiltonian_pauli.E
+    
+        # > Properties/Analysis < #
+
+        if self.print_level:
+            self.analyze_energies()
+            self.analyze_transitions()
 
         # > Trailer < #
 
@@ -296,6 +352,92 @@ class QFD(object):
             print("  Han Solo: Flying through hyperspace ain't like dusting crops, boy!")
             print('')
             print('==> QFD+AIEM <==\n')
+
+    # => Analysis <= #
+
+    def analyze_energies(self):
+
+        print('State Energies (Total):\n')
+        print('%-5s: %24s %24s %24s %24s %24s' % (
+            'State',
+            'FCI',
+            'QFD',
+            'CIS',
+            'dQFD',
+            'dCIS',
+            ))
+        for I in range(self.nstate):
+            print('%-5d: %24.16E %24.16E %24.16E %24.15E %24.16E' % (
+                I,
+                self.fci_tot_E[I],
+                self.qfd_tot_E[I],
+                self.cis_tot_E[I],
+                self.qfd_tot_E[I] - self.fci_tot_E[I],
+                self.cis_tot_E[I] - self.fci_tot_E[I],
+                ))
+        print('')
+            
+        print('State Energies (Normal):\n')
+        print('%-5s: %24s %24s %24s %24s %24s' % (
+            'State',
+            'FCI',
+            'QFD',
+            'CIS',
+            'dQFD',
+            'dCIS',
+            ))
+        for I in range(self.nstate):
+            print('%-5d: %24.16E %24.16E %24.16E %24.15E %24.16E' % (
+                I,
+                self.fci_E[I],
+                self.qfd_E[I],
+                self.cis_E[I],
+                self.qfd_E[I] - self.fci_E[I],
+                self.cis_E[I] - self.fci_E[I],
+                ))
+        print('')
+            
+        print('Excitation Energies:\n')
+        print('%-5s: %24s %24s %24s %24s %24s' % (
+            'State',
+            'FCI',
+            'QFD',
+            'CIS',
+            'dQFD',
+            'dCIS',
+            ))
+        for I in range(1,self.nstate):
+            print('%-5d: %24.16E %24.16E %24.16E %24.15E %24.16E' % (
+                I,
+                self.fci_E[I] - self.fci_E[0],
+                self.qfd_E[I] - self.qfd_E[0],
+                self.cis_E[I] - self.cis_E[0],
+                self.qfd_E[I] - self.qfd_E[0] - self.fci_E[I] + self.fci_E[0],
+                self.cis_E[I] - self.cis_E[0] - self.fci_E[I] + self.fci_E[0],
+                ))
+        print('')
+
+    def analyze_transitions(self):
+
+        print('Oscillator Strengths:\n')
+        print('%-5s: %24s %24s %24s %24s %24s' % (
+            'State',
+            'FCI',
+            'QFD',
+            'CIS',
+            'dQFD',
+            'dCIS',
+            ))
+        for I in range(1,self.nstate):
+            print('%-5d: %24.16E %24.16E %24.16E %24.15E %24.16E' % (
+                I,
+                self.fci_O[I-1],
+                self.qfd_O[I-1],
+                self.cis_O[I-1],
+                self.qfd_O[I-1] - self.fci_O[I-1],
+                self.cis_O[I-1] - self.fci_O[I-1],
+                ))
+        print('')
 
     # => CIS Considerations (Classical) <= #
 
@@ -737,4 +879,110 @@ class QFD(object):
                 pauli_dm.ZZ[A,B] += D[3,3] * w
                 pauli_dm.ZZ[B,A] += D[3,3] * w
         return pauli_dm
+
+    # => QFD Routines <= #
+
+    @staticmethod
+    def build_qfd_brute_force(
+        cis_C,
+        hamiltonian,
+        kmax,
+        kappa,
+        paulis,
+        ):
+
+        # > Sizing < #
         
+        ncis = cis_C.shape[1]
+        nk = 2 * kmax + 1
+
+        # > Hamiltonian < #
+        
+        H = hamiltonian.compute_hilbert_matrix(dtype=np.float64)
+
+        # > Eigendecomposition < #
+    
+        h, V = np.linalg.eigh(H)
+
+        # > Reference States < #
+    
+        cis_statevectors = np.zeros((2**hamiltonian.N, ncis))
+        for I in range(ncis):
+            thetas = QFD.compute_cis_angles(cs=cis_C[:,I])
+            cis_circuit = QFD.build_cis_circuit(thetas=thetas)
+            cis_statevectors[:,I] = cis_circuit.compressed().simulate().real
+
+        # > Eigenbasis Reference States < #
+    
+        cis_statevectors2 = np.dot(V.T, cis_statevectors)
+            
+        # > Operators < #
+
+        Os = [_.compute_hilbert_matrix(N=hamiltonian.N, dtype=np.float64) for _ in paulis]
+
+        # > Eigenbasis Operators < #
+
+        O2s = [np.dot(V.T, np.dot(O, V)) for O in Os]
+
+        # > Time-Propagated Reference States < #
+
+        psi = np.zeros((2**hamiltonian.N, ncis, nk), dtype=np.complex128)
+        psi[:, :, 0] = cis_statevectors2
+        for k in range(1, kmax+1):
+            psi[:, :, 2*k - 1] = np.einsum('I,IC->IC', np.exp(-2.0j * np.pi * k / kappa * h), cis_statevectors2)
+            psi[:, :, 2*k - 0] = np.einsum('I,IC->IC', np.exp(+2.0j * np.pi * k / kappa * h), cis_statevectors2)
+
+        # > QFD Basis Operators < #
+
+        O3s = []
+        for O2 in O2s:
+            chi = np.einsum('IJ,JCk->ICk', O2, psi)
+            O3s.append(np.einsum('ICk,IDl->CkDl', psi.conj(), chi))
+
+        return O3s
+        
+    def diagonalize_qfd(
+        self,
+        nref,
+        kmax,
+        cutoff,
+        ):
+
+        # Operators restricted to kmax
+        Os = [O[:nref,:2*kmax+1,:nref,:2*kmax+1] for O in [
+            self.qfd_H, 
+            self.qfd_S, 
+            self.qfd_mu_X, 
+            self.qfd_mu_Y, 
+            self.qfd_mu_Z, 
+            ]]
+        Os = [np.reshape(O, (O.shape[0]*O.shape[1],)*2) for O in Os]
+        H, S, mu_X, mu_Y, mu_Z = Os
+
+        # Orthogonalizer
+        s, U = np.linalg.eigh(S)
+        s2 = s[s > cutoff * np.min(s)]
+        U2 = U[:, s > cutoff * np.min(s)]
+        X = np.einsum('ij,j->ij', U2, s2**(-1.0/2.0))
+
+        # Orthonormal-basis Fourier basis Hamiltonian
+        H2 = np.dot(X.T.conj(), np.dot(H, X))
+
+        # Orthonormal-basis Fourier basis eigendecomposition
+        E, U = np.linalg.eigh(H2)
+
+        # Filter diagonalization coefficients
+        C = np.dot(X, U)
+
+        # Eigenbasis dipole moments
+        OX = np.dot(C.T.conj(), np.dot(mu_X, C)) 
+        OY = np.dot(C.T.conj(), np.dot(mu_Y, C)) 
+        OZ = np.dot(C.T.conj(), np.dot(mu_Z, C)) 
+
+        # Oscillator strengths
+        O = []
+        for J in range(1, OX.shape[0]):
+            O.append(2.0 / 3.0 * (E[J] - E[0]) * (np.abs(OX[0,J])**2 + np.abs(OY[0,J])**2 + np.abs(OZ[0,J]**2)))
+        O = np.array(O)
+
+        return E, C, O, s

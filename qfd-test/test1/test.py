@@ -48,7 +48,7 @@ if __name__ == '__main__':
     datapath = '../../data/aiem/bchl-a-8-stack/tc'
     filenames = ['%s/%d/exciton.dat' % (datapath, _) for _ in range(1, 8+1)]
     N = 8
-    nstate = N+1
+    nstate = 8
     connectivity = 'linear'
 
     aiem_monomer = qfd.AIEMMonomer.from_tc_exciton_files(
@@ -61,6 +61,8 @@ if __name__ == '__main__':
         backend=backend,
         nstate=nstate,
         aiem_monomer=aiem_monomer,
+        qfd_kmax=3,
+        qfd_cutoff=1.0E-7,
         )
     aiem_solver.compute_energy()
 
@@ -71,5 +73,4 @@ if __name__ == '__main__':
     #     aiem_solver=aiem_solver,
     #     )
 
-    print(aiem_solver.cis_O)
-    print(aiem_solver.fci_O)
+

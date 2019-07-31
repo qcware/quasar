@@ -408,9 +408,10 @@ class Pauli(collections.OrderedDict):
     def compute_hilbert_matrix(
         self,
         dtype=np.complex128,
+        N=None,
         ):
     
-        N = self.N
+        N = self.N if N is None else N
         O = np.zeros((2**N,)*2, dtype=np.complex128)
 
         for string, value in self.items():
