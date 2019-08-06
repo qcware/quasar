@@ -67,8 +67,13 @@ class QFD(object):
             key='qfd_kappa_method',
             value='gorshgorin',
             allowed_types=[str],
-            allowed_values=['gorshgorin', 'evals',],
+            allowed_values=['gorshgorin', 'evals', 'explicit'],
             doc='Method to determine kappa scaling parameter')
+        opt.add_option(
+            key='qfd_kappa_explicit',
+            value=0.0,
+            allowed_types=[float],
+            doc='Explicit value of kappa scaling parameter')
         opt.add_option(
             key='qfd_kmax',
             value=1,
@@ -289,8 +294,10 @@ class QFD(object):
             self.kappa = self.kappa_evals
         elif self.options['qfd_kappa_method'] == 'gorshgorin':
             self.kappa = self.kappa_gorshgorin
+        elif self.options['qfd_kappa_method'] == 'explicit':
+            self.kappa = self.options['qfd_kappa_explicit']
         else:
-            raise RuntimeError('Unknown qfd_kappa_method: %s' % self.option['qfd_kappa_method'])
+            raise RuntimeError('Unknown qfd_kappa_method: %s' % self.options['qfd_kappa_method'])
 
         if self.print_level:
             print('Kappa Spectral Range:') 
@@ -328,7 +335,7 @@ class QFD(object):
 
         # > QFD Subspace Diagonalization < #
 
-        self.qfd_E, self.qfd_C, self.qfd_O, self.qfd_s = self.diagonalize_qfd(
+        self.qfd_E, self.qfd_C, self.qfd_O, self.qfd_s = self.qfd_diagonalize(
             nref=self.nstate,
             kmax=self.qfd_kmax,
             cutoff=self.qfd_cutoff,
@@ -882,6 +889,41 @@ class QFD(object):
 
     # => QFD Routines <= #
 
+    @property
+    def qfd_hilbert_H(
+        self,
+        ):
+
+        return self.hamiltonian_pauli.compute_hilbert_matrix(dtype=np.float64)
+
+    @property
+    def qfd_hilbert_S(
+        self,
+        ):
+
+        return np.eye(2**self.N)
+
+    @property
+    def qfd_hilbert_mu_X(
+        self,
+        ):
+
+        return self.mu_pauli[0].compute_hilbert_matrix(dtype=np.float64)
+
+    @property
+    def qfd_hilbert_mu_Y(
+        self,
+        ):
+
+        return self.mu_pauli[1].compute_hilbert_matrix(dtype=np.float64)
+
+    @property
+    def qfd_hilbert_mu_Z(
+        self,
+        ):
+
+        return self.mu_pauli[2].compute_hilbert_matrix(dtype=np.float64)
+
     @staticmethod
     def build_qfd_brute_force(
         cis_C,
@@ -910,59 +952,119 @@ class QFD(object):
         for I in range(ncis):
             thetas = QFD.compute_cis_angles(cs=cis_C[:,I])
             cis_circuit = QFD.build_cis_circuit(thetas=thetas)
-            cis_statevectors[:,I] = cis_circuit.compressed().simulate().real
+            cis_statevectors[:,I] = cis_circuit.simulate().real
 
-        # > Eigenbasis Reference States < #
-    
-        cis_statevectors2 = np.dot(V.T, cis_statevectors)
-            
+        # > QFD Basis States < #
+
+        basis_vectors = np.zeros((2**hamiltonian.N, ncis, 2*kmax+1), dtype=np.complex128)
+        basis_vectors[:, :, 0] = cis_statevectors
+        for k in range(1, kmax+1):
+            U = np.einsum('Iv,v,Jv->IJ', V, np.exp(-2.0j * np.pi * k / kappa * h), V)
+            basis_vectors[:, :, 2*k - 1] = np.dot(U, cis_statevectors)
+            U = np.einsum('Iv,v,Jv->IJ', V, np.exp(+2.0j * np.pi * k / kappa * h), V)
+            basis_vectors[:, :, 2*k - 0] = np.dot(U, cis_statevectors)
+
         # > Operators < #
 
         Os = [_.compute_hilbert_matrix(N=hamiltonian.N, dtype=np.float64) for _ in paulis]
 
-        # > Eigenbasis Operators < #
-
-        O2s = [np.dot(V.T, np.dot(O, V)) for O in Os]
-
-        # > Time-Propagated Reference States < #
-
-        psi = np.zeros((2**hamiltonian.N, ncis, nk), dtype=np.complex128)
-        psi[:, :, 0] = cis_statevectors2
-        for k in range(1, kmax+1):
-            psi[:, :, 2*k - 1] = np.einsum('I,IC->IC', np.exp(-2.0j * np.pi * k / kappa * h), cis_statevectors2)
-            psi[:, :, 2*k - 0] = np.einsum('I,IC->IC', np.exp(+2.0j * np.pi * k / kappa * h), cis_statevectors2)
-
         # > QFD Basis Operators < #
 
-        O3s = []
-        for O2 in O2s:
-            chi = np.einsum('IJ,JCk->ICk', O2, psi)
-            O3s.append(np.einsum('ICk,IDl->CkDl', psi.conj(), chi))
+        O3s = [] 
+        for O in Os:
+            basis_vectors2 = np.einsum('IJ,Jvk->Ivk', O, basis_vectors)
+            O3s.append(np.einsum('Ivk,Iwl->vkwl', basis_vectors.conj(), basis_vectors2))
 
         return O3s
+
+    def qfd_subspace_H(
+        self,
+        nref, 
+        kmax,
+        ):
+    
+        H = self.qfd_H[:nref,:2*kmax+1,:nref,:2*kmax+1]
+        return np.reshape(H, (H.shape[0]*H.shape[1],)*2)
+
+    def qfd_subspace_S(
+        self,
+        nref, 
+        kmax,
+        ):
+    
+        S = self.qfd_S[:nref,:2*kmax+1,:nref,:2*kmax+1]
+        return np.reshape(S, (S.shape[0]*S.shape[1],)*2)
+
+    def qfd_subspace_mu_X(
+        self,
+        nref, 
+        kmax,
+        ):
+    
+        mu_X = self.qfd_mu_X[:nref,:2*kmax+1,:nref,:2*kmax+1]
+        return np.reshape(mu_X, (mu_X.shape[0]*mu_X.shape[1],)*2)
+
+    def qfd_subspace_mu_Y(
+        self,
+        nref, 
+        kmax,
+        ):
+    
+        mu_Y = self.qfd_mu_Y[:nref,:2*kmax+1,:nref,:2*kmax+1]
+        return np.reshape(mu_Y, (mu_Y.shape[0]*mu_Y.shape[1],)*2)
+
+    def qfd_subspace_mu_Z(
+        self,
+        nref, 
+        kmax,
+        ):
+    
+        mu_Z = self.qfd_mu_Z[:nref,:2*kmax+1,:nref,:2*kmax+1]
+        return np.reshape(mu_Z, (mu_Z.shape[0]*mu_Z.shape[1],)*2)
+
+    def qfd_subspace_basis(
+        self,
+        nref,   
+        kmax,
+        ):
+
+        cis_statevectors = np.zeros((2**self.N, nref))
+        for I in range(nref):
+            thetas = QFD.compute_cis_angles(cs=self.cis_C[:,I])
+            cis_circuit = QFD.build_cis_circuit(thetas=thetas)
+            cis_statevectors[:,I] = cis_circuit.simulate().real
+
+        H = self.hamiltonian_pauli.compute_hilbert_matrix(dtype=np.float64)
+        h, V = np.linalg.eigh(H)
+
+        basis_vectors = np.zeros((2**self.N, nref, 2*kmax+1), dtype=np.complex128)
+        basis_vectors[:, :, 0] = cis_statevectors
+        for k in range(1, kmax+1):
+            U = np.einsum('Iv,v,Jv->IJ', V, np.exp(-2.0j * np.pi * k / self.kappa * h), V)
+            basis_vectors[:, :, 2*k - 1] = np.dot(U, cis_statevectors)
+            U = np.einsum('Iv,v,Jv->IJ', V, np.exp(+2.0j * np.pi * k / self.kappa * h), V)
+            basis_vectors[:, :, 2*k - 0] = np.dot(U, cis_statevectors)
+
+        return basis_vectors
         
-    def diagonalize_qfd(
+    def qfd_diagonalize(
         self,
         nref,
         kmax,
         cutoff,
         ):
 
-        # Operators restricted to kmax
-        Os = [O[:nref,:2*kmax+1,:nref,:2*kmax+1] for O in [
-            self.qfd_H, 
-            self.qfd_S, 
-            self.qfd_mu_X, 
-            self.qfd_mu_Y, 
-            self.qfd_mu_Z, 
-            ]]
-        Os = [np.reshape(O, (O.shape[0]*O.shape[1],)*2) for O in Os]
-        H, S, mu_X, mu_Y, mu_Z = Os
+        # Operators restricted to nref and kmax
+        H = self.qfd_subspace_H(nref=nref, kmax=kmax)
+        S = self.qfd_subspace_S(nref=nref, kmax=kmax)
+        mu_X = self.qfd_subspace_mu_X(nref=nref, kmax=kmax)
+        mu_Y = self.qfd_subspace_mu_Y(nref=nref, kmax=kmax)
+        mu_Z = self.qfd_subspace_mu_Z(nref=nref, kmax=kmax)
 
         # Orthogonalizer
         s, U = np.linalg.eigh(S)
-        s2 = s[s > cutoff * np.min(s)]
-        U2 = U[:, s > cutoff * np.min(s)]
+        s2 = s[s > cutoff * np.max(s)]
+        U2 = U[:, s > cutoff * np.max(s)]
         X = np.einsum('ij,j->ij', U2, s2**(-1.0/2.0))
 
         # Orthonormal-basis Fourier basis Hamiltonian
@@ -984,5 +1086,8 @@ class QFD(object):
         for J in range(1, OX.shape[0]):
             O.append(2.0 / 3.0 * (E[J] - E[0]) * (np.abs(OX[0,J])**2 + np.abs(OY[0,J])**2 + np.abs(OZ[0,J]**2)))
         O = np.array(O)
+
+        # In canonical order
+        C = np.reshape(C, (nref, 2*kmax+1, C.shape[1]))
 
         return E, C, O, s
