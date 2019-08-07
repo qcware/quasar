@@ -80,6 +80,17 @@ class QFD(object):
             allowed_types=[int],
             doc='Number of k points to include in QFD expansion')
         opt.add_option(
+            key='qfd_matrix_method',
+            value='exact',
+            allowed_types=[str],
+            allowed_values=['exact', 'trotter'],
+            doc='Method to form QFD basis states')
+        opt.add_option(
+            key='qfd_trotters_per_k',
+            value=1,
+            allowed_types=[int],
+            doc='Number of trotter steps per k point')
+        opt.add_option(
             key='qfd_cutoff',
             value=1.0E-7,
             allowed_types=[float],
@@ -308,32 +319,56 @@ class QFD(object):
             print('')
 
         # => QFD <= #
-
-        if self.print_level:
-            print('QFD Matrix Elements:') 
-            print('  Kmax   = %11d' % self.qfd_kmax)
-            print('  Cutoff = %11.3E' % self.qfd_cutoff)
-            print('')
     
         # > QFD Matrix Elements < #
 
+        if self.print_level:
+            print('QFD Matrix Elements:') 
+            print('  Kmax           = %11d' % self.qfd_kmax)
+            print('  Matrix method  = %11s' % (self.options['qfd_matrix_method']))
+            print('  Trotters per k = %11d' % (self.options['qfd_trotters_per_k']))
+            print('')
+
         I, X, Y, Z = quasar.Pauli.IXYZ()
         pauli_I = 1.0 * I
-        self.qfd_H, self.qfd_S, self.qfd_mu_X, self.qfd_mu_Y, self.qfd_mu_Z = QFD.build_qfd_brute_force(
-            cis_C=self.cis_C,
-            hamiltonian=self.hamiltonian_pauli,
-            kmax=self.qfd_kmax,
-            kappa=self.kappa,
-            paulis=[
-                self.hamiltonian_pauli,
-                pauli_I,
-                self.mu_pauli[0],
-                self.mu_pauli[1],
-                self.mu_pauli[2],
-                ],
-            )
+        if self.options['qfd_matrix_method'] == 'exact':
+            self.qfd_H, self.qfd_S, self.qfd_mu_X, self.qfd_mu_Y, self.qfd_mu_Z = QFD.build_qfd_brute_force(
+                cis_C=self.cis_C,
+                hamiltonian=self.hamiltonian_pauli,
+                kmax=self.qfd_kmax,
+                kappa=self.kappa,
+                paulis=[
+                    self.hamiltonian_pauli,
+                    pauli_I,
+                    self.mu_pauli[0],
+                    self.mu_pauli[1],
+                    self.mu_pauli[2],
+                    ],
+                )
+        elif self.options['qfd_matrix_method'] == 'trotter':
+            self.qfd_H, self.qfd_S, self.qfd_mu_X, self.qfd_mu_Y, self.qfd_mu_Z = QFD.build_qfd_brute_force_trotter(
+                cis_C=self.cis_C,
+                hamiltonian=self.hamiltonian_pauli,
+                kmax=self.qfd_kmax,
+                kappa=self.kappa,
+                paulis=[
+                    self.hamiltonian_pauli,
+                    pauli_I,
+                    self.mu_pauli[0],
+                    self.mu_pauli[1],
+                    self.mu_pauli[2],
+                    ],
+                trotters_per_k=self.options['qfd_trotters_per_k'],
+                )
+        else:
+            raise RuntimeError('Unknown qfd_matrix_method: %s' % self.options['qfd_matrix_method'])
 
         # > QFD Subspace Diagonalization < #
+
+        if self.print_level:
+            print('QFD Diagonalization:') 
+            print('  Cutoff = %11.3E' % self.qfd_cutoff)
+            print('')
 
         self.qfd_E, self.qfd_C, self.qfd_O, self.qfd_s = self.qfd_diagonalize(
             nref=self.nstate,
@@ -938,14 +973,6 @@ class QFD(object):
         ncis = cis_C.shape[1]
         nk = 2 * kmax + 1
 
-        # > Hamiltonian < #
-        
-        H = hamiltonian.compute_hilbert_matrix(dtype=np.float64)
-
-        # > Eigendecomposition < #
-    
-        h, V = np.linalg.eigh(H)
-
         # > Reference States < #
     
         cis_statevectors = np.zeros((2**hamiltonian.N, ncis))
@@ -953,6 +980,14 @@ class QFD(object):
             thetas = QFD.compute_cis_angles(cs=cis_C[:,I])
             cis_circuit = QFD.build_cis_circuit(thetas=thetas)
             cis_statevectors[:,I] = cis_circuit.simulate().real
+
+        # > Hamiltonian < #
+        
+        H = hamiltonian.compute_hilbert_matrix(dtype=np.float64)
+
+        # > Eigendecomposition < #
+    
+        h, V = np.linalg.eigh(H)
 
         # > QFD Basis States < #
 
@@ -962,6 +997,126 @@ class QFD(object):
             U = np.einsum('Iv,v,Jv->IJ', V, np.exp(-2.0j * np.pi * k / kappa * h), V)
             basis_vectors[:, :, 2*k - 1] = np.dot(U, cis_statevectors)
             U = np.einsum('Iv,v,Jv->IJ', V, np.exp(+2.0j * np.pi * k / kappa * h), V)
+            basis_vectors[:, :, 2*k - 0] = np.dot(U, cis_statevectors)
+
+        # > Operators < #
+
+        Os = [_.compute_hilbert_matrix(N=hamiltonian.N, dtype=np.float64) for _ in paulis]
+
+        # > QFD Basis Operators < #
+
+        O3s = [] 
+        for O in Os:
+            basis_vectors2 = np.einsum('IJ,Jvk->Ivk', O, basis_vectors)
+            O3s.append(np.einsum('Ivk,Iwl->vkwl', basis_vectors.conj(), basis_vectors2))
+
+        return O3s
+
+    @staticmethod
+    def build_qfd_brute_force_trotter(
+        cis_C,
+        hamiltonian,
+        kmax,
+        kappa,
+        paulis,
+        trotters_per_k,
+        ):
+
+        # > Sizing < #
+        
+        ncis = cis_C.shape[1]
+        nk = 2 * kmax + 1
+
+        # > Reference States < #
+    
+        cis_statevectors = np.zeros((2**hamiltonian.N, ncis))
+        for I in range(ncis):
+            thetas = QFD.compute_cis_angles(cs=cis_C[:,I])
+            cis_circuit = QFD.build_cis_circuit(thetas=thetas)
+            cis_statevectors[:,I] = cis_circuit.simulate().real
+
+        # > Hamiltonian < #
+        
+        hamiltonianXX = quasar.Pauli()
+        hamiltonianXZ = quasar.Pauli()
+        hamiltonianZX = quasar.Pauli()
+        hamiltonianZZ = quasar.Pauli()
+
+        for key, value in hamiltonian.items():
+            if key.order == 1:
+                if key[0].char == 'X':
+                    hamiltonianXX[key] = value
+                elif key[0].char == 'Z':
+                    hamiltonianZZ[key] = value
+                else:
+                    raise RuntimeError('Unknown 1-body: %s' % str(key))
+            elif key.order == 2:
+                if key[0].char == 'X' and key[1].char == 'X':
+                    hamiltonianXX[key] = value
+                elif key[0].char == 'Z' and key[1].char == 'Z':
+                    hamiltonianZZ[key] = value
+                else:
+                    if key[0].qubit + 1 != key[1].qubit: raise RuntimeError('Qubits not contiguous: %s' % str(key))
+                    if key[0].char == 'X' and key[1].char == 'Z':
+                        if key[0].qubit % 2 == 0:
+                            hamiltonianXZ[key] = value
+                        else:
+                            hamiltonianZX[key] = value
+                    elif key[0].char == 'Z' and key[1].char == 'X':
+                        if key[0].qubit % 2 == 0:
+                            hamiltonianZX[key] = value
+                        else:
+                            hamiltonianXZ[key] = value
+                    else:
+                        raise RuntimeError('Unknown 2-body: %s' % str(key))
+            else: 
+                raise RuntimeError('Order too high: %s' % str(key))
+        
+        HXX = hamiltonianXX.compute_hilbert_matrix(dtype=np.float64)
+        HXZ = hamiltonianXZ.compute_hilbert_matrix(dtype=np.float64)
+        HZX = hamiltonianZX.compute_hilbert_matrix(dtype=np.float64)
+        HZZ = hamiltonianZZ.compute_hilbert_matrix(dtype=np.float64)
+
+        # H = hamiltonian.compute_hilbert_matrix(dtype=np.float64)
+        # print(np.max(np.abs(H - HXX - HXZ - HZX - HZZ)))
+
+        # > Eigendecomposition < #
+    
+        hXX, VXX = np.linalg.eigh(HXX)
+        hXZ, VXZ = np.linalg.eigh(HXZ)
+        hZX, VZX = np.linalg.eigh(HZX)
+        hZZ, VZZ = np.linalg.eigh(HZZ)
+
+        UXXm = np.einsum('Iv,v,Jv->IJ', VXX, np.exp(-2.0j * np.pi / (kappa * trotters_per_k) * hXX), VXX)
+        UXZm = np.einsum('Iv,v,Jv->IJ', VXZ, np.exp(-2.0j * np.pi / (kappa * trotters_per_k) * hXZ), VXZ)
+        UZXm = np.einsum('Iv,v,Jv->IJ', VZX, np.exp(-2.0j * np.pi / (kappa * trotters_per_k) * hZX), VZX)
+        UZZm = np.einsum('Iv,v,Jv->IJ', VZZ, np.exp(-2.0j * np.pi / (kappa * trotters_per_k) * hZZ), VZZ)
+        Utrotm = np.dot(np.dot(np.dot(UXXm, UXZm), UZZm), UZXm)
+        Ukm = np.eye(2**hamiltonian.N)
+        for v in range(trotters_per_k):
+            Ukm = np.dot(Utrotm, Ukm)
+
+        UXXp = np.einsum('Iv,v,Jv->IJ', VXX, np.exp(+2.0j * np.pi / (kappa * trotters_per_k) * hXX), VXX)
+        UXZp = np.einsum('Iv,v,Jv->IJ', VXZ, np.exp(+2.0j * np.pi / (kappa * trotters_per_k) * hXZ), VXZ)
+        UZXp = np.einsum('Iv,v,Jv->IJ', VZX, np.exp(+2.0j * np.pi / (kappa * trotters_per_k) * hZX), VZX)
+        UZZp = np.einsum('Iv,v,Jv->IJ', VZZ, np.exp(+2.0j * np.pi / (kappa * trotters_per_k) * hZZ), VZZ)
+        Utrotp = np.dot(np.dot(np.dot(UXXp, UXZp), UZZp), UZXp)
+        Ukp = np.eye(2**hamiltonian.N)
+        for v in range(trotters_per_k):
+            Ukp = np.dot(Utrotp, Ukp)
+
+        # > QFD Basis States < #
+
+        basis_vectors = np.zeros((2**hamiltonian.N, ncis, 2*kmax+1), dtype=np.complex128)
+        basis_vectors[:, :, 0] = cis_statevectors
+        for k in range(1, kmax+1):
+            U = np.eye(2**hamiltonian.N)
+            for k2 in range(k):
+                U = np.dot(Ukm, U)
+            basis_vectors[:, :, 2*k - 1] = np.dot(U, cis_statevectors)
+            U = np.eye(2**hamiltonian.N)
+            for k2 in range(k):
+                U = np.dot(Ukp, U)
             basis_vectors[:, :, 2*k - 0] = np.dot(U, cis_statevectors)
 
         # > Operators < #
