@@ -561,7 +561,75 @@ class PauliJordanWigner(object):
                     (Xkey, 0.25),
                     (Ykey, 0.25),
                     ]))
+    
+    
+    class Substitution2(object):
+        '''
+        Two body terms: p^+ q r^+ s
+        '''
 
+        def __getitem__(
+            self,   
+            indices,
+            ):
+        
+            """
+            Reference: Equation (34) in https://arxiv.org/pdf/0705.1928.pdf . The reference uses physicist's notation, while below we use chemist's notation, so the expression is a bit different. 
+            
+            Returns: p^+ q  r^+ s            
+            """
+  
+            # check
+            if len(indices) != 4: raise RuntimeError('indices must be len 4')
+            
+            p,q,r,s = indices
+            I, X, Y, Z = Pauli.IXYZ()
+            
+            # (1) prefactor
+            from sympy import Eijk
+            i,j,k,l = np.argsort(indices)
+            prefactor = 1/8 * Eijk(i, j, k, l)
+            
+            # (2) class of ordering
+            init_str = 'abab'
+            new_str = init_str[i] +init_str[j] +init_str[k] +init_str[l]
+            if new_str=='aabb' or 'bbaa':
+                postfactors = [1.0, -1.0, 1.0, 1.0, 1.0, 1.0, -1.0, 1.0]
+            elif new_str=='abab' or 'baba':
+                postfactors = [1.0, 1.0, -1.0, 1.0, 1.0, -1.0, 1.0, 1.0]
+            elif new_str=='abba':
+                postfactors = [1.0, 1.0, 1.0, -1.0, -1.0, 1.0, 1.0, 1.0]
+        
+            # (3) operators
+            Zstr1 = Z[indices[i]+1]
+            for idx in range(indices[i]+1, indices[j]-1):
+                Zstr1 *= Z[idx]
+            Zstr2 = Z[indices[k]+1]
+            for idx in range(indices[k]+1, indices[l]-1):
+                Zstr2 *= Z[idx]
+            op0 = X[indices[i]] * Zstr1 * X[indices[j]] * X[indices[k]] * Zstr2 * X[indices[l]]
+            op1 = X[indices[i]] * Zstr1 * X[indices[j]] * Y[indices[k]] * Zstr2 * Y[indices[l]]
+            op2 = X[indices[i]] * Zstr1 * Y[indices[j]] * X[indices[k]] * Zstr2 * Y[indices[l]]
+            op3 = X[indices[i]] * Zstr1 * Y[indices[j]] * Y[indices[k]] * Zstr2 * X[indices[l]]
+            op4 = Y[indices[i]] * Zstr1 * X[indices[j]] * X[indices[k]] * Zstr2 * Y[indices[l]]
+            op5 = Y[indices[i]] * Zstr1 * X[indices[j]] * Y[indices[k]] * Zstr2 * X[indices[l]]
+            op6 = Y[indices[i]] * Zstr1 * Y[indices[j]] * X[indices[k]] * Zstr2 * X[indices[l]]
+            op7 = Y[indices[i]] * Zstr1 * Y[indices[j]] * Y[indices[k]] * Zstr2 * Y[indices[l]]
+            ops = [op0, op1, op2, op3, op4, op5, op6, op7]
+            
+            # combine
+            hamiltonian_term = Pauli(collections.OrderedDict())
+            for idx in range(8):
+                hamiltonian_term += prefactor * postfactors[idx] * ops[idx]
+            
+            return hamiltonian_term
+            
+            
+            
+            
+            
+    
+    
     @staticmethod
     def substitution1_operator():
         return PauliJordanWigner.Substitution1()
