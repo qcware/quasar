@@ -1351,6 +1351,11 @@ class Circuit(object):
         Returns:
             (Circuit) - the new compressed circuit.
         """
+        
+        # Currently will not compress a circuit that uses >3 qubit gates
+        max_gate_n = max([gate.N for key, gate in self.gates.items()])
+        if max_gate_n >= 3:
+            return self.nonredundant()
 
         # Jam consecutive 1-body gates (removes runs of 1-body gates)
         circuit1 = self.copy()
@@ -1365,7 +1370,7 @@ class Circuit(object):
                 plan[A][T] = 2
                 plan[B][T] = -2
             else:
-                raise RuntimeError("N > 2")
+                raise RuntimeError("N > 2")   
         circuit2 = Circuit(N=self.N)
         for A, row in enumerate(plan):
             Tstar = None
