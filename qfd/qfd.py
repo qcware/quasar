@@ -83,7 +83,7 @@ class QFD(object):
             key='qfd_matrix_method',
             value='exact',
             allowed_types=[str],
-            allowed_values=['exact', 'trotter'],
+            allowed_values=['exact', 'trotter', 'exact_toeplitz', 'trotter_toeplitz'],
             doc='Method to form QFD basis states')
         opt.add_option(
             key='qfd_trotters_per_k',
@@ -347,6 +347,64 @@ class QFD(object):
                 )
         elif self.options['qfd_matrix_method'] == 'trotter':
             self.qfd_H, self.qfd_S, self.qfd_mu_X, self.qfd_mu_Y, self.qfd_mu_Z = QFD.build_qfd_brute_force_trotter(
+                cis_C=self.cis_C,
+                hamiltonian=self.hamiltonian_pauli,
+                kmax=self.qfd_kmax,
+                kappa=self.kappa,
+                paulis=[
+                    self.hamiltonian_pauli,
+                    pauli_I,
+                    self.mu_pauli[0],
+                    self.mu_pauli[1],
+                    self.mu_pauli[2],
+                    ],
+                trotters_per_k=self.options['qfd_trotters_per_k'],
+                )
+        elif self.options['qfd_matrix_method'] == 'exact_toeplitz':
+            self.qfd_H, self.qfd_S, self.qfd_mu_X, self.qfd_mu_Y, self.qfd_mu_Z = QFD.build_qfd_brute_force_toeplitz(
+                cis_C=self.cis_C,
+                hamiltonian=self.hamiltonian_pauli,
+                kmax=self.qfd_kmax,
+                kappa=self.kappa,
+                paulis=[
+                    self.hamiltonian_pauli,
+                    pauli_I,
+                    self.mu_pauli[0],
+                    self.mu_pauli[1],
+                    self.mu_pauli[2],
+                    ],
+                )
+            # Hack to get X, Y, Z
+            HX, SX, self.qfd_mu_X, self.qfd_mu_Y, self.qfd_mu_Z = QFD.build_qfd_brute_force(
+                cis_C=self.cis_C,
+                hamiltonian=self.hamiltonian_pauli,
+                kmax=self.qfd_kmax,
+                kappa=self.kappa,
+                paulis=[
+                    self.hamiltonian_pauli,
+                    pauli_I,
+                    self.mu_pauli[0],
+                    self.mu_pauli[1],
+                    self.mu_pauli[2],
+                    ],
+                )
+        elif self.options['qfd_matrix_method'] == 'trotter_toeplitz':
+            self.qfd_H, self.qfd_S, self.qfd_mu_X, self.qfd_mu_Y, self.qfd_mu_Z = QFD.build_qfd_brute_force_trotter_toeplitz(
+                cis_C=self.cis_C,
+                hamiltonian=self.hamiltonian_pauli,
+                kmax=self.qfd_kmax,
+                kappa=self.kappa,
+                paulis=[
+                    self.hamiltonian_pauli,
+                    pauli_I,
+                    self.mu_pauli[0],
+                    self.mu_pauli[1],
+                    self.mu_pauli[2],
+                    ],
+                trotters_per_k=self.options['qfd_trotters_per_k'],
+                )
+            # Hack to get X, Y, Z
+            HX, SX, self.qfd_mu_X, self.qfd_mu_Y, self.qfd_mu_Z = QFD.build_qfd_brute_force_trotter(
                 cis_C=self.cis_C,
                 hamiltonian=self.hamiltonian_pauli,
                 kmax=self.qfd_kmax,
@@ -1131,6 +1189,189 @@ class QFD(object):
             O3s.append(np.einsum('Ivk,Iwl->vkwl', basis_vectors.conj(), basis_vectors2))
 
         return O3s
+
+    @staticmethod
+    def build_qfd_brute_force_toeplitz(
+        cis_C,
+        hamiltonian,
+        kmax,
+        kappa,
+        paulis,
+        ):
+
+        # > Sizing < #
+        
+        ncis = cis_C.shape[1]
+        nk = 2 * kmax + 1
+
+        # > Reference States < #
+    
+        cis_statevectors = np.zeros((2**hamiltonian.N, ncis))
+        for I in range(ncis):
+            thetas = QFD.compute_cis_angles(cs=cis_C[:,I])
+            cis_circuit = QFD.build_cis_circuit(thetas=thetas)
+            cis_statevectors[:,I] = cis_circuit.simulate().real
+
+        # > Hamiltonian < #
+        
+        H = hamiltonian.compute_hilbert_matrix(dtype=np.float64)
+
+        # > Eigendecomposition < #
+    
+        h, V = np.linalg.eigh(H)
+
+        # > QFD Basis States < #
+
+        basis_vectors = np.zeros((2**hamiltonian.N, ncis, 4*kmax+1), dtype=np.complex128)
+        basis_vectors[:, :, 0] = cis_statevectors
+        for k in range(1, 2*kmax+1):
+            U = np.einsum('Iv,v,Jv->IJ', V, np.exp(-2.0j * np.pi * k / kappa * h), V)
+            basis_vectors[:, :, 2*k - 1] = np.dot(U, cis_statevectors)
+            U = np.einsum('Iv,v,Jv->IJ', V, np.exp(+2.0j * np.pi * k / kappa * h), V)
+            basis_vectors[:, :, 2*k - 0] = np.dot(U, cis_statevectors)
+
+        # > Operators < #
+
+        Os = [_.compute_hilbert_matrix(N=hamiltonian.N, dtype=np.float64) for _ in paulis]
+
+        # > QFD Basis Operators < #
+
+        O2s = [np.zeros((ncis, nk, ncis, nk), dtype=np.complex128) for O in Os]
+        for O, O2 in zip(Os, O2s):
+            for k in range(-kmax, +kmax+1):
+                for l in range(-kmax, +kmax+1):
+                    d = l - k
+                    k2 = 0 if k == 0 else (2*k-1 if k > 0 else 2*abs(k)-0)
+                    l2 = 0 if l == 0 else (2*l-1 if l > 0 else 2*abs(l)-0)
+                    d2 = 0 if d == 0 else (2*d-1 if d > 0 else 2*abs(d)-0)
+                    O2[:, k2, :, l2] = np.einsum('Iv,IJ,Jw->vw', basis_vectors[:, :, 0].conj(), O, basis_vectors[:, :, d2])
+
+        return O2s
+
+    @staticmethod
+    def build_qfd_brute_force_trotter_toeplitz(
+        cis_C,
+        hamiltonian,
+        kmax,
+        kappa,
+        paulis,
+        trotters_per_k,
+        ):
+
+        # > Sizing < #
+        
+        ncis = cis_C.shape[1]
+        nk = 2 * kmax + 1
+
+        # > Reference States < #
+    
+        cis_statevectors = np.zeros((2**hamiltonian.N, ncis))
+        for I in range(ncis):
+            thetas = QFD.compute_cis_angles(cs=cis_C[:,I])
+            cis_circuit = QFD.build_cis_circuit(thetas=thetas)
+            cis_statevectors[:,I] = cis_circuit.simulate().real
+
+        # > Hamiltonian < #
+        
+        hamiltonianXX = quasar.Pauli()
+        hamiltonianXZ = quasar.Pauli()
+        hamiltonianZX = quasar.Pauli()
+        hamiltonianZZ = quasar.Pauli()
+
+        for key, value in hamiltonian.items():
+            if key.order == 1:
+                if key[0].char == 'X':
+                    hamiltonianXX[key] = value
+                elif key[0].char == 'Z':
+                    hamiltonianZZ[key] = value
+                else:
+                    raise RuntimeError('Unknown 1-body: %s' % str(key))
+            elif key.order == 2:
+                if key[0].char == 'X' and key[1].char == 'X':
+                    hamiltonianXX[key] = value
+                elif key[0].char == 'Z' and key[1].char == 'Z':
+                    hamiltonianZZ[key] = value
+                else:
+                    if key[0].qubit + 1 != key[1].qubit: raise RuntimeError('Qubits not contiguous: %s' % str(key))
+                    if key[0].char == 'X' and key[1].char == 'Z':
+                        if key[0].qubit % 2 == 0:
+                            hamiltonianXZ[key] = value
+                        else:
+                            hamiltonianZX[key] = value
+                    elif key[0].char == 'Z' and key[1].char == 'X':
+                        if key[0].qubit % 2 == 0:
+                            hamiltonianZX[key] = value
+                        else:
+                            hamiltonianXZ[key] = value
+                    else:
+                        raise RuntimeError('Unknown 2-body: %s' % str(key))
+            else: 
+                raise RuntimeError('Order too high: %s' % str(key))
+        
+        HXX = hamiltonianXX.compute_hilbert_matrix(dtype=np.float64)
+        HXZ = hamiltonianXZ.compute_hilbert_matrix(dtype=np.float64)
+        HZX = hamiltonianZX.compute_hilbert_matrix(dtype=np.float64)
+        HZZ = hamiltonianZZ.compute_hilbert_matrix(dtype=np.float64)
+
+        # H = hamiltonian.compute_hilbert_matrix(dtype=np.float64)
+        # print(np.max(np.abs(H - HXX - HXZ - HZX - HZZ)))
+
+        # > Eigendecomposition < #
+    
+        hXX, VXX = np.linalg.eigh(HXX)
+        hXZ, VXZ = np.linalg.eigh(HXZ)
+        hZX, VZX = np.linalg.eigh(HZX)
+        hZZ, VZZ = np.linalg.eigh(HZZ)
+
+        UXXm = np.einsum('Iv,v,Jv->IJ', VXX, np.exp(-2.0j * np.pi / (kappa * trotters_per_k) * hXX), VXX)
+        UXZm = np.einsum('Iv,v,Jv->IJ', VXZ, np.exp(-2.0j * np.pi / (kappa * trotters_per_k) * hXZ), VXZ)
+        UZXm = np.einsum('Iv,v,Jv->IJ', VZX, np.exp(-2.0j * np.pi / (kappa * trotters_per_k) * hZX), VZX)
+        UZZm = np.einsum('Iv,v,Jv->IJ', VZZ, np.exp(-2.0j * np.pi / (kappa * trotters_per_k) * hZZ), VZZ)
+        Utrotm = np.dot(np.dot(np.dot(UXXm, UXZm), UZZm), UZXm)
+        Ukm = np.eye(2**hamiltonian.N)
+        for v in range(trotters_per_k):
+            Ukm = np.dot(Utrotm, Ukm)
+
+        UXXp = np.einsum('Iv,v,Jv->IJ', VXX, np.exp(+2.0j * np.pi / (kappa * trotters_per_k) * hXX), VXX)
+        UXZp = np.einsum('Iv,v,Jv->IJ', VXZ, np.exp(+2.0j * np.pi / (kappa * trotters_per_k) * hXZ), VXZ)
+        UZXp = np.einsum('Iv,v,Jv->IJ', VZX, np.exp(+2.0j * np.pi / (kappa * trotters_per_k) * hZX), VZX)
+        UZZp = np.einsum('Iv,v,Jv->IJ', VZZ, np.exp(+2.0j * np.pi / (kappa * trotters_per_k) * hZZ), VZZ)
+        Utrotp = np.dot(np.dot(np.dot(UXXp, UXZp), UZZp), UZXp)
+        Ukp = np.eye(2**hamiltonian.N)
+        for v in range(trotters_per_k):
+            Ukp = np.dot(Utrotp, Ukp)
+
+        # > QFD Basis States < #
+
+        basis_vectors = np.zeros((2**hamiltonian.N, ncis, 4*kmax+1), dtype=np.complex128)
+        basis_vectors[:, :, 0] = cis_statevectors
+        for k in range(1, 2*kmax+1):
+            U = np.eye(2**hamiltonian.N)
+            for k2 in range(k):
+                U = np.dot(Ukm, U)
+            basis_vectors[:, :, 2*k - 1] = np.dot(U, cis_statevectors)
+            U = np.eye(2**hamiltonian.N)
+            for k2 in range(k):
+                U = np.dot(Ukp, U)
+            basis_vectors[:, :, 2*k - 0] = np.dot(U, cis_statevectors)
+
+        # > Operators < #
+
+        Os = [_.compute_hilbert_matrix(N=hamiltonian.N, dtype=np.float64) for _ in paulis]
+
+        # > QFD Basis Operators < #
+
+        O2s = [np.zeros((ncis, nk, ncis, nk), dtype=np.complex128) for O in Os]
+        for O, O2 in zip(Os, O2s):
+            for k in range(-kmax, +kmax+1):
+                for l in range(-kmax, +kmax+1):
+                    d = l - k
+                    k2 = 0 if k == 0 else (2*k-1 if k > 0 else 2*abs(k)-0)
+                    l2 = 0 if l == 0 else (2*l-1 if l > 0 else 2*abs(l)-0)
+                    d2 = 0 if d == 0 else (2*d-1 if d > 0 else 2*abs(d)-0)
+                    O2[:, k2, :, l2] = np.einsum('Iv,IJ,Jw->vw', basis_vectors[:, :, 0].conj(), O, basis_vectors[:, :, d2])
+
+        return O2s
 
     def qfd_subspace_H(
         self,
