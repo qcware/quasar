@@ -3381,7 +3381,7 @@ class Circuit(object):
                         C=qubits[2],
                         )
                 else:
-                    raise RuntimeError('Cannot apply gates with N > 2: %s' % gate)
+                    raise RuntimeError('Cannot apply gates with N > 3: %s' % gate)
                 wfn1, wfn2 = wfn2, wfn1
             yield time, wfn1
 
