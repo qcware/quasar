@@ -3553,7 +3553,7 @@ class Circuit(object):
         if A == B: raise RuntimeError('A == B')
         if A == C: raise RuntimeError('A == C')
         if B == C: raise RuntimeError('B == C')
-        if U.shape != (8,8): raise RuntimeError('2-body gate must be (4,4)')
+        if U.shape != (8,8): raise RuntimeError('3-body gate must be (8,8)')
         if wfn1.shape != (2**N,): raise RuntimeError('wfn1 should be (%d,) shape, is %r shape' % (2**N, wfn1.shape))
         if wfn2.shape != (2**N,): raise RuntimeError('wfn2 should be (%d,) shape, is %r shape' % (2**N, wfn2.shape))
 
@@ -3626,8 +3626,8 @@ class Circuit(object):
         U_str = ket_stock[:M] + bra_stock[:M]
         
         shape_U = tuple(2 for _ in range(2*M))
-        U.shape = shape_U
-        U2 = np.einsum('%s%s->%s%s' % (bra_str, ket_str, bra_str2, ket_str2), U)
+        U2 = np.reshape(U, shape_U)
+        U2 = np.einsum('%s%s->%s%s' % (bra_str, ket_str, bra_str2, ket_str2), U2)
         
         # einsum form for applying gate
         wfn1_str = ''
