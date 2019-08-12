@@ -1570,7 +1570,7 @@ class Circuit(object):
 
         # circuit validation
         # Make sure the composite circuit has enough registers to add to 
-        if self.N <= circuit.N:
+        if self.N < circuit.N:
             raise RuntimeError('Circuit argument must have a fewer or equal number of qubit registers than the circuit you are adding to. Cannot add circuit of size %d to circuit of size %d.' % (circuit.N, self.N))
         if circuit.N != len(qubits):
             raise RuntimeError("len(qubits) must be equal to the number of registers in circuit.")
