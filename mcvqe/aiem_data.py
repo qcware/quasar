@@ -272,7 +272,12 @@ class AIEMMonomer(AIEMConnectivity):
 
         for A, filename in enumerate(filenames):
             if A >= N: break # Might not need all files
-            lines = open(filename).readlines()
+            
+            if isinstance(filename, str):
+                lines = open(filename).readlines()
+            else:
+                lines = filename.readlines()
+            
             for line in lines:
                 # EH
                 mobj = re.match(re_EH, line) 
