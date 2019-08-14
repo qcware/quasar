@@ -1,2 +1,0 @@
-git+ssh://git@github.com:/qcware/quasar.git@platform
-    
