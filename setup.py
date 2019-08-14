@@ -85,7 +85,8 @@ setuptools.setup(
         "typing-extensions==3.7.4",
         "uritemplate==3.0.0",
         "urllib3==1.25.3",
-        "wcwidth==0.1.7"],
+        "wcwidth==0.1.7"
+        "importlib_resources==1.0.4"],
     classifiers=[
         "Programming Language :: Python :: 3",
         "Operating System :: OS Independent",
