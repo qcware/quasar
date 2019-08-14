@@ -87,7 +87,7 @@ setuptools.setup(
         "uritemplate==3.0.0",
         "urllib3==1.25.3",
         "wcwidth==0.1.7",
-        "importlib_resources==1.0.4"],
+        "importlib_resources==1.0.2"],
     classifiers=[
         "Programming Language :: Python :: 3",
         "Operating System :: OS Independent",
