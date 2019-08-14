@@ -13,6 +13,7 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="https://github.com/qcware/quasar",
     packages=setuptools.find_packages(),
+    package_data={'': ['*.dat']},
     install_requires=[
         "antlr4-python3-runtime==4.7.2",
         "asn1crypto==0.24.0",
