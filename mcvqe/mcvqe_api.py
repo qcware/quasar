@@ -6,14 +6,9 @@ import importlib_resources
 # _default_datapath = '../../data/aiem/bchl-a-8-stack/tc'
 # _default_filenames = ['%s/%d/exciton.dat' % (_default_datapath, _) for _ in range(1, 8+1)]
 
-# debug
-dir = 'mcvqe.data.bchl-a-8-stack-exciton'
-_default_filenames = [importlib_resources.open_text(dir, '%d.dat' % (i,)) for i in range(1, 8+1)]
-# print(_default_filenames)
-
 
 def run_mcvqe(
-    filenames=_default_filenames,
+    filenames=None,
     N=2,
     connectivity='linear',
     backend_name='quasar',
@@ -60,6 +55,11 @@ def run_mcvqe(
             'ref_E' (float) - Self energy of AIEM model
     """
     
+    # open file
+    if not filenames:
+        directory = 'mcvqe.data.bchl-a-8-stack-exciton'
+        filenames = [importlib_resources.open_text(directory, '%d.dat' % (i,)) for i in range(1, 8+1)]
+        # print(dir(_default_filenames[0]))
 
     if backend_name == 'quasar':
         backend = quasar.QuasarSimulatorBackend()
@@ -92,7 +92,12 @@ def run_mcvqe(
         'vqe_O' : aiem_solver.vqe_O,
         'ref_E' : aiem_solver.aiem_hamiltonian_pauli.E,
     }
-
+    
+    
+    # close the file
+    for f in filenames:
+        f.close()
+    
+    
     return results
 
-    
