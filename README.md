@@ -9,17 +9,18 @@ virtualenv quasar-venv --python=python3.7
 Then, activate your virtual environment (command to activate is OS dependent). <br>
 
 ### Method 1:
-Clone repository and install requirements with:
+Clone repository and install requirements with from within the top level of the directory:
 ```
-pip install -r requirements.txt
+pip install -e . 
 ```
-and specify repository location in your python path.
 
 ### Method 2:
 Builds wheel from github and adds quasar to your python path:
 ```
 pip install git+ssh://git@github.com:/qcware/quasar.git@platform
 ```
+
+Following either of these methods. You should be able to "import quasar" in python.
 
 To use with jupyter notebooks, inside your virtual environment run:
 ```
