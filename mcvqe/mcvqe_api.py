@@ -3,9 +3,6 @@ from .mcvqe import MCVQE
 from .aiem_data import AIEMMonomer
 import importlib_resources
 
-# _default_datapath = '../../data/aiem/bchl-a-8-stack/tc'
-# _default_filenames = ['%s/%d/exciton.dat' % (_default_datapath, _) for _ in range(1, 8+1)]
-
 
 def run_mcvqe(
     filenames=None,
@@ -23,7 +20,9 @@ def run_mcvqe(
     Params:
         filenames (list of str) - list of filenames of TeraChem exciton files
             (classical electronic structure computation output defining monomer
-            characteristics for ab initio exciton model).
+            characteristics for ab initio exciton model). If filenames are not
+            provieded, TeraChem exciton files of N=8 linear stack of BChl-a 
+            chromophores would be loaded.
         N (int) - number of monomers to include (the first N filenames are
             used).
         backend_name (str) - 'quasar' or 'qiskit' or 'cirq' for the relevant
@@ -55,12 +54,11 @@ def run_mcvqe(
             'ref_E' (float) - Self energy of AIEM model
     """
     
-    # open file
+    # open monomer files
     if not filenames:
-        directory = 'mcvqe.data.bchl-a-8-stack-exciton'
-        filenames = [importlib_resources.open_text(directory, '%d.dat' % (i,)) for i in range(1, 8+1)]
-        # print(dir(_default_filenames[0]))
-
+        directory = 'mcvqe.data.bchl-a-8-stack'
+        filenames = [importlib_resources.open_text(directory, 'exciton%d.dat' % (i,)) for i in range(1, 8+1)]
+        
     if backend_name == 'quasar':
         backend = quasar.QuasarSimulatorBackend()
     elif backend_name == 'qiskit':
@@ -94,9 +92,11 @@ def run_mcvqe(
     }
     
     
-    # close the file
+    # close monomer files
+    import io
     for f in filenames:
-        f.close()
+        if isinstance(f, io.TextIOWrapper):
+            f.close()
     
     
     return results
