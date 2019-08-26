@@ -530,7 +530,7 @@ class PauliJordanWigner(object):
     def composition_operators():
         return PauliJordanWigner.Composition(creation=True), PauliJordanWigner.Composition(creation=False)
 
-    class Substitution1(object):
+    class one_body(object):
 
         def __getitem__(
             self,   
@@ -563,12 +563,46 @@ class PauliJordanWigner(object):
                     ]))
     
     
-    class Substitution2(object):
+    class two_body(object):
         '''
         Two body terms: p^+ q r^+ s
         '''
-
+        
         def __getitem__(
+            self,   
+            indices,
+            ):
+            pass
+        
+        
+        def two_states(
+            self,   
+            indices,
+            ):
+            
+            # check
+            if len(indices) != 4: raise RuntimeError('indices must be len 4')
+            if all((indices.count(x)==2) for x in set(indices)): raise RuntimeError('indices must two pairs of identical integers')
+            
+            I, X, Y, Z = Pauli.IXYZ()
+            i,j,k,l = np.argsort(indices)
+            p, q = sorted(set(indices))
+            
+            # pauli operators
+            init_str = 'abba'
+            new_str = init_str[i] +init_str[j] +init_str[k] +init_str[l]
+            if new_str=='abba' or 'baab':
+                hamiltonian_pauli = +1/8 * (I + Z[p] + Z[q] + Z[p]*Z[q])
+            elif new_str=='abab' or 'baba':
+                hamiltonian_pauli = -1/8 * (I + Z[p] + Z[q] + Z[p]*Z[q])
+            elif new_str=='aabb' or 'bbaa':
+                hamiltonian_pauli = 0
+            
+            return hamiltonian_pauli
+        
+        
+        
+        def four_states(
             self,   
             indices,
             ):
@@ -581,6 +615,7 @@ class PauliJordanWigner(object):
   
             # check
             if len(indices) != 4: raise RuntimeError('indices must be len 4')
+            if len(set(indices)) != 4: raise RuntimeError('all indices must be unique')
             
             p,q,r,s = indices
             I, X, Y, Z = Pauli.IXYZ()
@@ -600,7 +635,7 @@ class PauliJordanWigner(object):
             elif new_str=='abba':
                 postfactors = [1.0, 1.0, 1.0, -1.0, -1.0, 1.0, 1.0, 1.0]
         
-            # (3) operators
+            # (3) pauli operators
             Zstr1 = Z[indices[i]+1]
             for idx in range(indices[i]+1, indices[j]-1):
                 Zstr1 *= Z[idx]
@@ -618,11 +653,11 @@ class PauliJordanWigner(object):
             ops = [op0, op1, op2, op3, op4, op5, op6, op7]
             
             # combine
-            hamiltonian_term = Pauli(collections.OrderedDict())
+            hamiltonian_pauli = Pauli(collections.OrderedDict())
             for idx in range(8):
-                hamiltonian_term += prefactor * postfactors[idx] * ops[idx]
+                hamiltonian_pauli += prefactor * postfactors[idx] * ops[idx]
             
-            return hamiltonian_term
+            return hamiltonian_pauli
             
             
             
