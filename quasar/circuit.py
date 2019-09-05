@@ -1351,6 +1351,11 @@ class Circuit(object):
         Returns:
             (Circuit) - the new compressed circuit.
         """
+        
+        # Currently will not compress a circuit that uses >3 qubit gates
+        max_gate_n = max([gate.N for key, gate in self.gates.items()])
+        if max_gate_n >= 3:
+            return self.nonredundant()
 
         # Jam consecutive 1-body gates (removes runs of 1-body gates)
         circuit1 = self.copy()
@@ -1365,7 +1370,7 @@ class Circuit(object):
                 plan[A][T] = 2
                 plan[B][T] = -2
             else:
-                raise RuntimeError("N > 2")
+                raise RuntimeError("N > 2")   
         circuit2 = Circuit(N=self.N)
         for A, row in enumerate(plan):
             Tstar = None
@@ -1565,7 +1570,7 @@ class Circuit(object):
 
         # circuit validation
         # Make sure the composite circuit has enough registers to add to 
-        if self.N <= circuit.N:
+        if self.N < circuit.N:
             raise RuntimeError('Circuit argument must have a fewer or equal number of qubit registers than the circuit you are adding to. Cannot add circuit of size %d to circuit of size %d.' % (circuit.N, self.N))
         if circuit.N != len(qubits):
             raise RuntimeError("len(qubits) must be equal to the number of registers in circuit.")
@@ -3376,7 +3381,13 @@ class Circuit(object):
                         C=qubits[2],
                         )
                 else:
-                    raise RuntimeError('Cannot apply gates with N > 2: %s' % gate)
+                    wfn2 = Circuit.apply_gate_n(
+                        wfn1=wfn1,
+                        wfn2=wfn2,
+                        U=np.array(gate.U, dtype=dtype),
+                        qubits=qubits
+                        )
+                    
                 wfn1, wfn2 = wfn2, wfn1
             yield time, wfn1
 
@@ -3542,7 +3553,7 @@ class Circuit(object):
         if A == B: raise RuntimeError('A == B')
         if A == C: raise RuntimeError('A == C')
         if B == C: raise RuntimeError('B == C')
-        if U.shape != (8,8): raise RuntimeError('2-body gate must be (4,4)')
+        if U.shape != (8,8): raise RuntimeError('3-body gate must be (8,8)')
         if wfn1.shape != (2**N,): raise RuntimeError('wfn1 should be (%d,) shape, is %r shape' % (2**N, wfn1.shape))
         if wfn2.shape != (2**N,): raise RuntimeError('wfn2 should be (%d,) shape, is %r shape' % (2**N, wfn2.shape))
 
@@ -3568,7 +3579,73 @@ class Circuit(object):
         np.einsum('LlMmPnR,ijklmn->LiMjPkR', wfn1v, U2, out=wfn2v)
 
         return wfn2
+    
+    
+    @staticmethod
+    def apply_gate_n(
+        wfn1,
+        wfn2,
+        U,
+        qubits,
+        ):
 
+        N = (wfn1.shape[0]&-wfn1.shape[0]).bit_length()-1
+        if any(_ >= N for _ in qubits): raise RuntimeError('qubits >= N')
+        if len(set(qubits)) != len(qubits): raise RuntimeError('duplicate entry in qubits')
+        if wfn1.shape != (2**N,): raise RuntimeError('wfn1 should be (%d,) shape, is %r shape' % (2**N, wfn1.shape))
+        if wfn2.shape != (2**N,): raise RuntimeError('wfn2 should be (%d,) shape, is %r shape' % (2**N, wfn2.shape))
+           
+        # hangover
+        qubits2 = tuple(sorted(qubits))
+        hangovers = (2**qubits2[0],) + tuple(2**(qubits2[A+1]-qubits2[A]-1) for A in range(len(qubits2)-1)) + (2**(N-qubits2[-1]-1),)
+        shape = []
+        for hangover in hangovers[:-1]:
+            shape.append(hangover)
+            shape.append(2)
+        shape.append(hangovers[-1])
+        shape = tuple(shape)
+        
+        wfn1v = wfn1.view() 
+        wfn2v = wfn2.view()
+        wfn1v.shape = shape
+        wfn2v.shape = shape
+        
+        # symbol stock 
+        hangover_stock = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+        bra_stock = 'abcdefghijklm'
+        ket_stock = 'nopqrstuvwxyz'
+    
+        M = len(qubits)
+        if M > 13: raise RuntimeError('Technical limit: cannot run N > 13')
+        
+        # einsum form for ordering gate
+        bra_str = bra_stock[:M]
+        ket_str = ket_stock[:M]
+        bra_str2 = ''.join([bra_str[qubits.index(_)] for _ in qubits2])
+        ket_str2 = ''.join([ket_str[qubits.index(_)] for _ in qubits2])
+        U_str = ket_stock[:M] + bra_stock[:M]
+        
+        shape_U = tuple(2 for _ in range(2*M))
+        U2 = np.reshape(U, shape_U)
+        U2 = np.einsum('%s%s->%s%s' % (bra_str, ket_str, bra_str2, ket_str2), U2)
+        
+        # einsum form for applying gate
+        wfn1_str = ''
+        wfn2_str = ''
+        for A in range(M):
+            wfn1_str += hangover_stock[A]
+            wfn1_str += bra_stock[A]
+            wfn2_str += hangover_stock[A]
+            wfn2_str += ket_stock[A]
+        wfn1_str += hangover_stock[M]
+        wfn2_str += hangover_stock[M]
+        
+        np.einsum('%s,%s->%s' % (wfn1_str, U_str, wfn2_str), wfn1v, U2, out=wfn2v)
+        wfn2v = np.reshape(wfn2v, (-1,))
+        
+        return wfn2v
+    
+    
     @staticmethod
     def compute_1pdm(
         wfn1,
