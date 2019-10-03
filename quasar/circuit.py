@@ -311,7 +311,7 @@ class Gate(object):
         dagger_function=None,
         ):
         
-        self.nqubit = nqubit # First-rank attribute
+        self.nqubit = nqubit 
         self.operator_function = operator_function
         self.parameters = parameters
         self.name = name
@@ -1029,7 +1029,9 @@ class CompositeGate(Gate):
         gates = {}
         for key, gate in self.circuit.exploded(copy=False).gates.items():
             times, qubits = key
-            gates[(times[0], qubits)] = gate
+            time2 = times[0] - self.circuit.min_time
+            qubits2 = tuple(_ - self.circuit.min_qubit for _ in qubits)
+            gates[(time2, qubits2)] = gate
         return gates
 
 class ControlledGate(Gate):
