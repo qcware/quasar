@@ -15,7 +15,8 @@ def run_observable_expectation_value_and_pauli(
     circuit = build_quasar_circuit(circuit).copy()
 
     pauli_dm = run_pauli_expectation(backend, circuit, pauli, nmeasurement, **kwargs)
-    E = pauli_dm.dot(pauli).real # TODO: do we need this to be real
+    # E = pauli_dm.dot(pauli).real # TODO: do we need this to be real
+    E = pauli_dm.dot(pauli) # TODO: do we need this to be real
     return E, pauli_dm
 
 def run_observable_expectation_value(
