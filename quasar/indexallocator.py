@@ -21,7 +21,7 @@ class IndexAllocator(object):
         >>> allocator = IndexAllocator.build(10)
         >>> print(allocator.next_index)
 
-        Negative index indices are permitted throughout - next_index is always
+        Negative indices are permitted throughout - next_index is always
         greater than min_index:
 
         >>> allocator = IndexAllocator()
@@ -70,12 +70,12 @@ class IndexAllocator(object):
 
     @property
     def nindex(self):
-        """ (int) The total number of index indices (including empty index indices). """
+        """ (int) The total number of indices (including empty indices). """
         return self.indices[-1] - self.indices[0] + 1 if len(self.indices) else 0
 
     @property
     def nindex_sparse(self):
-        """ (int) The total number of occupied index indices (excluding empty index indices). """
+        """ (int) The total number of occupied indices (excluding empty indices). """
         return len(self.indices)
 
     @property
@@ -91,7 +91,7 @@ class IndexAllocator(object):
                     return index
 
     def allocate(self, index=None):
-        """ Allocate a index.
+        """ Allocate an index.
 
         Params:
             index (int or None) - index to allocate. If None, allocates
@@ -108,7 +108,7 @@ class IndexAllocator(object):
         return index
 
     def deallocate(self, index):
-        """ Deallocate a index.
+        """ Deallocate an index.
         
         Params:
             index (int) - index to deallocate. If index is not allocated,
