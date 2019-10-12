@@ -1,8 +1,9 @@
 import numpy as np
 import sortedcontainers # SortedSet, SortedDict
 import collections      # OrderedDict
+from .algebra import Algebra
 
-""" Quasar: an ultralight python-2.7/python-3.X quantum simulator package
+""" Quasar: an ultralight python-3.X quantum simulator package
 
 Note on Qubit Order:
 
@@ -340,6 +341,10 @@ class Gate(object):
     def is_composite(self):
         return False
 
+    @property
+    def is_controlled(self):
+        return False
+
     def __str__(self):
         """ String representation of this Gate (self.name) """
         return self.name
@@ -447,7 +452,7 @@ class Gate(object):
         if key not in self.parameters: raise RuntimeError('Key %s is not in parameters' % key)
         self.parameters[key] = value
 
-    def set_parameters(self, parameterss):
+    def set_parameters(self, parameters):
         """ Set the values of multiple parameters of this Gate.
 
         Params:
@@ -458,6 +463,77 @@ class Gate(object):
         """
         for key, value in parameters.items():
             self.set_parameter(key=value, parameter=value)
+
+    def apply_to_statevector(
+        self,
+        statevector1,
+        statevector2,
+        qubits,
+        dtype=np.complex128,
+        ):
+
+        """ Apply this gate to statevector1, acting on qubit indices in qubits,
+            placing the result in statevector2. statevector1 may be
+            overwritten, if scratch space is needed (sometimes occurs in Gate
+            subclasses). 
+
+        Params:
+            statevector1 (np.ndarray of shape 2**K) - input statevector
+            statevector2 (np.ndarray of shape 2**K) - output statevector
+            qubits (iterable of int of size self.nqubit) - qubit indices to
+                apply this gate to. 
+            dtype (real or complex dtype) - the dtype to perform the
+                computation at. The gate operator will be cast to this dtype.
+                Note that using real dtypes (float64 or float32) can reduce
+                storage and runtime, but the imaginary parts of the input wfn
+                and all gate unitary operators will be discarded without
+                checking. In these cases, the user is responsible for ensuring
+                that the circuit works on O(2^N) rather than U(2^N) and that
+                the output is valid.
+        Result:
+            statevector2 is overwritten with the application of this gate.
+            statevector1 may be overwritten if scratch space is needed.
+        Returns:
+            statevector2
+        """
+
+        if self.nqubit != len(qubits): raise RuntimeError('self.nqubit != len(qubits)')
+
+        operator = np.array(self.operator, dtype=dtype)
+
+        if self.nqubit == 1:
+            Algebra.apply_operator_1(
+                statevector1=statevector1,
+                statevector2=statevector2,
+                operator=operator,
+                A=qubits[0],
+                )
+        elif self.nqubit == 2:
+            Algebra.apply_operator_2(
+                statevector1=statevector1,
+                statevector2=statevector2,
+                operator=operator,
+                A=qubits[0],
+                B=qubits[1],
+                )
+        elif self.nqubit == 3:
+            Algebra.apply_operator_3(
+                statevector1=statevector1,
+                statevector2=statevector2,
+                operator=operator,
+                A=qubits[0],
+                B=qubits[1],
+                C=qubits[2],
+                )
+        else:
+            Algebra.apply_operator_n(
+                statevector1=statevector1,
+                statevector2=statevector2,
+                operator=operator,
+                qubits=qubits,
+                )
+
+        return statevector2
 
 # > Explicit 1-body gates < #
 
@@ -989,12 +1065,16 @@ class CompositeGate(Gate):
         return self.circuit.ntime
 
     @property
+    def nqubit(self):
+        return self.circuit.nqubit 
+
+    @property
     def is_composite(self):
         return True
 
     @property
-    def nqubit(self):
-        return self.circuit.nqubit 
+    def is_controlled(self):
+        return self.circuit.is_controlled
 
     @property
     def operator_function(self):
@@ -1022,12 +1102,12 @@ class CompositeGate(Gate):
         return CompositeGate(
             circuit=self.circuit.dagger(),
             name=self.name+'^+',
-            ascii_symbols=self.ascii_symbols.copy(),
+            ascii_symbols=[symbol + ('' if symbol in ['@', 'O'] else '^+') for symbol in self.ascii_symbols],
             )
 
     def exploded_gates(self):
         gates = {}
-        for key, gate in self.circuit.exploded(copy=False).gates.items():
+        for key, gate in self.circuit.explode(copy=False).gates.items():
             times, qubits = key
             time2 = times[0] - self.circuit.min_time
             qubits2 = tuple(_ - self.circuit.min_qubit for _ in qubits)
@@ -1059,12 +1139,16 @@ class ControlledGate(Gate):
         return self.gate.ntime
 
     @property
+    def nqubit(self):
+        return self.ncontrol + self.gate.nqubit
+
+    @property
     def is_composite(self):
         return self.gate.is_composite
 
     @property
-    def nqubit(self):
-        return self.ncontrol + self.gate.nqubit
+    def is_controlled(self):
+        return True
 
     @property
     def operator_function(self):
@@ -1123,10 +1207,15 @@ class Circuit(object):
         ):
 
         self.gates = sortedcontainers.SortedDict()
+    
         # Memoization of occupied time/qubit indices
         self.times = sortedcontainers.SortedSet()
         self.qubits = sortedcontainers.SortedSet()
         self.times_and_qubits = sortedcontainers.SortedSet()
+
+        # Memory of last qubits/times key used in add_gate
+        self.last_qubits = None
+        self.last_times = None
 
     # => Simple Circuit Attributes <= #
 
@@ -1167,26 +1256,11 @@ class Circuit(object):
     def max_gate_nqubit(self):
         """ Maximum number of qubits in any gate in the circuit. """
         return max(gate.nqubit for gate in self.gates.values()) if self.ngate else 0
-
-    @property
-    def min_qubit(self):
-        """ The minimum occupied qubit index (or 0 if no occupied qubits) """
-        return self.qubits[0] if len(self.qubits) else 0
     
     @property
-    def max_qubit(self):
-        """ The maximum occupied qubit index (or 0 if no occupied qubits) """
-        return self.qubits[-1] if len(self.qubits) else 0
-
-    @property
-    def nqubit(self):
-        """ The total number of qubit indices in the circuit (including empty qubit indices). """
-        return self.qubits[-1] - self.qubits[0] + 1 if len(self.qubits) else 0
-
-    @property
-    def nqubit_sparse(self):
-        """ The total number of occupied qubit indices in the circuit (excluding empty qubit indices). """
-        return len(self.qubits)
+    def max_gate_ntime(self):
+        """ Maximum number of times in any gate in the circuit. """
+        return max(gate.ntime for gate in self.gates.values()) if self.ngate else 0
     
     @property
     def min_time(self):
@@ -1209,9 +1283,34 @@ class Circuit(object):
         return len(self.times)
 
     @property
+    def min_qubit(self):
+        """ The minimum occupied qubit index (or 0 if no occupied qubits) """
+        return self.qubits[0] if len(self.qubits) else 0
+    
+    @property
+    def max_qubit(self):
+        """ The maximum occupied qubit index (or 0 if no occupied qubits) """
+        return self.qubits[-1] if len(self.qubits) else 0
+
+    @property
+    def nqubit(self):
+        """ The total number of qubit indices in the circuit (including empty qubit indices). """
+        return self.qubits[-1] - self.qubits[0] + 1 if len(self.qubits) else 0
+
+    @property
+    def nqubit_sparse(self):
+        """ The total number of occupied qubit indices in the circuit (excluding empty qubit indices). """
+        return len(self.qubits)
+
+    @property
     def is_composite(self):
         """ Does this circuit contain any CompositeGate objects? """
         return any(gate.is_composite for gate in self.gates.values())
+
+    @property
+    def is_controlled(self):
+        """ Does this circuit contain any ControlledGate objects? """
+        return any(gate.is_controlled for gate in self.gates.values())
 
     # => Circuit Equivalence <= #
 
@@ -1274,8 +1373,6 @@ class Circuit(object):
         ascii_symbols=None,
         ):
 
-        # OK
-
         """ Add a gate to self at specified qubits and times, updating self. The
             qubits to add gate to are always explicitly specified. The times to
             add the gate to may be explicitly specified in the times argumet
@@ -1312,15 +1409,11 @@ class Circuit(object):
                 CompositeGate (None indicates default symbols)
         Result:
             self is updated with the added gate. Checks are
-                performed to ensure that the addition is valid.
+                performed to ensure that the addition is valid. The
+                `last_qubits` and `last_times` attribute of self is set to the
+                qubits and times key of this call to `add_gate`.
         Returns:
             self - for chaining
-
-        For one body gate, can add as either of:
-            circuit.add_gate(gate, A)
-            circuit.add_gate(gate, (A,))
-        For two body gate, must add as:
-            circuit.add_gate(gate, (A, B))
         """
 
         # If gate is Circuit, make it a CompositeGate
@@ -1349,14 +1442,16 @@ class Circuit(object):
                 timemax = self.max_time
                 if any((timemax, qubit) in self.times_and_qubits for qubit in qubits):
                     timemax += 1
-                times = tuple(range(timemax + 1, timemax + 1 + gate.ntime))
+                times = tuple(range(timemax, timemax + gate.ntime))
             elif time_placement == 'next':
                 times = tuple(range(self.max_time + 1, self.max_time + 1 + gate.ntime))
             else:
                 raise RuntimeError('Unknown time_placement: %s. Allowed values are early, late, next' % time_placement)
 
-        # Check that qubits makes sense for gate.qubits
-        if len(qubits) != gate.nqubit: raise RuntimeError('%d qubits entries provided for %d-qubit gate' % (len(qubits), gate.nqubit))
+        # Check that qubits makes sense for gate.nqubit
+        if len(qubits) != gate.nqubit: raise RuntimeError('%d qubit entries provided for %d-qubit gate' % (len(qubits), gate.nqubit))
+        # Check that times makes sense for gate.ntime
+        if len(times) != gate.ntime: raise RuntimeError('%d time entries provided for %d-time gate' % (len(times), gate.ntime))
         # Check that the times are sequential and contiguous
         if len(times) > 1 and times != tuple(range(times[0], times[-1]+1)): raise RuntimeError('times are not sequential: %r' % times)
         # Check that the requested circuit locations are open
@@ -1364,6 +1459,7 @@ class Circuit(object):
             for time in times:
                 if (time, qubit) in self.times_and_qubits:
                     raise RuntimeError('time=%d, qubit=%d circuit location is already occupied' % (time,qubit))
+
         # Add gate to circuit
         self.gates[(times, qubits)] = gate.copy() if copy else gate
         for qubit in qubits: self.qubits.add(qubit)
@@ -1372,11 +1468,16 @@ class Circuit(object):
             for time in times:
                 self.times_and_qubits.add((time, qubit))
 
+        # Mark qubits/times key in case user wants to know
+        self.last_qubits = tuple(qubits)
+        self.last_times = tuple(times)
+
         return self
 
     def add_controlled_gate(
         self,
         gate,
+        qubits,
         controls=None,
         name=None,
         ascii_symbols=None,
@@ -1384,7 +1485,107 @@ class Circuit(object):
 
         gate = CompositeGate(gate, name, ascii_symbols) if isinstance(gate, Circuit) else gate
         gate = ControlledGate(gate, controls=controls)
-        return self.add_gate(gate=gate, **kwargs) 
+        return self.add_gate(gate=gate, qubits=qubits, **kwargs) 
+
+    def add_gates(
+        self,
+        circuit,
+        qubits,
+        times=None,
+        time_start=None,
+        time_placement='early',
+        copy=True,
+        ):
+
+        """ Add the gates of another circuit to self at specified qubits and
+            times, updating self. Essentially a composite version of add_gate.
+            The qubits to add circuit to are always explicitly specified. The
+            times to add circuit to may be explicitly specified in the times
+            argument (1st priority), the starting time moment may be explicitly
+            specified and then the circuit added in a time-contiguous manner
+            from that point using the time_start argument (2nd priority), or a
+            recipe for determining the time-contiguous placement can be
+            specified using the time_placement argument (3rd priority).
+
+        Params:
+            circuit (Circuit) - the circuit containing the gates to add into
+                self. 
+            qubits (tuple of int) - ordered qubit indices in self to add the
+                qubit indices of circuit into.
+            times (tuple of int) - ordered time moments in self to add the time
+                moments of circuit into. If None, the time argument will be
+                considered next.
+            time_start (int) - starting time moment in self to add the time moments
+                of circuit into. If None, the time_placement argument will be
+                considered next.
+            time_placement (str - 'early', 'late', or 'next') - recipe to
+                determine starting time moment in self to add the time moments
+                of circuit into. The rules are:
+                    'early' - start adding the circuit as early as possible,
+                        just after any existing gates on self's qubit wires.
+                    'late' - start adding the circuit in the last open time
+                        moment in self, unless a conflict arises, in which
+                        case, start adding the circuit in the next (new) time
+                        moment.
+                    'next' - start adding the circuit in the next (new) time
+                        moment.
+            copy (bool) - copy Gate elements to remove parameter dependencies
+                between circuit and updated self (True - default) or not
+                (False). 
+        Result:
+            self is updated with the added gates from circuit. Checks are
+                performed to ensure that the addition is valid.
+        Returns:
+            self - for chaining
+        """
+
+        # Make qubits a tuple regardless of input
+        qubits = (qubits,) if isinstance(qubits, int) else qubits
+        # Also make times a tuple if int
+        times = (times,) if isinstance(times, int) else times
+
+        # circuit validation
+        if circuit.nqubit != len(qubits):
+            raise RuntimeError("len(qubits) must be equal to the number of registers in circuit.")
+        # circuit validation
+        
+        if times is None:
+            if time_start is not None:
+                times = list(range(time_start,time_start+circuit.ntime))
+            else:
+                if time_placement == 'early':
+                    leads = [circuit.ntime] * circuit.nqubit
+                    for time2, qubit2 in circuit.times_and_qubits:
+                        leads[qubit2 - circuit.min_qubit] = min(leads[qubit2 - circuit.min_qubit], time2 - circuit.min_time)
+                    timemax = -1
+                    for time2, qubit2 in self.times_and_qubits:
+                        if qubit2 in qubits:
+                            timemax = max(timemax, time2 - leads[qubits.index(qubit2)])
+                    timemax += 1
+                    times = list(range(timemax, timemax+circuit.ntime))
+                elif time_placement == 'late':
+                    timemax = self.max_time
+                    if any((timemax, qubit) in self.times_and_qubits for qubit in qubits):
+                        timemax += 1 
+                    times = list(range(timemax, timemax+circuit.ntime))
+                elif time_placement == 'next':
+                    times = list(range(self.max_time+1, self.max_time+1+circuit.ntime))
+                else:
+                    raise RuntimeError('Unknown time_placement: %s. Allowed values are early, late, next' % time_placement)
+
+        if len(qubits) != circuit.nqubit: raise RuntimeError('len(qubits) != circuit.nqubit')
+        if len(times) != circuit.ntime: raise RuntimeError('len(times) != circuit.ntime')
+
+        circuit.slice(
+            qubits=list(range(circuit.min_qubit, circuit.max_qubit+1)),
+            qubits_to=qubits,
+            times=list(range(circuit.min_time, circuit.max_time+1)),
+            times_to=times,
+            copy=copy,
+            circuit_to=self,
+            )
+
+        return self
 
     def gate(
         self,
@@ -1402,6 +1603,7 @@ class Circuit(object):
         return self.gates[(times, qubits)]
 
     def remove_gate(
+        self,
         qubits,
         times,
         ):
@@ -1412,6 +1614,10 @@ class Circuit(object):
         qubits = (qubits,) if isinstance(qubits, int) else qubits
         # Make times a tuple regardless of input
         times = (times,) if isinstance(times, int) else times
+
+        # Print sensible error message if key is invalid
+        if (times, qubits) not in self.gates:
+            raise RuntimeError('Key is not in circuit: (times=%r, qubits=%r)' % (times, qubits))
 
         # Delete the gate
         del self.gates[(times, qubits)]
@@ -1420,7 +1626,7 @@ class Circuit(object):
         self.qubits.clear() 
         self.times.clear() 
         self.times_and_qubits.clear()
-        for key, gate in self.gates():
+        for key, gate in self.gates.items():
             times2, qubits2 = key
             for qubit in qubits2:
                 self.qubits.add(qubit)
@@ -1429,6 +1635,12 @@ class Circuit(object):
             for qubit in qubits2:
                 for time in times2:
                     self.times_and_qubits.add((time, qubit))
+
+        # If the user deleted the Gate entered in the last add_gate call, flush
+        # the last_qubits/last_times history
+        if qubits == self.last_qubits and times == self.last_times:
+            self.last_qubits = None 
+            self.last_times = None
                     
         return self
 
@@ -1437,19 +1649,27 @@ class Circuit(object):
         gate,
         qubits,
         times,
+        name=None,
+        ascii_symbols=None,
         ):
 
-        # OK
+        # If gate is Circuit, make it a CompositeGate
+        gate = CompositeGate(gate, name, ascii_symbols) if isinstance(gate, Circuit) else gate
 
         # Make qubits a tuple regardless of input
         qubits = (qubits,) if isinstance(qubits, int) else qubits
         # Make times a tuple regardless of input
         times = (times,) if isinstance(times, int) else times
 
-        # Check that there is a gate to replace
+        # Print sensible error message if key is invalid
         if (times, qubits) not in self.gates:
-            raise RuntimeError('Key is not in gates: %r, %r' % (times, qubits))
+            raise RuntimeError('Key is not in circuit: (times=%r, qubits=%r)' % (times, qubits))
         
+        # Check that qubits makes sense for gate.nqubit
+        if len(qubits) != gate.nqubit: raise RuntimeError('%d qubit entries provided for %d-qubit gate' % (len(qubits), gate.nqubit))
+        # Check that times makes sense for gate.ntime
+        if len(times) != gate.ntime: raise RuntimeError('%d time entries provided for %d-time gate' % (len(times), gate.ntime))
+
         # Replace the gate
         self.gates[(times, qubits)] = gate 
 
@@ -1535,105 +1755,6 @@ class Circuit(object):
     
         return circuit_to
          
-    def add_circuit(
-        self,
-        circuit,
-        qubits,
-        times=None,
-        time_start=None,
-        time_placement='early',
-        copy=True,
-        ):
-
-        """ Add another circuit to self at specified qubits and times, updating
-            self. Essentially a composite version of add_gate. The qubits to
-            add circuit to are always explicitly specified. The times to add
-            circuit to may be explicitly specified in the times argumet (1st
-            priority), the starting time moment may be explicitly specified and
-            then the circuit added in a time-contiguous manner from that point
-            using the time_start argument (2nd priority), or a recipe for
-            determining the time-contiguous placement can be specified using
-            the time_placement argument (3rd priority).
-
-        Params:
-            circuit (Circuit) - the circuit to add into self. 
-            qubits (tuple of int) - ordered qubit indices in self to add the
-                qubit indices of circuit into.
-            times (tuple of int) - ordered time moments in self to add the time
-                moments of circuit into. If None, the time argument will be
-                considered next.
-            time_start (int) - starting time moment in self to add the time moments
-                of circuit into. If None, the time_placement argument will be
-                considered next.
-            time_placement (str - 'early', 'late', or 'next') - recipe to
-                determine starting time moment in self to add the time moments
-                of circuit into. The rules are:
-                    'early' - start adding the circuit as early as possible,
-                        just after any existing gates on self's qubit wires.
-                    'late' - start adding the circuit in the last open time
-                        moment in self, unless a conflict arises, in which
-                        case, start adding the circuit in the next (new) time
-                        moment.
-                    'next' - start adding the circuit in the next (new) time
-                        moment.
-            copy (bool) - copy Gate elements to remove parameter dependencies
-                between circuit and updated self (True - default) or not
-                (False). 
-        Result:
-            self is updated with the added gates from circuit. Checks are
-                performed to ensure that the addition is valid.
-        Returns:
-            self - for chaining
-        """
-
-        # Make qubits a tuple regardless of input
-        qubits = (qubits,) if isinstance(qubits, int) else qubits
-        # Also make times a tuple if int
-        times = (times,) if isinstance(times, int) else times
-
-        # circuit validation
-        if circuit.qubit != len(qubits):
-            raise RuntimeError("len(qubits) must be equal to the number of registers in circuit.")
-        # circuit validation
-        
-        if times is None:
-            if time_start is not None:
-                times = list(range(time_start,time_start+circuit.ntime))
-            else:
-                if time_placement == 'early':
-                    leads = [circuit.ntime] * circuit.nqubit
-                    for time2, qubit2 in circuit.times_and_qubits:
-                        leads[qubit2 - circuit.min_qubit] = min(leads[qubit2 - circuit.min_qubit], time2 - circuit.min_time)
-                    timemax = -1
-                    for time2, qubit2 in self.times_and_qubits:
-                        if qubit2 in qubits:
-                            timemax = max(timemax, time2 - leads[qubits.index(qubit2)])
-                    timemax += 1
-                    times = list(range(timemax, timemax+circuit.ntime))
-                elif time_placement == 'late':
-                    timemax = self.max_time
-                    if any((timemax, qubit) in self.times_and_qubits for qubit in qubits):
-                        timemax += 1 
-                    times = list(range(timemax, timemax+circuit.ntime))
-                elif time_placement == 'next':
-                    times = list(range(self.max_time+1, self.max_time+1+circuit.ntime))
-                else:
-                    raise RuntimeError('Unknown time_placement: %s. Allowed values are early, late, next' % time_placement)
-
-        if len(qubits) != circuit.nqubit: raise RuntimeError('len(qubits) != circuit.nqubit')
-        if len(times) != circuit.ntime: raise RuntimeError('len(times) != circuit.ntime')
-
-        circuit.slice(
-            qubits=list(range(circuit.min_qubit, circuit.max_qubit+1)),
-            qubits_to=qubits,
-            times=list(range(circuit.min_time, circuit.max_time+1)),
-            times_to=times,
-            copy=copy,
-            circuit_to=self,
-            )
-
-        return self
-
     @staticmethod
     def join_in_time(
         circuits,
@@ -1670,7 +1791,7 @@ class Circuit(object):
                 )
         return circuit1
 
-    def reversed(
+    def reverse(
         self,
         copy=True,
         ):
@@ -1689,7 +1810,7 @@ class Circuit(object):
 
         # OK
 
-        circuit1 = self.reversed()
+        circuit1 = self.reverse()
         circuit2 = Circuit()
         for key, gate in circuit1.gates.items():
             times, qubits = key
@@ -1716,24 +1837,26 @@ class Circuit(object):
             copy=copy,
             )
 
-    def recentered(
+    def center(
         self,
-        recentered_in_qubits=True,
-        recentered_in_times=True,
+        center_in_qubits=True,
+        center_in_times=True,
+        origin_in_qubits=0,
+        origin_in_time=0,
         copy=True,
         ):
 
         # OK
 
         return self.slice(
-            qubits=self.qubits if recentered_in_qubits else None,
-            qubits_to=[qubit - self.min_qubit for qubit in self.qubits] if recentered_in_qubits else None,
-            times=self.times if recentered_in_times else None,
-            times_to=[time - self.min_time for time in self.times] if recentered_in_times else None,
+            qubits=self.qubits if center_in_qubits else None,
+            qubits_to=[qubit - self.min_qubit + origin_in_qubits for qubit in self.qubits] if center_in_qubits else None,
+            times=self.times if center_in_times else None,
+            times_to=[time - self.min_time + origin_in_time for time in self.times] if center_in_times else None,
             copy=copy,
             )
 
-    def exploded(
+    def explode(
         self,
         copy=True,
         ):
@@ -1837,7 +1960,7 @@ class Circuit(object):
             self.gates[(times, qubits)].set_parameter(key=key2, value=value)
         
         return self
-        
+
     # => ASCII Circuit Diagrams <= #
 
     def __str__(
@@ -3345,6 +3468,4 @@ class Circuit(object):
             gate=Gate.U2(U=U),
             qubits=(qubitA, qubitB),
             **kwargs)
-
-    
 
