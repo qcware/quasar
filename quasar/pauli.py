@@ -191,7 +191,12 @@ class Pauli(sortedcontainers.SortedDict):
 
     @property
     def qubits(self):
-        return 
+        # TODO: Might want to dynamically memoize this
+        qubits = sortedcontainers.SortedSet()
+        for string in self.keys():
+            for qubit in string.qubits:
+                qubits.add(qubit)
+        return qubits
 
     @property
     def min_qubit(self):
@@ -409,38 +414,6 @@ class Pauli(sortedcontainers.SortedDict):
         return PauliStarter('I'), PauliStarter('X'), PauliStarter('Y'), PauliStarter('Z')
 
     # > Extra utility for run_pauli_expectation < #
-
-    def extract_orders(
-        self,
-        orders,
-        ):
-
-        """ Return a subset of Pauli with only terms with specific orders retained.
-        
-        Params:
-            orders (int, or tuple of int) - tuple of orders to retain
-        Returns:
-            (Pauli) - a version of this Pauli, but with only strings with order
-                present in orders retained.
-        """
-        if isinstance(orders, int): orders=(orders,)
-        
-        return Pauli(sortedcontainers.SortedDict([(k, v) for k, v in self.items() if k.order in orders]))
-
-    @property
-    def qubits(self):
-
-        return tuple([_.qubits for _ in self.keys()])
-
-    @property
-    def chars(self):
-
-        return tuple([_.chars for _ in self.keys()])
-
-    @property
-    def unique_chars(self):
-        
-        return tuple(sorted(set(''.join(''.join(_) for _ in self.chars))))
 
     def compute_hilbert_matrix(
         self,
