@@ -418,17 +418,18 @@ class Pauli(sortedcontainers.SortedDict):
     def compute_hilbert_matrix(
         self,
         dtype=np.complex128,
-        N=None,
         ):
     
-        N = self.N if N is None else N
+        N = self.nqubit
         O = np.zeros((2**N,)*2, dtype=np.complex128)
 
+        min_qubit = self.min_qubit
         for string, value in self.items():
             bra_inds = list(range(2**N))
             factors = np.ones((2**N,), dtype=np.complex128)
             for operator in string:
                 qubit, char = operator 
+                qubit -= min_qubit
                 test = 1 << (N - qubit - 1)
                 if char == 'Z':
                     for I in range(2**N):
@@ -453,15 +454,17 @@ class Pauli(sortedcontainers.SortedDict):
         statevector,
         ):
 
-        N = self.N
+        N = self.nqubit
         if statevector.shape != (2**N,): raise RuntimeError('statevector must be shape (2**N,)')
         sigmavector = np.zeros((2**N,), dtype=np.complex128)
 
+        min_qubit = self.min_qubit
         for string, value in self.items():
             bra_inds = list(range(2**N))
             factors = np.ones((2**N,), dtype=np.complex128)
             for operator in string:
                 qubit, char = operator 
+                qubit -= min_qubit
                 test = 1 << (N - qubit - 1)
                 if char == 'Z':
                     for I in range(2**N):
