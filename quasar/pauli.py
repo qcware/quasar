@@ -418,71 +418,79 @@ class Pauli(sortedcontainers.SortedDict):
     def compute_hilbert_matrix(
         self,
         dtype=np.complex128,
+        min_qubit=None,
+        nqubit=None,
         ):
+
+        min_qubit = self.min_qubit if min_qubit is None else min_qubit
+        nqubit = self.nqubit if nqubit is None else nqubit
     
-        N = self.nqubit
-        O = np.zeros((2**N,)*2, dtype=np.complex128)
+        O = np.zeros((2**nqubit,)*2, dtype=np.complex128)
 
         min_qubit = self.min_qubit
         for string, value in self.items():
-            bra_inds = list(range(2**N))
-            factors = np.ones((2**N,), dtype=np.complex128)
+            bra_inds = list(range(2**nqubit))
+            factors = np.ones((2**nqubit,), dtype=np.complex128)
             for operator in string:
                 qubit, char = operator 
                 qubit -= min_qubit
-                test = 1 << (N - qubit - 1)
+                test = 1 << (nqubit - qubit - 1)
                 if char == 'Z':
-                    for I in range(2**N):
+                    for I in range(2**nqubit):
                         if I & test: factors[I] *= -1.0
                 elif char == 'X':
-                    for I in range(2**N):
+                    for I in range(2**nqubit):
                         bra_inds[I] ^= test
                 elif char == 'Y':
-                    for I in range(2**N):
+                    for I in range(2**nqubit):
                         bra_inds[I] ^= test
                     factors *= 1.j
-                    for I in range(2**N):
+                    for I in range(2**nqubit):
                         if I & test: factors[I] *= -1.0
                 else:
                     raise RuntimeError('Unknown char: %s' % char)
-            O[bra_inds, range(2**N)] += factors * value
+            O[bra_inds, range(2**nqubit)] += factors * value
 
         return np.array(O, dtype=dtype)
 
     def compute_hilbert_matrix_vector_product(
         self,
         statevector,
+        dtype=np.complex128,
+        min_qubit=None,
+        nqubit=None,
         ):
 
-        N = self.nqubit
-        if statevector.shape != (2**N,): raise RuntimeError('statevector must be shape (2**N,)')
-        sigmavector = np.zeros((2**N,), dtype=np.complex128)
+        min_qubit = self.min_qubit if min_qubit is None else min_qubit
+        nqubit = self.nqubit if nqubit is None else nqubit
+    
+        if statevector.shape != (2**nqubit,): raise RuntimeError('statevector must be shape (2**nqubit,)')
+        sigmavector = np.zeros((2**nqubit,), dtype=np.complex128)
 
-        min_qubit = self.min_qubit
         for string, value in self.items():
-            bra_inds = list(range(2**N))
-            factors = np.ones((2**N,), dtype=np.complex128)
+            bra_inds = list(range(2**nqubit))
+            factors = np.ones((2**nqubit,), dtype=np.complex128)
             for operator in string:
                 qubit, char = operator 
                 qubit -= min_qubit
-                test = 1 << (N - qubit - 1)
+                test = 1 << (nqubit - qubit - 1)
                 if char == 'Z':
-                    for I in range(2**N):
+                    for I in range(2**nqubit):
                         if I & test: factors[I] *= -1.0
                 elif char == 'X':
-                    for I in range(2**N):
+                    for I in range(2**nqubit):
                         bra_inds[I] ^= test
                 elif char == 'Y':
-                    for I in range(2**N):
+                    for I in range(2**nqubit):
                         bra_inds[I] ^= test
                     factors *= 1.j
-                    for I in range(2**N):
+                    for I in range(2**nqubit):
                         if I & test: factors[I] *= -1.0
                 else:
                     raise RuntimeError('Unknown char: %s' % char)
             sigmavector[bra_inds] += factors * value * statevector
 
-        return np.array(sigmavector, dtype=statevector.dtype)
+        return np.array(sigmavector, dtype=dtype)
     
 class PauliExpectation(Pauli):
 

@@ -6,3 +6,4 @@ from .indexallocator import IndexAllocator
 from .transpiler import Transpiler
 from .backend import Backend
 from .quasar_backend import QuasarSimulatorBackend
+from .ionq_backend import IonQBackend
