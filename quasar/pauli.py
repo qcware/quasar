@@ -205,8 +205,8 @@ class Pauli(sortedcontainers.SortedDict):
     
     @property
     def max_qubit(self):
-        """ The maximum occupied qubit index (or 0 if no occupied qubits) """
-        return self.qubits[-1] if len(self.qubits) else 0
+        """ The maximum occupied qubit index (or -1 if no occupied qubits) """
+        return self.qubits[-1] if len(self.qubits) else -1
 
     @property
     def nqubit(self):

@@ -83,6 +83,8 @@ class Backend(object):
         self,
         circuit,
         statevector=None,   
+        min_qubit=None,
+        nqubit=None,
         dtype=np.complex128,
         **kwargs):
 
@@ -91,12 +93,16 @@ class Backend(object):
     def run_unitary(
         self,
         circuit,
+        min_qubit=None,
+        nqubit=None,
         dtype=np.complex128,
         **kwargs):
 
-        U = np.zeros((2**circuit.nqubit,)*2, dtype=dtype)
-        for i in range(2**circuit.nqubit):
-            statevector = np.zeros((2**circuit.nqubit,), dtype=dtype)
+        nqubit = circuit.nqubit if nqubit is None else nqubit
+
+        U = np.zeros((2**nqubit,)*2, dtype=dtype)
+        for i in range(2**nqubit):
+            statevector = np.zeros((2**nqubit,), dtype=dtype)
             statevector[i] = 1.0
             U[:, i] = self.run_statevector(circuit, statevector=statevector, dtype=dtype, **kwargs)
 
@@ -106,12 +112,16 @@ class Backend(object):
         self,
         circuit,
         statevector=None,
+        min_qubit=None,
+        nqubit=None,
         dtype=np.complex128,
         **kwargs):
 
         statevector = self.run_statevector(
             circuit=circuit,
             statevector=statevector,
+            min_qubit=min_qubit,
+            nqubit=nqubit,
             dtype=dtype,
             **kwargs)
 
@@ -122,12 +132,16 @@ class Backend(object):
         circuit,
         nmeasurement=1000,
         statevector=None,
+        min_qubit=None,
+        nqubit=None,
         dtype=np.complex128,
         **kwargs):
 
         statevector = self.run_statevector(
             circuit=circuit,
             statevector=statevector,
+            min_qubit=min_qubit,
+            nqubit=nqubit,
             dtype=dtype,
             **kwargs)
 
@@ -142,6 +156,8 @@ class Backend(object):
         pauli,
         nmeasurement=None,
         statevector=None,
+        min_qubit=None,
+        nqubit=None,
         dtype=np.complex128,
         **kwargs):
         
@@ -150,6 +166,8 @@ class Backend(object):
                 circuit=circuit,
                 pauli=pauli,
                 statevector=statevector,
+                min_qubit=min_qubit,
+                nqubit=nqubit,
                 dtype=dtype,
                 **kwargs)
         else:
@@ -158,6 +176,8 @@ class Backend(object):
                 pauli=pauli,
                 nmeasurement=nmeasurement,
                 statevector=statevector,
+                min_qubit=min_qubit,
+                nqubit=nqubit,
                 dtype=dtype,
                 **kwargs)
 
@@ -167,6 +187,8 @@ class Backend(object):
         pauli,
         nmeasurement=None,
         statevector=None,
+        min_qubit=None,
+        nqubit=None,
         dtype=np.complex128,
         **kwargs):
 
@@ -175,6 +197,8 @@ class Backend(object):
                 circuit=circuit,
                 pauli=pauli,
                 statevector=statevector,
+                min_qubit=min_qubit,
+                nqubit=nqubit,
                 dtype=dtype,
                 **kwargs)
         else:
@@ -183,6 +207,8 @@ class Backend(object):
                 pauli=pauli,
                 nmeasurement=nmeasurement,
                 statevector=statevector,
+                min_qubit=min_qubit,
+                nqubit=nqubit,
                 dtype=dtype,
                 **kwargs)
             return pauli_expectation.dot(pauli)
@@ -193,6 +219,8 @@ class Backend(object):
         pauli,
         nmeasurement=None,
         statevector=None,
+        min_qubit=None,
+        nqubit=None,
         dtype=np.complex128,
         parameter_indices=None,
         **kwargs):
@@ -226,6 +254,8 @@ class Backend(object):
                 pauli=pauli,
                 nmeasurement=nmeasurement,
                 statevector=statevector,
+                min_qubit=min_qubit,
+                nqubit=nqubit,
                 dtype=dtype,
                 **kwargs)
             # -
@@ -237,6 +267,8 @@ class Backend(object):
                 pauli=pauli,
                 nmeasurement=nmeasurement,
                 statevector=statevector,
+                min_qubit=min_qubit,
+                nqubit=nqubit,
                 dtype=dtype,
                 **kwargs)
             # Assembly
@@ -250,6 +282,8 @@ class Backend(object):
         pauli,
         nmeasurement=None,
         statevector=None,
+        min_qubit=None,
+        nqubit=None,
         dtype=np.complex128,
         parameter_pair_indices=None,
         **kwargs):
@@ -295,6 +329,8 @@ class Backend(object):
                 pauli=pauli,
                 nmeasurement=nmeasurement,
                 statevector=statevector,
+                min_qubit=min_qubit,
+                nqubit=nqubit,
                 dtype=dtype,
                 **kwargs)
             # +-
@@ -307,6 +343,8 @@ class Backend(object):
                 pauli=pauli,
                 nmeasurement=nmeasurement,
                 statevector=statevector,
+                min_qubit=min_qubit,
+                nqubit=nqubit,
                 dtype=dtype,
                 **kwargs)
             # -+
@@ -319,6 +357,8 @@ class Backend(object):
                 pauli=pauli,
                 nmeasurement=nmeasurement,
                 statevector=statevector,
+                min_qubit=min_qubit,
+                nqubit=nqubit,
                 dtype=dtype,
                 **kwargs)
             # --
@@ -331,6 +371,8 @@ class Backend(object):
                 pauli=pauli,
                 nmeasurement=nmeasurement,
                 statevector=statevector,
+                min_qubit=min_qubit,
+                nqubit=nqubit,
                 dtype=dtype,
                 **kwargs)
             # Assembly
@@ -347,17 +389,21 @@ class Backend(object):
         circuit,
         pauli,
         statevector=None,
+        min_qubit=None,
+        nqubit=None,
         dtype=np.complex128,
         **kwargs):
+
+        min_qubit = circuit.min_qubit if min_qubit is None else min_qubit
+        nqubit = circuit.nqubit if nqubit is None else nqubit
 
         statevector = self.run_statevector(
             circuit=circuit,
             statevector=statevector,
+            min_qubit=min_qubit,
+            nqubit=nqubit,
             dtype=dtype,
             **kwargs)
-
-        min_qubit = circuit.min_qubit
-        nqubit = circuit.nqubit
 
         pauli_expectation = Pauli.zero()
         for string in pauli.keys():
@@ -378,17 +424,21 @@ class Backend(object):
         circuit,
         pauli,
         statevector=None,
+        min_qubit=None,
+        nqubit=None,
         dtype=np.complex128,
         **kwargs):
+
+        min_qubit = circuit.min_qubit if min_qubit is None else min_qubit
+        nqubit = circuit.nqubit if nqubit is None else nqubit
 
         statevector = self.run_statevector(
             circuit=circuit,
             statevector=statevector,
+            min_qubit=min_qubit,
+            nqubit=nqubit,
             dtype=dtype,
             **kwargs)
-
-        min_qubit = circuit.min_qubit
-        nqubit = circuit.nqubit
 
         statevector2 = pauli.compute_hilbert_matrix_vector_product(
             statevector=statevector,

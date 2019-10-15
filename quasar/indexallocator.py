@@ -65,8 +65,8 @@ class IndexAllocator(object):
     
     @property
     def max_index(self):
-        """ (int) The maximum occupied index (or 0 if no occupied indices) """
-        return self.indices[-1] if len(self.indices) else 0
+        """ (int) The maximum occupied index (or -1 if no occupied indices) """
+        return self.indices[-1] if len(self.indices) else -1
 
     @property
     def nindex(self):

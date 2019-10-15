@@ -30,11 +30,16 @@ class QuasarSimulatorBackend(Backend):
         self,
         circuit,
         statevector=None,   
+        min_qubit=None,
+        nqubit=None,
         dtype=np.complex128,
         ):
 
+        min_qubit = circuit.min_qubit if min_qubit is None else min_qubit
+        nqubit = circuit.nqubit if nqubit is None else nqubit
+
         if statevector is None:
-            statevector = np.zeros((2**circuit.nqubit,), dtype=dtype)
+            statevector = np.zeros((2**nqubit,), dtype=dtype)
             statevector[0] = 1.0
 
         statevector1 = statevector.copy()
@@ -42,7 +47,6 @@ class QuasarSimulatorBackend(Backend):
 
         # TODO: Compression?
 
-        min_qubit = circuit.min_qubit
         for key, gate in circuit.gates.items(): 
             times, qubits = key
             gate.apply_to_statevector(

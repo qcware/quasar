@@ -439,6 +439,11 @@ class Gate(object):
 
     # > Parameter Access < #
 
+    @property
+    def nparameter(self):
+        """ Total number of parameters in this Gate """
+        return len(self.parameters)
+
     def set_parameter(self, key, value):
         """ Set the value of a parameter of this Gate. 
 
@@ -1269,8 +1274,8 @@ class Circuit(object):
     
     @property
     def max_time(self):
-        """ The maximum occupied time index (or 0 if no occupied times) """
-        return self.times[-1] if len(self.times) else 0
+        """ The maximum occupied time index (or -1 if no occupied times) """
+        return self.times[-1] if len(self.times) else -1
 
     @property
     def ntime(self):
@@ -1289,8 +1294,8 @@ class Circuit(object):
     
     @property
     def max_qubit(self):
-        """ The maximum occupied qubit index (or 0 if no occupied qubits) """
-        return self.qubits[-1] if len(self.qubits) else 0
+        """ The maximum occupied qubit index (or -1 if no occupied qubits) """
+        return self.qubits[-1] if len(self.qubits) else -1
 
     @property
     def nqubit(self):
@@ -1895,6 +1900,32 @@ class Circuit(object):
         return list(self.parameters.values())
 
     @property
+    def parameter_gate_keys(self):
+        return [(key[0], key[1]) for key in self.parameter_keys]
+
+    @property
+    def parameter_index_map(self):
+        """ A map from all circuit Gate keys to parameter indices. 
+
+        Useful as a utility to determine the absolute parameter indices of a
+        Gate, given knowledge of its Gate key.
+        
+        Returns:
+            (OrderedDict of Gate key : tuple of int) - map from all circuit
+                Gate keys to absolute parameter indices. For each Gate key, a
+                tuple of absolute parameter indices is supplied - there may be
+                no parameter indices, one parameter index, or multiple
+                parameter indices in each value, depending on the number of
+                parameters of the underlying Gate.
+        """
+        index_map = collections.OrderedDict()
+        index = 0
+        for key, gate in self.gates.items():
+            index_map[key] = tuple(range(index, index + gate.nparameter))
+            index += gate.nparameter
+        return index_map
+
+    @property
     def parameter_str(self):
         """ A human-readable string describing the circuit coordinates,
             parameter names, gate names, and values of all mutable parameters in
@@ -1986,6 +2017,8 @@ class Circuit(object):
         Returns:
             (str) - the ASCII string diagram
         """
+
+        if self.ngate == 0: return '' # TODO: Uniformity
 
         # Left side states
         Wd = max(len(str(_)) for _ in range(self.min_qubit, self.max_qubit+1))

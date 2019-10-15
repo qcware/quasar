@@ -274,6 +274,9 @@ class Algebra(object):
                 randomly sampled projective measurements .
         """
 
+        if not isinstance(nmeasurement, int):
+            raise RuntimeError('nmeasurement must be int: %s' % nmeasurement)
+
         N = (probabilities.shape[0]&-probabilities.shape[0]).bit_length()-1
         I = list(np.searchsorted(np.cumsum(probabilities), np.random.rand(nmeasurement)))
         return MeasurementResult({ Ket.from_int(int(k), N) : I.count(k) for k in list(sorted(set(I))) }) 
