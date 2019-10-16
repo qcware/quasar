@@ -44,17 +44,13 @@ class QuasarSimulatorBackend(Backend):
 
         statevector1 = statevector.copy()
         statevector2 = np.zeros_like(statevector1)
+        # TODO: Adjust this shit 
 
-        # TODO: Compression?
-
-        for key, gate in circuit.gates.items(): 
-            times, qubits = key
-            gate.apply_to_statevector(
-                statevector1=statevector1,
-                statevector2=statevector2,
-                qubits=tuple(_ - min_qubit for _ in qubits),
-                dtype=dtype,
-                )
-            statevector1, statevector2 = statevector2, statevector1
+        return circuit.apply_to_statevector(
+            statevector1=statevector1,
+            statevector2=statevector2,
+            qubits=tuple(_ - min_qubit for _ in qubits),
+            dtype=dtype,
+            )
         
         return statevector1

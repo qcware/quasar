@@ -1,10 +1,9 @@
 CompositeGate explosion in parallel
 CompositeGate/ControlledGate printing
 ApplyToStatevector
-QuasarUltrafastBackend
 Tomography
 ContractedGradient
 Backends
-Print empty circuit
-Empty circuit min_time/max_time/ntime consistency
 
+Noise Models
+More Ultrafast Methods

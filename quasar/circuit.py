@@ -497,7 +497,7 @@ class Gate(object):
                 the output is valid.
         Result:
             statevector2 is overwritten with the application of this gate.
-            statevector1 may be overwritten if scratch space is needed.
+            statevector1 may be overwritten if scratch space if needed.
         Returns:
             statevector2
         """
@@ -1085,6 +1085,21 @@ class CompositeGate(Gate):
     def operator_function(self):
         # TODO
         pass
+
+    def apply_to_statevector(
+        self,
+        statevector1,
+        statevector2,
+        qubits,
+        dtype=np.complex128,
+        ):
+
+        return self.circuit.apply_to_statevector(
+            statevector1=statevector1,
+            statevector2=statevector2,
+            qubits=qubits,  
+            dtype=dtype,
+            )
 
     @property
     def parameters(self):
@@ -1904,7 +1919,7 @@ class Circuit(object):
         return [(key[0], key[1]) for key in self.parameter_keys]
 
     @property
-    def parameter_index_map(self):
+    def parameter_indices(self):
         """ A map from all circuit Gate keys to parameter indices. 
 
         Useful as a utility to determine the absolute parameter indices of a
@@ -2018,10 +2033,8 @@ class Circuit(object):
             (str) - the ASCII string diagram
         """
 
-        if self.ngate == 0: return '' # TODO: Uniformity
-
         # Left side states
-        Wd = max(len(str(_)) for _ in range(self.min_qubit, self.max_qubit+1))
+        Wd = max(len(str(_)) for _ in range(self.min_qubit, self.max_qubit+1)) if self.nqubit else 0
         lstick = '%-*s : |\n' % (1+Wd, 'T')
         for qubit in range(self.min_qubit, self.max_qubit+1): 
             lstick += '%*s\n' % (5+Wd, ' ')
@@ -3502,3 +3515,26 @@ class Circuit(object):
             qubits=(qubitA, qubitB),
             **kwargs)
 
+    def apply_to_statevector(
+        self,
+        statevector1,
+        statevector2,
+        qubits,
+        dtype=np.complex128,
+        ):
+
+        if self.nqubit != len(qubits): raise RuntimeError('self.nqubit != len(qubits)')
+
+        qubit_map = { qubit2 : qubit for qubit, qubit2 in zip(qubits, range(self.min_qubit, self.min_qubit + self.nqubit) }
+
+        for key, gate in self.gates.items(): 
+            times, qubits2 = key
+            gate.apply_to_statevector(
+                statevector1=statevector1,
+                statevector2=statevector2,
+                qubits=tuple(qubit_map[qubit2] for qubit2 in qubits2),
+                dtype=dtype,
+                )
+            statevector1, statevector2 = statevector2, statevector1
+        
+        return statevector1
