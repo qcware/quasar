@@ -3525,7 +3525,7 @@ class Circuit(object):
 
         if self.nqubit != len(qubits): raise RuntimeError('self.nqubit != len(qubits)')
 
-        qubit_map = { qubit2 : qubit for qubit, qubit2 in zip(qubits, range(self.min_qubit, self.min_qubit + self.nqubit) }
+        qubit_map = { qubit2 : qubit for qubit, qubit2 in zip(qubits, range(self.min_qubit, self.min_qubit + self.nqubit)) }
 
         for key, gate in self.gates.items(): 
             times, qubits2 = key

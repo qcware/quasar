@@ -39,18 +39,17 @@ class QuasarSimulatorBackend(Backend):
         nqubit = circuit.nqubit if nqubit is None else nqubit
 
         if statevector is None:
-            statevector = np.zeros((2**nqubit,), dtype=dtype)
-            statevector[0] = 1.0
-
-        statevector1 = statevector.copy()
+            statevector1 = np.zeros((2**nqubit,), dtype=dtype)
+            statevector1[0] = 1.0
+        else:
+            statevector1 = statevector.copy()
         statevector2 = np.zeros_like(statevector1)
-        # TODO: Adjust this shit 
+
+        qubits = [_ - min_qubit for _ in range(circuit.min_qubit, circuit.min_qubit + circuit.nqubit)]
 
         return circuit.apply_to_statevector(
             statevector1=statevector1,
             statevector2=statevector2,
-            qubits=tuple(_ - min_qubit for _ in qubits),
+            qubits=qubits,
             dtype=dtype,
             )
-        
-        return statevector1
