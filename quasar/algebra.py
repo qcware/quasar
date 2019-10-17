@@ -1,5 +1,5 @@
 import numpy as np
-from .measurement import MeasurementResult, Ket
+from .measurement import ProbabilityHistogram, Ket
     
 class Algebra(object):
 
@@ -257,29 +257,41 @@ class Algebra(object):
         return statevector2, statevector1
 
     @staticmethod
-    def sample_measurements_from_probabilities(
+    def sample_histogram_from_probabilities(
         probabilities,
-        nmeasurement,
+        nmeasurement=None,
         ):
 
         """ Randomly sample binary string measurements from a set of
-            probabilities of size 2**N
+            probabilities of size 2**N.
 
         Params:
             statevector (np.ndarray of shape (2**N,)) - the statevector to
                 sample.
-            nmeasurement (int) - number of measurements to sample.
+            nmeasurement (int or None) - number of measurements to sample. If
+                None, infinite sampling is assumed and the probabilities are
+                directly returned in ProbabilityHistogram format.
         Returns:
-            (MeasurementResult) - a MeasurementResult object containing the results of
-                randomly sampled projective measurements .
+            (ProbabilityHistogram) - a ProbabilityHistogram object containing
+                the results of randomly sampled projective measurements.
         """
 
+        N = (probabilities.shape[0]&-probabilities.shape[0]).bit_length()-1
+    
+        # Directly return probabilities if nmeasurement is None (infinite sampling)
+        if nmeasurement is None:
+            return ProbabilityHistogram(
+                histogram={ Ket.from_int(k, N) : v for k, v in enumerate(probabilities) },
+                nmeasurement=nmeasurement,
+                ) 
+        # Otherwise, perform random sampling
         if not isinstance(nmeasurement, int):
             raise RuntimeError('nmeasurement must be int: %s' % nmeasurement)
-
-        N = (probabilities.shape[0]&-probabilities.shape[0]).bit_length()-1
         I = list(np.searchsorted(np.cumsum(probabilities), np.random.rand(nmeasurement)))
-        return MeasurementResult({ Ket.from_int(int(k), N) : I.count(k) for k in list(sorted(set(I))) }) 
+        return ProbabilityHistogram(
+            histogram={ Ket.from_int(int(k), N) : I.count(k) / nmeasurement for k in list(sorted(set(I))) },
+            nmeasurement=nmeasurement,
+            ) 
 
     @staticmethod
     def bit_reversal_permutation(N):

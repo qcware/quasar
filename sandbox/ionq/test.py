@@ -25,5 +25,13 @@ for I in range(6):
 # circuit = quasar.Circuit().Ry(0, theta=0.4)
 
 print(circuit)
-print(backend.run_measurement(circuit, nmeasurement=1000))
+histogram1 = backend.run_measurement(circuit, nmeasurement=1000)
+# histogram1 = backend.run_measurement(circuit, nmeasurement=None)
+print(histogram1)
+histogram2 = histogram1.to_count_histogram()
+print(histogram2)
+histogram3 = histogram2.to_probability_histogram()
+print(histogram3)
+
+
 # print(backend.run_measurement(circuit, nmeasurement=None))

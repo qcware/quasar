@@ -10,7 +10,7 @@ I, X, Y, Z = quasar.Pauli.IXYZ()
 pauli = I[-1] + Z[0] + 2.0 * Z[1] + 3.0 * Z[0] * Z[1]
 print(pauli)
 
-print(circuit.parameter_index_map)
+print(circuit.parameter_indices)
 energy = backend.run_pauli_expectation_value(
         circuit, 
         pauli, 

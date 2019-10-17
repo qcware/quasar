@@ -1,14 +1,12 @@
 => Immediate Upgrades: <=
-    
-CompositeGate/ControlledGate printing
 
 => Extensions: <=
 
-Histograms
 Measurement-based Pauli
 Tomography
 ContractedGradient
 Backends
+CompositeGate/ControlledGate printing
 
 => Enhancements: <=
 

@@ -36,7 +36,7 @@ class IonQBackend(Backend):
     def run_measurement(
         self,
         circuit,
-        nmeasurement=1000,
+        nmeasurement=None,
         statevector=None,
         dtype=np.complex128,
         **kwargs):
@@ -98,7 +98,7 @@ class IonQBackend(Backend):
 
         # TODO: Figure out uniform measurement sampling scheme (qpu vs simulator)
 
-        return Algebra.sample_measurements_from_probabilities(P, nmeasurement)
+        return Algebra.sample_histogram_from_probabilities(P, nmeasurement)
         
     def job_json_dict(
         self,

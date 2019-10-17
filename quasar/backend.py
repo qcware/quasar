@@ -130,7 +130,7 @@ class Backend(object):
     def run_measurement(
         self,
         circuit,
-        nmeasurement=1000,
+        nmeasurement=None,
         statevector=None,
         min_qubit=None,
         nqubit=None,
@@ -145,7 +145,7 @@ class Backend(object):
             dtype=dtype,
             **kwargs)
 
-        return Algebra.sample_measurements_from_probabilities(
+        return Algebra.sample_histogram_from_probabilities(
             probabilities=(np.conj(statevector) * statevector).real,
             nmeasurement=nmeasurement,
             )
