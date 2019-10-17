@@ -53,7 +53,7 @@ class Algebra(object):
         statevector2v.shape = (L,2,R)
         np.einsum('LjR,ij->LiR', statevector1v, operator, out=statevector2v)
 
-        return statevector2
+        return statevector2, statevector1
 
     @staticmethod
     def apply_operator_2(
@@ -121,7 +121,7 @@ class Algebra(object):
         statevector2v.shape = (L,2,M,2,R)
         np.einsum('LkMlR,ijkl->LiMjR', statevector1v, operator2, out=statevector2v)
 
-        return statevector2
+        return statevector2, statevector1
 
     @staticmethod
     def apply_operator_3(
@@ -190,7 +190,7 @@ class Algebra(object):
         statevector2v.shape = (L,2,M,2,P,2,R)
         np.einsum('LlMmPnR,ijklmn->LiMjPkR', statevector1v, operator2, out=statevector2v)
 
-        return statevector2
+        return statevector2, statevector1
     
     @staticmethod
     def apply_operator_n(
@@ -254,7 +254,7 @@ class Algebra(object):
         np.einsum('%s,%s->%s' % (statevector1_str, operator_str, statevector2_str), statevector1v, operator2, out=statevector2v)
         statevector2v = np.reshape(statevector2v, (-1,))
         
-        return statevector2v
+        return statevector2, statevector1
 
     @staticmethod
     def sample_measurements_from_probabilities(

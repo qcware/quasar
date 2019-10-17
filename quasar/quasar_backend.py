@@ -52,4 +52,4 @@ class QuasarSimulatorBackend(Backend):
             statevector2=statevector2,
             qubits=qubits,
             dtype=dtype,
-            )
+            )[0]

@@ -478,13 +478,14 @@ class Gate(object):
         ):
 
         """ Apply this gate to statevector1, acting on qubit indices in qubits,
-            placing the result in statevector2. statevector1 may be
-            overwritten, if scratch space is needed (sometimes occurs in Gate
-            subclasses). 
+            and return the result, along with a scratch statevector. Ideally,
+            no statevector allocations will be performed in the course of this
+            operation - a scratch statevector is provided as input to help with
+            this.
 
         Params:
             statevector1 (np.ndarray of shape 2**K) - input statevector
-            statevector2 (np.ndarray of shape 2**K) - output statevector
+            statevector2 (np.ndarray of shape 2**K) - scratch statevector
             qubits (iterable of int of size self.nqubit) - qubit indices to
                 apply this gate to. 
             dtype (real or complex dtype) - the dtype to perform the
@@ -496,10 +497,13 @@ class Gate(object):
                 that the circuit works on O(2^N) rather than U(2^N) and that
                 the output is valid.
         Result:
-            statevector2 is overwritten with the application of this gate.
-            statevector1 may be overwritten if scratch space if needed.
+            Either or both of statevector1 and statevector2 may be modified.
+            One of them is modified to contain the resultant statevector, and
+            then this output statevector and the new scratch statevector are
+            returned.
         Returns:
-            statevector2
+            output, scratch (np.ndarray of shape 2**K) - output statevector,
+                then scratch statevector.
         """
 
         if self.nqubit != len(qubits): raise RuntimeError('self.nqubit != len(qubits)')
@@ -507,14 +511,14 @@ class Gate(object):
         operator = np.array(self.operator, dtype=dtype)
 
         if self.nqubit == 1:
-            Algebra.apply_operator_1(
+            return Algebra.apply_operator_1(
                 statevector1=statevector1,
                 statevector2=statevector2,
                 operator=operator,
                 A=qubits[0],
                 )
         elif self.nqubit == 2:
-            Algebra.apply_operator_2(
+            return Algebra.apply_operator_2(
                 statevector1=statevector1,
                 statevector2=statevector2,
                 operator=operator,
@@ -522,7 +526,7 @@ class Gate(object):
                 B=qubits[1],
                 )
         elif self.nqubit == 3:
-            Algebra.apply_operator_3(
+            return Algebra.apply_operator_3(
                 statevector1=statevector1,
                 statevector2=statevector2,
                 operator=operator,
@@ -531,14 +535,12 @@ class Gate(object):
                 C=qubits[2],
                 )
         else:
-            Algebra.apply_operator_n(
+            return Algebra.apply_operator_n(
                 statevector1=statevector1,
                 statevector2=statevector2,
                 operator=operator,
                 qubits=qubits,
                 )
-
-        return statevector2
 
 # > Explicit 1-body gates < #
 
@@ -1083,8 +1085,23 @@ class CompositeGate(Gate):
 
     @property
     def operator_function(self):
-        # TODO
-        pass
+        def Ufun(parameters):
+            U = np.zeros((2**self.nqubit,)*2, dtype=np.complex128)
+            statevector1 = np.zeros((2**self.nqubit), dtype=np.complex128)
+            statevector2 = np.zeros((2**self.nqubit), dtype=np.complex128)
+            qubits = list(range(self.nqubit))
+            for i in range(2**self.nqubit):
+                statevector1[...] = 0.0
+                statevector1[i] = 1.0
+                statevector1, statevector2 = self.apply_to_statevector(
+                    statevector1=statevector1,
+                    statevector2=statevector2,
+                    qubits=qubits,
+                    dtype=np.complex128,
+                    )
+                U[:, i] = statevector1
+            return U
+        return Ufun
 
     def apply_to_statevector(
         self,
@@ -1886,11 +1903,22 @@ class Circuit(object):
             times, qubits = key
             for key2, subgate in gate.exploded_gates().items():
                 time2, qubits2 = key2
-                time3 = times[0] + time2
                 qubits3 = tuple(qubits[_] for _ in qubits2)
-                circuit.add_gate(gate=subgate, times=(time3,), qubits=qubits3, copy=copy)
+                circuit.add_gate(gate=subgate, qubits=qubits3, copy=copy)
         return circuit
 
+    def serialize_in_time(
+        self,
+        origin_in_time=0,
+        copy=True,
+        ):
+
+        circuit = Circuit()
+        for key, gate in self.gates.items():
+            times, qubits = key
+            circuit.add_gate(gate=gate, qubits=qubits, time_placement='next')
+        return circuit
+            
     # => Parameter Access/Manipulation <= #
 
     @property
@@ -3537,4 +3565,4 @@ class Circuit(object):
                 )
             statevector1, statevector2 = statevector2, statevector1
         
-        return statevector1
+        return statevector1, statevector2

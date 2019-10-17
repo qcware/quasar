@@ -1,9 +1,23 @@
-CompositeGate explosion in parallel
+=> Immediate Upgrades: <=
+    
 CompositeGate/ControlledGate printing
-ApplyToStatevector
+
+=> Extensions: <=
+
+Histograms
+Measurement-based Pauli
 Tomography
 ContractedGradient
 Backends
 
+=> Enhancements: <=
+
 Noise Models
 More Ultrafast Methods
+
+=> Wish List: <=
+
+Noise Model Gradients
+Faster Pauli application
+Faster ControlledGate apply_to_statevector
+run_statevector without allocation
