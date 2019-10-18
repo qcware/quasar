@@ -1,18 +1,21 @@
-Ensure identical gate time placement in backends
+=> Immediate Upgrades: <=
 
-Rigetti integration
-ProjectQ integration
+=> Extensions: <=
 
-4- and N-body simulation
+Measurement-based Pauli
+Tomography
+ContractedGradient
+Backends
+CompositeGate/ControlledGate printing
 
-ComputationSummary
-Unitary
-Density Matrix
-statevector initialization
+=> Enhancements: <=
 
-centered tomography formulae
-state-averaged stuff
-optimization
+Noise Models
+More Ultrafast Methods
 
-General commuting groups for measurement-based Pauli expectations
-Noise Simulators
+=> Wish List: <=
+
+Noise Model Gradients
+Faster Pauli application
+Faster ControlledGate apply_to_statevector
+run_statevector without allocation

@@ -1,0 +1,2 @@
+curl "https://api.ionq.co/v0/e482b1e9-e92c-4232-a9a6-024a4e34f575" \
+  -H "Authorization: apiKey 7MduR9Pj1ogAdlFFis05S2:5CU6u38eyIj9jZae5IyLHT"
