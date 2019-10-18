@@ -1943,6 +1943,10 @@ class Circuit(object):
         return list(self.parameters.values())
 
     @property
+    def parameter_gate_keys(self):
+        return [(key[0], key[1]) for key in self.parameter_keys]
+
+    @property
     def parameter_indices(self):
         """ A map from all circuit Gate keys to parameter indices. 
 
