@@ -6,7 +6,7 @@ Measurement-based Pauli
 Tomography
 ContractedGradient
 Backends
-CompositeGate/ControlledGate printing
+Gate substitution
 
 => Enhancements: <=
 
@@ -19,3 +19,4 @@ Noise Model Gradients
 Faster Pauli application
 Faster ControlledGate apply_to_statevector
 run_statevector without allocation
+Multipage Circuit printing
