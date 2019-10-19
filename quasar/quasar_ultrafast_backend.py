@@ -99,8 +99,8 @@ class QuasarUltrafastBackend(QuasarSimulatorBackend):
             gate_key = parameter_gate_keys[index]
             gate_name = circuit.gates[gate_key].name
             gate_qubit = gate_key[1][0]
-            RT = R.dagger()
-            WT = W.dagger()
+            RT = R.adjoint()
+            WT = W.adjoint()
             RTWT = Circuit.join_in_time([WT, RT])
             G = Circuit()
             if gate_name == 'Rx':    

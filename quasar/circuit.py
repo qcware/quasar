@@ -68,13 +68,13 @@ class Matrix(object):
     """ The 1-qubit S (Phase) matrix """
 
     ST = np.array([[1.0, 0.0], [0.0, -1.0j]], dtype=np.complex128)
-    """ The 1-qubit S^+ (Phase dagger) matrix """
+    """ The 1-qubit S^+ (Phase adjoint) matrix """
 
     T = np.array([[1.0, 0.0], [0.0, np.exp(np.pi/4.0*1.j)]], dtype=np.complex128)
     """ The 1-qubit T (sqrt-S) matrix """
 
     TT = np.array([[1.0, 0.0], [0.0, np.exp(-np.pi/4.0*1.j)]], dtype=np.complex128)
-    """ The 1-qubit T (sqrt-S-dagger) matrix """
+    """ The 1-qubit T (sqrt-S-adjoint) matrix """
 
     H = 1.0 / np.sqrt(2.0) * np.array([[1.0, 1.0], [1.0, -1.0]], dtype=np.complex128)
     """ The 1-qubit H (Hadamard) matrix """
@@ -172,7 +172,7 @@ class Matrix(object):
         [0.0, 0.0, 1.0, 0.0],
         [0.0, 0.0, 0.0, -1.0j],
         ], dtype=np.complex128)
-    """ The 2-qubit CS^+ (controlled-S-dagger) matrix """
+    """ The 2-qubit CS^+ (controlled-S-adjoint) matrix """
 
     SWAP = np.array([
         [1.0, 0.0, 0.0, 0.0],
@@ -301,6 +301,15 @@ class Matrix(object):
 
 class Gate(object):
 
+    """ Class Gate represents a quantum gate operation, i.e., a (usually)
+        unitary operator acting on a specific number of qubits.
+        
+    This specific Gate class represents a "primitive" gate with an explicitly
+    defined operator that occupies a single time index. Primitive Gate objects
+    do not contain any subsidiary Gate or Circuit objects.
+
+    """
+    
     def __init__(
         self,
         nqubit,
@@ -309,7 +318,7 @@ class Gate(object):
         name,
         ascii_symbols,
         involuntary=False,
-        dagger_function=None,
+        adjoint_function=None,
         ):
         
         self.nqubit = nqubit 
@@ -318,7 +327,7 @@ class Gate(object):
         self.name = name
         self.ascii_symbols = ascii_symbols
         self.involuntary = involuntary
-        self.dagger_function = dagger_function
+        self.adjoint_function = adjoint_function
 
         # Validity checks
         if not isinstance(self.nqubit, int): raise RuntimeError('nqubit must be int')
@@ -335,14 +344,17 @@ class Gate(object):
         
     @property
     def ntime(self):
+        """ (int) - Number of time indices occupied by this Gate (always 1) """
         return 1
 
     @property
     def is_composite(self):
+        """ (bool) - Is this Gate CompositeGate (containing subgates) (always False) """
         return False
 
     @property
     def is_controlled(self):
+        """ (bool) - Is this Gate ControlledGate (containing controls + Gate) (always False) """
         return False
 
     def __str__(self):
@@ -411,16 +423,30 @@ class Gate(object):
             name=self.name,  
             ascii_symbols=self.ascii_symbols.copy(),
             involuntary=self.involuntary,
-            dagger_function=self.dagger_function,
+            adjoint_function=self.adjoint_function,
             )
 
     # > Adjoint < #
 
-    def dagger(self):
+    def adjoint(self):
+        """ Make the adjoint of the current Gate (always a copy).
+
+        Returns:
+            (Gate) - a Gate representing the adjoint of this Gate. 
+                - If self.involuntary is True, a copy of self is returned.
+                - Else if self.adjoint_function is not None,
+                    self.adjoint_function(self.parameters) is called and used to
+                    return the desired Gate.
+                - Else an extended copy of this Gate with propery dressed
+                    adjoint operator_function and '^+' added to name and
+                    ascii_symbols is returned (works correctly always, but
+                    ^+^+^+ runs build up under repeated calls to adjoint).
+        """
+
         if self.involuntary:
             return self.copy()
-        elif self.dagger_function:
-            return self.dagger_function(self.parameters)
+        elif self.adjoint_function:
+            return self.adjoint_function(self.parameters)
         else:
             return Gate(
                 nqubit=self.nqubit,
@@ -429,7 +455,7 @@ class Gate(object):
                 name=self.name+'^+',
                 ascii_symbols=[symbol + ('' if symbol in ['@', 'O'] else '^+') for symbol in self.ascii_symbols],
                 involuntary=self.involuntary,
-                dagger_function=self.dagger_function,
+                adjoint_function=self.adjoint_function,
                 )
 
     # > Explosion Utility < #
@@ -600,7 +626,7 @@ Gate.S = Gate(
     parameters=collections.OrderedDict(),
     name='S',
     ascii_symbols=['S'],
-    dagger_function = lambda parameters : Gate.ST,
+    adjoint_function = lambda parameters : Gate.ST,
     )
 """ S gate """
 
@@ -610,7 +636,7 @@ Gate.ST = Gate(
     parameters=collections.OrderedDict(),
     name='S^+',
     ascii_symbols=['S^+'],
-    dagger_function = lambda parameters : Gate.S,
+    adjoint_function = lambda parameters : Gate.S,
     )
 """ S^+ gate """
 
@@ -620,7 +646,7 @@ Gate.T = Gate(
     name='T',
     parameters=collections.OrderedDict(),
     ascii_symbols=['T'],
-    dagger_function = lambda parameters : Gate.TT,
+    adjoint_function = lambda parameters : Gate.TT,
     )
 """ T gate """
 
@@ -630,7 +656,7 @@ Gate.TT = Gate(
     name='T^+',
     parameters=collections.OrderedDict(),
     ascii_symbols=['T^+'],
-    dagger_function = lambda parameters : Gate.T,
+    adjoint_function = lambda parameters : Gate.T,
     )
 """ T^+ gate """
 
@@ -640,7 +666,7 @@ Gate.Rx2 = Gate(
     parameters=collections.OrderedDict(),
     name='Rx2',
     ascii_symbols=['Rx2'],
-    dagger_function = lambda parameters : Gate.Rx2T,
+    adjoint_function = lambda parameters : Gate.Rx2T,
     )
 """ Rx2 gate """
 
@@ -650,7 +676,7 @@ Gate.Rx2T = Gate(
     parameters=collections.OrderedDict(),
     name='Rx2T',
     ascii_symbols=['Rx2T'],
-    dagger_function = lambda parameters : Gate.Rx2,
+    adjoint_function = lambda parameters : Gate.Rx2,
     )
 """ Rx2T gate """
 
@@ -689,7 +715,7 @@ Gate.CS = Gate(
     parameters=collections.OrderedDict(),
     name='CS',
     ascii_symbols=['@', 'S'],
-    dagger_function = lambda parameters : Gate.CST,
+    adjoint_function = lambda parameters : Gate.CST,
     )
 """ CS gate """
 Gate.CST = Gate(
@@ -698,7 +724,7 @@ Gate.CST = Gate(
     parameters=collections.OrderedDict(),
     name='CS^+',
     ascii_symbols=['@', 'S^+'],
-    dagger_function = lambda parameters : Gate.CS,
+    adjoint_function = lambda parameters : Gate.CS,
     )
 """ CS^+ gate """
 Gate.SWAP = Gate(
@@ -751,7 +777,7 @@ def _GateRx(theta=0.0):
         parameters=collections.OrderedDict([('theta', theta)]),
         name='Rx',
         ascii_symbols=['Rx'],
-        dagger_function=lambda parameters : Gate.Rx(**{ k : -v for k, v in parameters.items()})
+        adjoint_function=lambda parameters : Gate.Rx(**{ k : -v for k, v in parameters.items()})
         )
     
 @staticmethod
@@ -771,7 +797,7 @@ def _GateRy(theta=0.0):
         parameters=collections.OrderedDict([('theta', theta)]),
         name='Ry',
         ascii_symbols=['Ry'],
-        dagger_function=lambda parameters : Gate.Ry(**{ k : -v for k, v in parameters.items()})
+        adjoint_function=lambda parameters : Gate.Ry(**{ k : -v for k, v in parameters.items()})
         )
     
 @staticmethod
@@ -791,7 +817,7 @@ def _GateRz(theta=0.0):
         parameters=collections.OrderedDict([('theta', theta)]),
         name='Rz',
         ascii_symbols=['Rz'],
-        dagger_function=lambda parameters : Gate.Rz(**{ k : -v for k, v in parameters.items()})
+        adjoint_function=lambda parameters : Gate.Rz(**{ k : -v for k, v in parameters.items()})
         )
     
 Gate.Rx = _GateRx
@@ -810,7 +836,7 @@ def _Gateu1(lam=0.0):
         parameters=collections.OrderedDict([('lam', lam)]),
         name='u1',
         ascii_symbols=['u1'],
-        dagger_function=lambda parameters : Gate.u1(**{ k : -v for k, v in parameters.items()})
+        adjoint_function=lambda parameters : Gate.u1(**{ k : -v for k, v in parameters.items()})
         )
 
 @staticmethod
@@ -825,7 +851,7 @@ def _Gateu2(phi=0.0, lam=0.0):
         parameters=collections.OrderedDict([('phi', phi), ('lam', lam)]),
         name='u2',
         ascii_symbols=['u2'],
-        dagger_function=lambda parameters : Gate.u2(**{ k : -v for k, v in parameters.items()})
+        adjoint_function=lambda parameters : Gate.u2(**{ k : -v for k, v in parameters.items()})
         )
 
 @staticmethod
@@ -840,7 +866,7 @@ def _Gateu3(theta=0.0, phi=0.0, lam=0.0):
         parameters=collections.OrderedDict([('theta', theta), ('phi', phi), ('lam', lam)]),
         name='u3',
         ascii_symbols=['u3'],
-        dagger_function=lambda parameters : Gate.u3(**{ k : -v for k, v in parameters.items()})
+        adjoint_function=lambda parameters : Gate.u3(**{ k : -v for k, v in parameters.items()})
         )
 
 Gate.u1 = _Gateu1
@@ -875,7 +901,7 @@ def _GateSO4(A=0.0, B=0.0, C=0.0, D=0.0, E=0.0, F=0.0):
         parameters=collections.OrderedDict([('A', A), ('B', B), ('C', C), ('D', D), ('E', E), ('F', F)]),
         name='SO4',
         ascii_symbols=['SO4A', 'SO4B'],
-        dagger_function=lambda parameters : Gate.SO4(**{ k : -v for k, v in parameters.items()})
+        adjoint_function=lambda parameters : Gate.SO4(**{ k : -v for k, v in parameters.items()})
         )
 
 Gate.SO4 = _GateSO4
@@ -913,7 +939,7 @@ def _GateSO42(thetaIY=0.0, thetaYI=0.0, thetaXY=0.0, thetaYX=0.0, thetaZY=0.0, t
         ]),
         name='SO42',
         ascii_symbols=['SO42A', 'SO42B'],
-        dagger_function=lambda parameters : Gate.SO42(**{ k : -v for k, v in parameters.items()})
+        adjoint_function=lambda parameters : Gate.SO42(**{ k : -v for k, v in parameters.items()})
         )
 
 Gate.SO42 = _GateSO42
@@ -940,7 +966,7 @@ def _CF(theta=0.0):
         parameters=collections.OrderedDict([('theta', theta)]),
         name='CF',
         ascii_symbols=['@', 'F'],
-        dagger_function=lambda parameters : Gate.CF(**{ k : -v for k, v in parameters.items()})
+        adjoint_function=lambda parameters : Gate.CF(**{ k : -v for k, v in parameters.items()})
         )
 
 Gate.CF = _CF
@@ -958,7 +984,7 @@ def _GateR_ion(theta=0.0, phi=0.0):
         parameters=collections.OrderedDict([('theta', theta), ('phi', phi)]),
         name='R_ion',
         ascii_symbols=['R'],
-        dagger_function=lambda parameters : Gate.R_ion(**{ k : -v for k, v in parameters.items()})
+        adjoint_function=lambda parameters : Gate.R_ion(**{ k : -v for k, v in parameters.items()})
         )
 
 def _GateRx_ion(theta=0.0):
@@ -972,7 +998,7 @@ def _GateRx_ion(theta=0.0):
         parameters=collections.OrderedDict([('theta', theta)]),
         name='Rx_ion',
         ascii_symbols=['Rx'],
-        dagger_function=lambda parameters : Gate.Rx_ion(**{ k : -v for k, v in parameters.items()})
+        adjoint_function=lambda parameters : Gate.Rx_ion(**{ k : -v for k, v in parameters.items()})
         )
 
 def _GateRy_ion(theta=0.0):
@@ -986,7 +1012,7 @@ def _GateRy_ion(theta=0.0):
         parameters=collections.OrderedDict([('theta', theta)]),
         name='Ry_ion',
         ascii_symbols=['Ry'],
-        dagger_function=lambda parameters : Gate.Ry_ion(**{ k : -v for k, v in parameters.items()})
+        adjoint_function=lambda parameters : Gate.Ry_ion(**{ k : -v for k, v in parameters.items()})
         )
 
 def _GateRz_ion(theta=0.0):
@@ -1000,7 +1026,7 @@ def _GateRz_ion(theta=0.0):
         parameters=collections.OrderedDict([('theta', theta)]),
         name='Rz_ion',
         ascii_symbols=['Rz'],
-        dagger_function=lambda parameters : Gate.Rz_ion(**{ k : -v for k, v in parameters.items()})
+        adjoint_function=lambda parameters : Gate.Rz_ion(**{ k : -v for k, v in parameters.items()})
         )
 
 def _GateXX_ion(chi=0.0):
@@ -1014,7 +1040,7 @@ def _GateXX_ion(chi=0.0):
         parameters=collections.OrderedDict([('chi', chi)]),
         name='XX_ion',
         ascii_symbols=['XX', 'XX'],
-        dagger_function=lambda parameters : Gate.XX_ion(**{ k : -v for k, v in parameters.items()})
+        adjoint_function=lambda parameters : Gate.XX_ion(**{ k : -v for k, v in parameters.items()})
         )
 
 Gate.R_ion = _GateR_ion
@@ -1135,9 +1161,9 @@ class CompositeGate(Gate):
             ascii_symbols=self.ascii_symbols.copy(),
             )
 
-    def dagger(self):
+    def adjoint(self):
         return CompositeGate(
-            circuit=self.circuit.dagger(),
+            circuit=self.circuit.adjoint(),
             name=self.name+'^+',
             ascii_symbols=[symbol + ('' if symbol in ['@', 'O'] else '^+') for symbol in self.ascii_symbols],
             )
@@ -1221,9 +1247,9 @@ class ControlledGate(Gate):
             controls=self.controls.copy(),
             )
 
-    def dagger(self):
+    def adjoint(self):
         return ControlledGate(
-            gate=self.gate.dagger(),
+            gate=self.gate.adjoint(),
             controls=self.controls.copy(),
             )
 
@@ -1841,7 +1867,7 @@ class Circuit(object):
             copy=copy,
             )
 
-    def dagger(
+    def adjoint(
         self,
         ):
 
@@ -1852,7 +1878,7 @@ class Circuit(object):
         for key, gate in circuit1.gates.items():
             times, qubits = key
             circuit2.add_gate(
-                gate=gate.dagger(),
+                gate=gate.adjoint(),
                 times=times,
                 qubits=qubits,
                 )

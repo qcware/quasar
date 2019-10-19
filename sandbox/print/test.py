@@ -20,15 +20,15 @@ print(circuit.times)
 print(circuit.qubits)
 print(circuit.times_and_qubits)
 print(circuit)
-print(circuit.recentered())
+print(circuit.center())
 
 
 
-print(quasar.Circuit.test_equivalence(circuit, circuit.recentered()))
+print(quasar.Circuit.test_equivalence(circuit, circuit.center()))
 print(quasar.Circuit.test_equivalence(circuit, circuit))
 
-print(circuit.reversed())
-print(circuit.dagger())
+print(circuit.reverse())
+print(circuit.adjoint())
 
 gadget = quasar.Circuit()
 gadget.add_gate(quasar.Gate.H, 0)
@@ -50,8 +50,8 @@ print(circuit)
 circuit.add_controlled_gate(gadget,  qubits=(0, 2, 3))
 
 print(circuit)
-print(circuit.recentered())
+print(circuit.center())
 print(circuit.sparse())
-print(circuit.exploded())
-print(circuit.exploded().is_composite)
+print(circuit.explode())
+print(circuit.explode().is_composite)
 print('%11.3E' % (time.time() - start))
