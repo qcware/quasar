@@ -3,47 +3,6 @@ import sortedcontainers # SortedSet, SortedDict
 import collections      # OrderedDict
 from .algebra import Algebra
 
-class GatePrintingLayout(object):
-    
-    def __init__(
-        self,
-        min_qubit=0,
-        max_qubit=-1,
-        ascii_symbols=[], # None to indicate vertical connector
-        ):
-    
-        self.min_qubit = min_qubit
-        self.max_qubit = max_qubit
-        self.ascii_symbols = ascii_symbols
-        
-    @property
-    def ascii_symbol_enumeration(self):
-        return [(qubit, symbol) for qubit, symbol in zip(range(self.min_qubit, self.max_qubit+1), self.ascii_symbols)]
-        
-    @property
-    def max_ascii_width(self):
-        return max(len(_) for _ in self.ascii_symbols if _ is not None)
-    
-    @staticmethod
-    def interferes(layout1, layout2):
-        if layout1.min_qubit > layout2.max_qubit: return False
-        if layout1.max_qubit < layout2.min_qubit: return False
-        return True
-        
-    @staticmethod
-    def build(qubits, ascii_symbols):
-        min_qubit = min(qubits)
-        max_qubit = max(qubits)
-        nqubit = max_qubit - min_qubit + 1
-        ascii_symbols2 = [None] * nqubit
-        for qubit, ascii_symbol in zip(qubits, ascii_symbols):
-            ascii_symbols2[qubit - min_qubit] = ascii_symbol
-        return GatePrintingLayout(
-            min_qubit=min_qubit,
-            max_qubit=max_qubit,
-            ascii_symbols=ascii_symbols2,
-            )
-
 """ Quasar: an ultralight python-3.X quantum simulator package
 
 Note on Qubit Order:
@@ -2113,7 +2072,50 @@ class Circuit(object):
         return self.ascii_diagram2()
         
     def ascii_diagram2(self):
-        
+
+        # => Utility Class <= #
+
+        class GatePrintingLayout(object):
+            
+            def __init__(
+                self,
+                min_qubit=0,
+                max_qubit=-1,
+                ascii_symbols=[], # None to indicate vertical connector
+                ):
+            
+                self.min_qubit = min_qubit
+                self.max_qubit = max_qubit
+                self.ascii_symbols = ascii_symbols
+                
+            @property
+            def ascii_symbol_enumeration(self):
+                return [(qubit, symbol) for qubit, symbol in zip(range(self.min_qubit, self.max_qubit+1), self.ascii_symbols)]
+                
+            @property
+            def max_ascii_width(self):
+                return max(len(_) for _ in self.ascii_symbols if _ is not None)
+            
+            @staticmethod
+            def interferes(layout1, layout2):
+                if layout1.min_qubit > layout2.max_qubit: return False
+                if layout1.max_qubit < layout2.min_qubit: return False
+                return True
+                
+            @staticmethod
+            def build(qubits, ascii_symbols):
+                min_qubit = min(qubits)
+                max_qubit = max(qubits)
+                nqubit = max_qubit - min_qubit + 1
+                ascii_symbols2 = [None] * nqubit
+                for qubit, ascii_symbol in zip(qubits, ascii_symbols):
+                    ascii_symbols2[qubit - min_qubit] = ascii_symbol
+                return GatePrintingLayout(
+                    min_qubit=min_qubit,
+                    max_qubit=max_qubit,
+                    ascii_symbols=ascii_symbols2,
+                    )
+
         # => Logical Layout <= #
             
         # Map of time : list of [list of GatePrintingLayout]
@@ -2215,6 +2217,8 @@ class Circuit(object):
                         for index, char in enumerate(symbol):
                             wire_lines[qubit - min_qubit][second_start + index] = char      
         
+        # => Assembly <= #
+
         wire_strs = [''.join(_) for _ in wire_lines]
         join_strs = [''.join(_) for _ in join_lines]
         
