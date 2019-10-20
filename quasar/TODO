@@ -19,4 +19,3 @@ Noise Model Gradients
 Faster Pauli application
 Faster ControlledGate apply_to_statevector
 run_statevector without allocation
-Multipage Circuit printing

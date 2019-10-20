@@ -2070,8 +2070,15 @@ class Circuit(object):
         """ String representation of this Circuit (an ASCII circuit diagram). """
         # return self.ascii_diagram(time_lines='both')
         return self.ascii_diagram2()
+
+    ascii_diagram_max_width = 80
         
-    def ascii_diagram2(self):
+    def ascii_diagram2(
+        self,
+        max_width=None,
+        ):
+
+        max_width = Circuit.ascii_diagram_max_width if max_width is None else max_width
 
         # => Utility Class <= #
 
@@ -2199,6 +2206,8 @@ class Circuit(object):
             second2_index = seconds_map[second2]
             second1_start = seconds_ascii_starts[second1_index]
             second2_start = seconds_ascii_starts[second2_index]
+            for qubit, symbol in time_connector_layout.ascii_symbol_enumeration[:-1]:
+                join_lines[qubit - min_qubit][second1_start:second2_start] = '*' * (second2_start - second1_start)
             for qubit, symbol in time_connector_layout.ascii_symbol_enumeration:
                 if symbol is None: continue
                 wire_lines[qubit - min_qubit][second1_start:second2_start] = '=' * (second2_start - second1_start)
@@ -2221,30 +2230,65 @@ class Circuit(object):
 
         wire_strs = [''.join(_) for _ in wire_lines]
         join_strs = [''.join(_) for _ in join_lines]
+        time_str = ''.join(['%-*d|' % (v, k) for k, v in time_widths.items()])
         
         qwidth = max(len(str(index - min_qubit)) for index in range(nqubit)) if nqubit else 0
         
-        wire_strs = ['q%-*d : -%s\n' % (
-            qwidth, 
-            index - min_qubit, 
-            wire_str,
-            ) for index, wire_str in enumerate(wire_strs)]
+        # Pagination
+        fwidth = qwidth + 6 # Width of first column
+        effective_width = max_width - (qwidth + 6)
+        page_starts = [0]
+        for time in range(self.min_time, self.max_time+1):
+            second_index = seconds_map[(time, 0)]
+            second_ascii_start = seconds_ascii_starts[second_index]
+            if second_ascii_start - page_starts[-1] > effective_width:
+                second_index2 = seconds_map[(time - 1, 0)]
+                second_ascii_start2 = seconds_ascii_starts[second_index2]
+                if second_ascii_start2 == page_starts[-1]:
+                    raise RuntimeError('time index %d is too large to fit' % time)
+                page_starts.append(second_ascii_start2)
+        page_starts.append(ascii_width)
+
+        ascii_str = ''
+        for page_index in range(len(page_starts) - 1):
+            page_start = page_starts[page_index]
+            page_stop = page_starts[page_index+1]
+
+            ascii_str += 'T%*s : %s%s\n' % (
+                qwidth,
+                ' ',
+                '|' if page_index == 0 else ' ',
+                time_str[page_start:page_stop],
+                )
+
+            ascii_str += '\n'
+    
+            for index, wire_str in enumerate(wire_strs): 
+                join_str = join_strs[index]
+                ascii_str += 'q%-*d : %s%s\n' % (
+                    qwidth,
+                    index - min_qubit,
+                    '-' if page_index == 0 else ' ',
+                    wire_str[page_start:page_stop],
+                    )
+                ascii_str += ' %-*s   %s%s\n' % (
+                    qwidth,
+                    ' ',
+                    ' ',
+                    join_str[page_start:page_stop],
+                    )
+
+            ascii_str += 'T%*s : %s%s\n' % (
+                qwidth,
+                ' ',
+                '|' if page_index == 0 else ' ',
+                time_str[page_start:page_stop],
+                )
+
+            if page_index < len(page_starts) - 2:
+                ascii_str += '\n'
         
-        join_strs = [' %-*s    %s\n' % (
-            qwidth, 
-            ' ', 
-            join_str,
-            ) for index, join_str in enumerate(join_strs)]
-        
-        ascii_str = ''.join(a + b for a, b in zip(wire_strs, join_strs))
-        
-        time_str = 'T%-*s : |%s\n' % (
-            qwidth, 
-            ' ',
-            ''.join(['%-*d|' % (v, k) for k, v in time_widths.items()])
-            )
-        
-        return time_str + '\n' + ascii_str + time_str
+        return ascii_str
 
     def ascii_diagram(
         self,
