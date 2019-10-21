@@ -317,7 +317,7 @@ class Gate(object):
         parameters,
         name,
         ascii_symbols,
-        involuntary=False,
+        involutary=False,
         adjoint_function=None,
         ):
         
@@ -326,7 +326,7 @@ class Gate(object):
         self.parameters = parameters
         self.name = name
         self.ascii_symbols = ascii_symbols
-        self.involuntary = involuntary
+        self.involutary = involutary
         self.adjoint_function = adjoint_function
 
         # Validity checks
@@ -340,7 +340,7 @@ class Gate(object):
         if not isinstance(self.ascii_symbols, list): raise RuntimeError('ascii_symbols must be list')
         if len(self.ascii_symbols) != self.nqubit: raise RuntimeError('len(ascii_symbols) != nqubit')
         if not all(isinstance(_, str) for _ in self.ascii_symbols): raise RuntimeError('ascii_symbols must all be str')
-        if not isinstance(self.involuntary, bool): raise RuntimeError('involuntary must be bool')
+        if not isinstance(self.involutary, bool): raise RuntimeError('involutary must be bool')
         
     @property
     def ntime(self):
@@ -422,7 +422,7 @@ class Gate(object):
             parameters=self.parameters.copy(), 
             name=self.name,  
             ascii_symbols=self.ascii_symbols.copy(),
-            involuntary=self.involuntary,
+            involutary=self.involutary,
             adjoint_function=self.adjoint_function,
             )
 
@@ -433,7 +433,7 @@ class Gate(object):
 
         Returns:
             (Gate) - a Gate representing the adjoint of this Gate. 
-                - If self.involuntary is True, a copy of self is returned.
+                - If self.involutary is True, a copy of self is returned.
                 - Else if self.adjoint_function is not None,
                     self.adjoint_function(self.parameters) is called and used to
                     return the desired Gate.
@@ -443,7 +443,7 @@ class Gate(object):
                     ^+^+^+ runs build up under repeated calls to adjoint).
         """
 
-        if self.involuntary:
+        if self.involutary:
             return self.copy()
         elif self.adjoint_function:
             return self.adjoint_function(self.parameters)
@@ -454,7 +454,7 @@ class Gate(object):
                 parameters=self.parameters.copy(), 
                 name=self.name+'^+',
                 ascii_symbols=[symbol + ('' if symbol in ['@', 'O'] else '^+') for symbol in self.ascii_symbols],
-                involuntary=self.involuntary,
+                involutary=self.involutary,
                 adjoint_function=self.adjoint_function,
                 )
 
@@ -576,7 +576,7 @@ Gate.I = Gate(
     parameters=collections.OrderedDict(),
     name='I',
     ascii_symbols=['I'],
-    involuntary=True,
+    involutary=True,
     )
 """ I (identity) gate """
 
@@ -586,7 +586,7 @@ Gate.X = Gate(
     parameters=collections.OrderedDict(),
     name='X',
     ascii_symbols=['X'],
-    involuntary=True,
+    involutary=True,
     )
 """ X (NOT) gate """
 
@@ -596,7 +596,7 @@ Gate.Y = Gate(
     parameters=collections.OrderedDict(),
     name='Y',
     ascii_symbols=['Y'],
-    involuntary=True,
+    involutary=True,
     )
 """ Y gate """
 
@@ -606,7 +606,7 @@ Gate.Z = Gate(
     parameters=collections.OrderedDict(),
     name='Z',
     ascii_symbols=['Z'],
-    involuntary=True,
+    involutary=True,
     )
 """ Z gate """
 
@@ -616,7 +616,7 @@ Gate.H = Gate(
     parameters=collections.OrderedDict(),
     name='H',
     ascii_symbols=['H'],
-    involuntary=True,
+    involutary=True,
     )
 """ H (Hadamard) gate """
 
@@ -688,7 +688,7 @@ Gate.CX = Gate(
     parameters=collections.OrderedDict(),
     name='CX',
     ascii_symbols=['@', 'X'],
-    involuntary=True,
+    involutary=True,
     )
 """ CX (CNOT) gate """
 Gate.CY = Gate(
@@ -697,7 +697,7 @@ Gate.CY = Gate(
     parameters=collections.OrderedDict(),
     name='CY',
     ascii_symbols=['@', 'Y'],
-    involuntary=True,
+    involutary=True,
     )
 """ CY gate """
 Gate.CZ = Gate(
@@ -706,7 +706,7 @@ Gate.CZ = Gate(
     parameters=collections.OrderedDict(),
     name='CZ',
     ascii_symbols=['@', 'Z'],
-    involuntary=True,
+    involutary=True,
     )
 """ CZ gate """
 Gate.CS = Gate(
@@ -733,7 +733,7 @@ Gate.SWAP = Gate(
     parameters=collections.OrderedDict(),
     name='SWAP',
     ascii_symbols=['X', 'X'],
-    involuntary=True,
+    involutary=True,
     )
 """ SWAP gate """
 
@@ -745,7 +745,7 @@ Gate.CCX = Gate(
     parameters=collections.OrderedDict(),
     name='CCX',
     ascii_symbols=['@', '@', 'X'],
-    involuntary=True,
+    involutary=True,
     )
 """ CCX (Toffoli gate) """
 Gate.CSWAP = Gate(
@@ -754,7 +754,7 @@ Gate.CSWAP = Gate(
     parameters=collections.OrderedDict(),
     name='CSWAP',
     ascii_symbols=['@', 'X', 'X'],
-    involuntary=True,
+    involutary=True,
     )
 """ CSWAP (Toffoli gate) """
 

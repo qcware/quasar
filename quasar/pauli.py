@@ -500,6 +500,10 @@ class PauliExpectation(Pauli):
             lines.append('<%s> = %s' % (string, value))
         return '\n'.join(lines)
 
+    @staticmethod
+    def zero():
+        return PauliExpectation(sortedcontainers.SortedDict())
+
     @staticmethod   
     def zeros_like(x):
         return PauliExpectation(sortedcontainers.SortedDict((k, 0.0) for k, v in x.items()))

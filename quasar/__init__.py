@@ -9,3 +9,4 @@ from .quasar_backend import QuasarSimulatorBackend
 from .quasar_ultrafast_backend import QuasarUltrafastBackend
 from .ionq_backend import IonQBackend
 from .measurement import Ket, Histogram, ProbabilityHistogram, CountHistogram
+from .format import format_statevector

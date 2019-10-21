@@ -1,4 +1,5 @@
 import numpy as np
+from .pauli import Pauli, PauliExpectation
 from .algebra import Algebra
 
 class Backend(object):
@@ -405,7 +406,7 @@ class Backend(object):
             dtype=dtype,
             **kwargs)
 
-        pauli_expectation = Pauli.zero()
+        pauli_expectation = PauliExpectation.zero()
         for string in pauli.keys():
             pauli2 = Pauli.zero()
             pauli2[string] = 1.0
