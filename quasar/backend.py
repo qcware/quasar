@@ -383,6 +383,74 @@ class Backend(object):
 
         return hessian
 
+    def run_pauli_expectation_value_gradient_pauli_contraction(
+        self,
+        circuit,
+        pauli,
+        parameter_coefficients,
+        nmeasurement=None,
+        statevector=None,
+        min_qubit=None,
+        nqubit=None,
+        dtype=np.complex128,
+        parameter_indices=None,
+        **kwargs):
+        
+        # Current circuit parameter values
+        parameter_values = circuit.parameter_values
+
+        # Default to taking the gradient with respect to all parameters
+        if parameter_indices is None:
+            parameter_indices = list(range(len(parameter_values)))
+
+        # Check that parameter coefficients make sense
+        if len(parameter_coefficients) != len(parameter_indices):
+           raise RuntimeError('len(parameter_coefficients) != len(parameter_indices)')
+
+        # Check that the gradient formula is known for these parameters (i.e., Rx, Ry, Rz gates)
+        parameter_keys = circuit.parameter_keys
+        for parameter_index in parameter_indices:
+            key = parameter_keys[parameter_index]
+            times, qubits, key2 = key
+            gate = circuit.gates[(times, qubits)]
+            if not gate.name in ('Rx', 'Ry', 'Rz'): 
+                raise RuntimeError('Unknown gradient rule: presently can only differentiate Rx, Ry, Rz gates: %s' % gate)
+
+        # Evaluate the gradient by the parameter shift rule
+        pauli_gradient = PauliExpectation.zero()
+        circuit2 = circuit.copy()
+        for index, parameter_index in enumerate(parameter_indices):
+            # +
+            parameter_values2 = parameter_values.copy()
+            parameter_values2[parameter_index] += np.pi / 4.0
+            circuit2.set_parameter_values(parameter_values2)
+            Gp = self.run_pauli_expectation(
+                circuit=circuit2,
+                pauli=pauli,
+                nmeasurement=nmeasurement,
+                statevector=statevector,
+                min_qubit=min_qubit,
+                nqubit=nqubit,
+                dtype=dtype,
+                **kwargs)
+            # -
+            parameter_values2 = parameter_values.copy()
+            parameter_values2[parameter_index] -= np.pi / 4.0
+            circuit2.set_parameter_values(parameter_values2)
+            Gm = self.run_pauli_expectation(
+                circuit=circuit2,
+                pauli=pauli,
+                nmeasurement=nmeasurement,
+                statevector=statevector,
+                min_qubit=min_qubit,
+                nqubit=nqubit,
+                dtype=dtype,
+                **kwargs)
+            # Assembly
+            pauli_gradient += parameter_coefficients[index] * (Gp - Gm)
+
+        return pauli_gradient
+
     # => Utility Methods <= #
 
     def run_pauli_expectation_ideal(
