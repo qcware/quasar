@@ -11,4 +11,4 @@
        - run:
           command: |  # use pipenv to install dependencies
             sudo pip install -r requirements.txt  
-       - run: python test/utest/utest.py
+       - run: python -m unittest -s 'test/utest'

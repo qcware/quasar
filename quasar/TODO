@@ -4,9 +4,9 @@ Tests
 
 => Extensions: <=
 
+ContractedGradient
 Measurement-based Pauli
 Tomography
-ContractedGradient
 Backends
 Gate substitution
 
