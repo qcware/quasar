@@ -1276,10 +1276,6 @@ class Circuit(object):
         self.qubits = sortedcontainers.SortedSet()
         self.times_and_qubits = sortedcontainers.SortedSet()
 
-        # Memory of last qubits/times key used in add_gate
-        self.last_qubits = None
-        self.last_times = None
-
     # => Simple Circuit Attributes <= #
 
     @property
@@ -1434,6 +1430,7 @@ class Circuit(object):
         copy=True,
         name=None,
         ascii_symbols=None,
+        return_key=False,
         ):
 
         """ Add a gate to self at specified qubits and times, updating self. The
@@ -1470,11 +1467,11 @@ class Circuit(object):
                 default name)
             ascii_symbols (list of str or None) - ASCII symbols for use in
                 CompositeGate (None indicates default symbols)
+            return_key (bool) - return self for chaining (False - default)
+                or (times, qubits) key (True) to determine gate placement.
         Result:
             self is updated with the added gate. Checks are
-                performed to ensure that the addition is valid. The
-                `last_qubits` and `last_times` attribute of self is set to the
-                qubits and times key of this call to `add_gate`.
+                performed to ensure that the addition is valid. 
         Returns:
             self - for chaining
         """
@@ -1531,11 +1528,7 @@ class Circuit(object):
             for time in times:
                 self.times_and_qubits.add((time, qubit))
 
-        # Mark qubits/times key in case user wants to know
-        self.last_qubits = tuple(qubits)
-        self.last_times = tuple(times)
-
-        return self
+        return (tuple(times), tuple(qubits)) if return_key else self
 
     def add_controlled_gate(
         self,
@@ -1699,12 +1692,6 @@ class Circuit(object):
                 for time in times2:
                     self.times_and_qubits.add((time, qubit))
 
-        # If the user deleted the Gate entered in the last add_gate call, flush
-        # the last_qubits/last_times history
-        if qubits == self.last_qubits and times == self.last_times:
-            self.last_qubits = None 
-            self.last_times = None
-                    
         return self
 
     def replace_gate(

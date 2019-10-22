@@ -4,9 +4,9 @@ Tests
 
 => Extensions: <=
 
-Measurement-based Pauli
 Tomography
 Backends
+Measurement-based Pauli
 Gate substitution
 
 => Enhancements: <=

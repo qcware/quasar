@@ -14,7 +14,7 @@ class Tomography(object):
         raise NotImplementedError
         
 
-    def compute_value(
+    def compute_observable_expectation_value(
         self,
         params, 
         ):

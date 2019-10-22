@@ -42,9 +42,6 @@ class TestCircuit(unittest.TestCase):
         self.assertEqual(circuit.qubits, sortedcontainers.SortedSet([]))
         self.assertEqual(circuit.times_and_qubits, sortedcontainers.SortedSet([]))
 
-        self.assertEqual(circuit.last_times, None)
-        self.assertEqual(circuit.last_qubits, None)
-
         self.assertIsInstance(str(circuit), str)
 
     def test_h_circuit(self): 
@@ -84,9 +81,6 @@ class TestCircuit(unittest.TestCase):
         self.assertEqual(circuit.times, sortedcontainers.SortedSet([0]))
         self.assertEqual(circuit.qubits, sortedcontainers.SortedSet([0]))
         self.assertEqual(circuit.times_and_qubits, sortedcontainers.SortedSet([(0, 0)]))
-
-        self.assertEqual(circuit.last_times, (0,))
-        self.assertEqual(circuit.last_qubits, (0,))
 
         self.assertIsInstance(str(circuit), str)
 
@@ -135,9 +129,6 @@ class TestCircuit(unittest.TestCase):
         self.assertEqual(circuit.qubits, sortedcontainers.SortedSet([0, 1, 2]))
         self.assertEqual(circuit.times_and_qubits, sortedcontainers.SortedSet([(0, 0), (1, 0), (1, 1), (2, 1), (2, 2)]))
 
-        self.assertEqual(circuit.last_times, (2,))
-        self.assertEqual(circuit.last_qubits, (1, 2))
-
         self.assertIsInstance(str(circuit), str)
 
     def test_sparse_circuit(self): 
@@ -185,9 +176,6 @@ class TestCircuit(unittest.TestCase):
         self.assertEqual(circuit.qubits, sortedcontainers.SortedSet([0, 1, 3, 4]))
         self.assertEqual(circuit.times_and_qubits, sortedcontainers.SortedSet([(0, 0), (2, 0), (2, 1), (4, 3), (4, 4)]))
 
-        self.assertEqual(circuit.last_times, (4,))
-        self.assertEqual(circuit.last_qubits, (3, 4))
-
         self.assertIsInstance(str(circuit), str)
 
     def test_shifted_sparse_circuit(self): 
@@ -234,9 +222,6 @@ class TestCircuit(unittest.TestCase):
         self.assertEqual(circuit.times, sortedcontainers.SortedSet([-2, 2, 4]))
         self.assertEqual(circuit.qubits, sortedcontainers.SortedSet([-2, 0, 1, 3, 4]))
         self.assertEqual(circuit.times_and_qubits, sortedcontainers.SortedSet([(-2, -2), (2, 0), (2, 1), (4, 3), (4, 4)]))
-
-        self.assertEqual(circuit.last_times, (4,))
-        self.assertEqual(circuit.last_qubits, (3, 4))
 
         self.assertIsInstance(str(circuit), str)
 
