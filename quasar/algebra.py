@@ -260,6 +260,7 @@ class Algebra(object):
     def sample_histogram_from_probabilities(
         probabilities,
         nmeasurement=None,
+        cutoff=1.0E-12,
         ):
 
         """ Randomly sample binary string measurements from a set of
@@ -271,6 +272,7 @@ class Algebra(object):
             nmeasurement (int or None) - number of measurements to sample. If
                 None, infinite sampling is assumed and the probabilities are
                 directly returned in ProbabilityHistogram format.
+            cutoff (float) - probability below which to ignore contributions.
         Returns:
             (ProbabilityHistogram) - a ProbabilityHistogram object containing
                 the results of randomly sampled projective measurements.
@@ -281,7 +283,7 @@ class Algebra(object):
         # Directly return probabilities if nmeasurement is None (infinite sampling)
         if nmeasurement is None:
             return ProbabilityHistogram(
-                histogram={ Ket.from_int(k, N) : v for k, v in enumerate(probabilities) },
+                histogram={ Ket.from_int(k, N) : v for k, v in enumerate(probabilities) if v > cutoff},
                 nmeasurement=nmeasurement,
                 ) 
         # Otherwise, perform random sampling

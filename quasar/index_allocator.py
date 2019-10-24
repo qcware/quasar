@@ -86,7 +86,7 @@ class IndexAllocator(object):
         elif self.nindex == self.nindex_sparse: 
             return self.max_index + 1
         else: 
-            for index in range(self.min_index, self.max_index + 1):
+            for index in range(self.min_index, self.max_index):
                 if index not in self.indices:
                     return index
 
@@ -117,3 +117,21 @@ class IndexAllocator(object):
         
         if index not in self.indices: raise RuntimeError('Not allocated: %d' % index)
         self.indices.remove(index)
+
+class NegativeIndexAllocator(IndexAllocator):
+
+    """ NegativeIndexAllocator functions like IndexAllocator, except that it
+        starts allocating at -1 and proceeds in steps of -1.
+    """
+    
+    @property
+    def next_index(self):
+        """ (int) The next open index that remains unoccupied. """
+        if self.nindex == 0: 
+            return -1
+        elif self.nindex == self.nindex_sparse: 
+            return self.min_index - 1
+        else: 
+            for index in range(self.max_index, self.min_index, -1):
+                if index not in self.indices:
+                    return index
