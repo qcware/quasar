@@ -84,7 +84,7 @@ class QuasarUltrafastBackend(QuasarSimulatorBackend):
             min_qubit=min_qubit,
             nqubit=nqubit,
             **kwargs)
-        lamda = pauli.compute_hilbert_matrix_vector_product(
+        lamda = pauli.matrix_vector_product(
             statevector=gamma,
             dtype=dtype,
             min_qubit=min_qubit,

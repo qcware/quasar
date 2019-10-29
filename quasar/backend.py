@@ -478,7 +478,7 @@ class Backend(object):
         for string in pauli.keys():
             pauli2 = Pauli.zero()
             pauli2[string] = 1.0
-            statevector2 = pauli2.compute_hilbert_matrix_vector_product(
+            statevector2 = pauli2.matrix_vector_product(
                 statevector=statevector,
                 dtype=dtype,
                 min_qubit=min_qubit,
@@ -509,7 +509,7 @@ class Backend(object):
             dtype=dtype,
             **kwargs)
 
-        statevector2 = pauli.compute_hilbert_matrix_vector_product(
+        statevector2 = pauli.matrix_vector_product(
             statevector=statevector,
             dtype=dtype,
             min_qubit=min_qubit,

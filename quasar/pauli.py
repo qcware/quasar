@@ -1,5 +1,7 @@
 import sortedcontainers
 import numpy as np
+from .circuit import Matrix
+import itertools
 
 class PauliOperator(tuple):
 
@@ -413,9 +415,9 @@ class Pauli(sortedcontainers.SortedDict):
     def IXYZ():
         return PauliStarter('I'), PauliStarter('X'), PauliStarter('Y'), PauliStarter('Z')
 
-    # > Extra utility for run_pauli_expectation < #
+    # > Pauli <-> Computational basis matrix conversion utilities < #
 
-    def compute_hilbert_matrix(
+    def to_matrix(
         self,
         dtype=np.complex128,
         min_qubit=None,
@@ -425,7 +427,7 @@ class Pauli(sortedcontainers.SortedDict):
         min_qubit = self.min_qubit if min_qubit is None else min_qubit
         nqubit = self.nqubit if nqubit is None else nqubit
     
-        O = np.zeros((2**nqubit,)*2, dtype=np.complex128)
+        matrix = np.zeros((2**nqubit,)*2, dtype=np.complex128)
 
         min_qubit = self.min_qubit
         for string, value in self.items():
@@ -449,11 +451,60 @@ class Pauli(sortedcontainers.SortedDict):
                         if I & test: factors[I] *= -1.0
                 else:
                     raise RuntimeError('Unknown char: %s' % char)
-            O[bra_inds, range(2**nqubit)] += factors * value
+            matrix[bra_inds, range(2**nqubit)] += factors * value
 
-        return np.array(O, dtype=dtype)
+        return np.array(matrix, dtype=dtype)
 
-    def compute_hilbert_matrix_vector_product(
+    @staticmethod
+    def from_matrix(
+        matrix,
+        qubit_indices=None,
+        cutoff=1.0E-14,
+        ):
+
+        if not isinstance(matrix, np.ndarray): 
+            raise RuntimeError('operator must be ndarray')
+
+        nqubit = int(np.round(np.log2(matrix.shape[0])))
+        if matrix.shape != (2**nqubit,)*2:
+            raise RuntimeError('matrix shape must be (2**nqubit, 2**nqubit)')
+
+        if qubit_indices is None:
+            qubit_indices = list(range(nqubit))
+
+        pauli = Pauli.zero()
+        I, X, Y, Z = Pauli.IXYZ()
+        pauli_operators = (
+            I,
+            X,
+            Y,
+            Z,
+            )
+        pauli_vectors = (
+            Matrix.I,
+            Matrix.X,
+            Matrix.Y,
+            Matrix.Z,
+            )
+        for key in itertools.product((0,1,2,3), repeat=nqubit):
+            pauli_vector = 1.0
+            for index, value in enumerate(key):
+                pauli_vector = np.kron(pauli_vector, pauli_vectors[value])
+            pauli_coef = np.sum(pauli_vector.conj() * matrix) / (2.0**nqubit)
+            # Can save some time 
+            if np.abs(pauli_coef) < cutoff: 
+                continue
+            pauli_operator = 1.0 * I[-1]
+            for index, value in enumerate(key):
+                qubit_index = qubit_indices[index]
+                pauli_operator *= pauli_operators[value][qubit_index]
+            pauli += pauli_coef * pauli_operator
+
+        pauli = pauli.sieved(cutoff=cutoff)
+                
+        return pauli 
+
+    def matrix_vector_product(
         self,
         statevector,
         dtype=np.complex128,
