@@ -13,3 +13,5 @@ from .pyquil_backend import PyquilSimulatorBackend
 from .ionq_backend import IonQBackend
 from .measurement import Histogram, ProbabilityHistogram, CountHistogram
 from .format import format_statevector
+from .autocircuit import AutoCircuit
+from .autogate import AutoGate
