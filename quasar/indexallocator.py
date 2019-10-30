@@ -1,4 +1,5 @@
 import sortedcontainers
+from operator import neg
 
 class IndexAllocator(object):
 
@@ -33,15 +34,22 @@ class IndexAllocator(object):
     """
     def __init__(
         self,
+        negative_convention=False
         ):
 
         """ Empty IndexAllocator initializer. """
 
-        self.indices = sortedcontainers.SortedSet()
+        self.negative_convention = negative_convention
+
+        if negative_convention:
+            self.indices = sortedcontainers.SortedSet(key=neg)
+        else:
+            self.indices = sortedcontainers.SortedSet()
 
     @staticmethod
     def build(
         nindex_reserved=0,
+        negative_convention = False
         ):
 
         """ Build a IndexAllocator with a number of pre-reserved indices.
@@ -53,10 +61,17 @@ class IndexAllocator(object):
                 already allocated.
         """
 
-        allocator = IndexAllocator()
-        for index in range(nindex_reserved):
-            allocator.allocate()
-        return allocator
+        if negative_convention:
+            allocator = IndexAllocator(negative_convention)
+            for index in range(-1, -nindex_reserved - 1, -1):
+                allocator.allocate(index)
+            return allocator
+
+        else:
+            allocator = IndexAllocator()
+            for index in range(nindex_reserved):
+                allocator.allocate()
+            return allocator
 
     @property
     def min_index(self):
@@ -71,7 +86,12 @@ class IndexAllocator(object):
     @property
     def nindex(self):
         """ (int) The total number of indices (including empty indices). """
-        return self.indices[-1] - self.indices[0] + 1 if len(self.indices) else 0
+
+        if self.negative_convention:
+            return abs(self.indices[-1]) - abs(self.indices[0]) + 1 if len(self.indices) else 0
+
+        else:
+            return self.indices[-1] - self.indices[0] + 1 if len(self.indices) else 0
 
     @property
     def nindex_sparse(self):
@@ -82,13 +102,25 @@ class IndexAllocator(object):
     def next_index(self):
         """ (int) The next open index that remains unoccupied. """
         if self.nindex == 0: 
-            return 0
+            if self.negative_convention:
+                return - 1
+            else:
+                return 0
+
         elif self.nindex == self.nindex_sparse: 
-            return self.max_index + 1
+            if self.negative_convention:
+                return self.max_index - 1
+            else:
+                return self.max_index + 1
         else: 
-            for index in range(self.min_index, self.max_index + 1):
-                if index not in self.indices:
-                    return index
+            if self.negative_convention:
+                for index in range(self.min_index, self.max_index + 1, -1):
+                    if index not in self.indices:
+                        return index
+            else:
+                for index in range(self.min_index, self.max_index + 1):
+                    if index not in self.indices:
+                        return index
 
     def allocate(self, index=None):
         """ Allocate an index.
@@ -101,6 +133,9 @@ class IndexAllocator(object):
             (int) - allocated index, useful in case input index is None
                 and self.next_index is allocated.
         """
+
+        if index != None and index >= 0 and self.negative_convention: 
+            raise RuntimeError('No non-negative indices may be allocated when following negative convention.')
 
         if index is None: index = self.next_index
         if index in self.indices: raise RuntimeError('Already allocated: %d' % index)
