@@ -2254,7 +2254,7 @@ class Circuit(object):
                 join_str = join_strs[index]
                 ascii_str += 'q%-*d : %s%s\n' % (
                     qwidth,
-                    index - min_qubit,
+                    index + min_qubit,
                     '-' if page_index == 0 else ' ',
                     wire_str[page_start:page_stop],
                     )

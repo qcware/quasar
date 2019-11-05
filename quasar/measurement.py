@@ -33,6 +33,15 @@ class Ket(str):
         padded = ('0' * (nqubit - len(start))) + start
         return Ket(padded)
 
+    @staticmethod
+    def from_int_reverse(value, nqubit):
+        if value >= (1 << nqubit): raise RuntimeError('value >= 2**nqubit: value=%s, nqubit=%s' % (value, nqubit))
+        if value<0: raise RuntimeError('value must be a positive int')
+        if not isinstance(value, int): raise RuntimeError('value must be int')
+        start = bin(value)[2:]
+        padded = ('0' * (nqubit - len(start))) + start
+        return Ket(padded[::-1])
+
 class Histogram(object):
 
     def items(self):
