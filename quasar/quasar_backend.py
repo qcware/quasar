@@ -1,5 +1,5 @@
+import numpy as np
 from .backend import Backend
-from .circuit import Circuit
 
 class QuasarSimulatorBackend(Backend):
 
@@ -19,75 +19,37 @@ class QuasarSimulatorBackend(Backend):
         return s
 
     @property
-    def has_statevector(self):
+    def has_run_statevector(self):
         return True
 
     @property
-    def has_measurement(self):
+    def has_statevector_input(self):
         return True
-
-    @property
-    def native_circuit_type(self):
-        return Circuit
-
-    def build_native_circuit(
-        self,
-        circuit,
-        ):
-
-        # Dropthrough
-        if isinstance(circuit, self.native_circuit_type): return circuit
-
-        # Can only convert quasar -> quasar
-        if not isinstance(circuit, Circuit): raise RuntimeError('circuit must be Circuit type for build_native_circuit: %s' % (circuit))
-
-    def build_native_circuit_in_basis(
-        self,
-        circuit,
-        basis,
-        ):
-
-        circuit = self.build_native_circuit(circuit)
-    
-        if len(basis) > circuit.N: raise RuntimeError('len(basis) > circuit.N. Often implies pauli.N > circuit.N')
-        
-        basis_circuit = Circuit(N=circuit.N)
-        for A, char in enumerate(basis): 
-            if char == 'X': basis_circuit.H(A)
-            elif char == 'Y': basis_circuit.Rx2(A)
-            elif char == 'Z': continue # Computational basis
-            else: raise RuntimeError('Unknown basis: %s' % char)
-        
-        return Circuit.concatenate([circuit, basis_circuit])
-
-    def build_quasar_circuit(
-        self,
-        native_circuit,
-        ):
-
-        # Dropthrough
-        if isinstance(native_circuit, self.native_circuit_type): return native_circuit
-
-        # Can only convert quasar -> quasar
-        if not isinstance(native_circuit, Circuit): raise RuntimeError('circuit must be Circuit type for build_native_circuit: %s' % (native_circuit))
 
     def run_statevector(
         self,
         circuit,
-        compressed=True,
+        statevector=None,   
+        min_qubit=None,
+        nqubit=None,
+        dtype=np.complex128,
         ):
 
-        statevector = (circuit.compressed() if compressed else circuit).simulate()
-        return statevector
+        min_qubit = circuit.min_qubit if min_qubit is None else min_qubit
+        nqubit = circuit.nqubit if nqubit is None else nqubit
 
-    def run_measurement(
-        self,
-        circuit,
-        nmeasurement=1000,
-        compressed=True,
-        ):
+        if statevector is None:
+            statevector1 = np.zeros((2**nqubit,), dtype=dtype)
+            statevector1[0] = 1.0
+        else:
+            statevector1 = statevector.copy()
+        statevector2 = np.zeros_like(statevector1)
 
-        measurement = (circuit.compressed() if compressed else circuit).measure(nmeasurement)
-        return measurement
+        qubits = [_ - min_qubit for _ in range(circuit.min_qubit, circuit.min_qubit + circuit.nqubit)]
 
-
+        return circuit.apply_to_statevector(
+            statevector1=statevector1,
+            statevector2=statevector2,
+            qubits=qubits,
+            dtype=dtype,
+            )[0]

@@ -1,130 +1,50 @@
 import quasar
+import unittest
 import numpy as np
 
-"""
-Test "Matrix" Class
-"""
+class TestMatrix(unittest.TestCase):
 
-def one_qubit_constant_matrices():
-    """
-    Validate the shape and dtype of 1 qubit matrix in "Matrix" class.
-    """
-    matrix_list = ['I', 'X', 'Y', 'Z', 'S', 'T', 'H', 'Rx2', 'Rx2T']
-    for m_name in matrix_list:
-        m = getattr(quasar.Matrix, m_name)
-        if not m.shape==(2,2):
-            return False
-        if not m.dtype == np.complex128:
-            return False
+    def helper_test_matrices(
+        self,
+        quasar_matrices,
+        reference_matrices,
+        ):
+
+        for key, reference_matrix in reference_matrices.items():
+            quasar_matrix = quasar_matrices[key]
+            self.assertIsInstance(quasar_matrix, np.ndarray)
+            self.assertEqual(quasar_matrix.dtype, np.complex128)
+            self.assertEqual(quasar_matrix.shape, reference_matrix.shape)
+            self.assertTrue(np.max(np.abs(quasar_matrix - reference_matrix)) < 1.0E-14)
+
+    def test_one_qubit_raw(self):
+
+        quasar_matrices = {
+            'I'  : quasar.Matrix.I,
+            'X'  : quasar.Matrix.X,
+            'Y'  : quasar.Matrix.Y,
+            'Z'  : quasar.Matrix.Z,
+            'S'  : quasar.Matrix.S,
+            'ST' : quasar.Matrix.ST,
+            'T'  : quasar.Matrix.T,
+            'TT' : quasar.Matrix.TT,
+            'H'  : quasar.Matrix.H,
+        }
+
+        reference_matrices = {
+            'I'  : np.array([[1.0, 0.0], [0.0, 1.0]], dtype=np.complex128),
+            'X'  : np.array([[0.0, 1.0], [1.0, 0.0]], dtype=np.complex128),
+            'Y'  : np.array([[0.0, -1.0j], [+1.0j, 0.0]], dtype=np.complex128),
+            'Z'  : np.array([[1.0, 0.0], [0.0, -1.0]], dtype=np.complex128),
+            'S'  : np.array([[1.0, 0.0], [0.0, +1.0j]], dtype=np.complex128),
+            'ST' : np.array([[1.0, 0.0], [0.0, -1.0j]], dtype=np.complex128),
+            'T'  : np.array([[1.0, 0.0], [0.0, np.cos(np.pi / 4.0) + 1.j * np.sin(np.pi / 4.0)]], dtype=np.complex128),
+            'TT' : np.array([[1.0, 0.0], [0.0, np.cos(np.pi / 4.0) - 1.j * np.sin(np.pi / 4.0)]], dtype=np.complex128),
+            'H'  : np.array([[1.0, 1.0], [1.0, -1.0]], dtype=np.complex128) / np.sqrt(2.0)
+        }
+
+        self.helper_test_matrices(quasar_matrices, reference_matrices)
+
             
-    return True
-    
-    
-def two_qubit_constant_matrices():
-    """
-    Validate the shape and dtype of 2 qubit matrix in "Matrix" class.
-    """
-    matrix_list = ['II', 'IX', 'IY', 'IZ', 'XI', 'XX', 'XY', 'XZ', 'YI', 'YX', 'YY', 'YZ', 'ZI', 'ZX', 'ZY', 'ZZ', 'CX', 'CY', 'CZ', 'CS', 'SWAP']
-    for m_name in matrix_list:
-        m = getattr(quasar.Matrix, m_name)
-        if not m.shape==(4,4):
-            return False
-        if not m.dtype == np.complex128:
-            return False
-            
-    return True
-
-
-def three_qubit_constant_matrices():
-    """
-    Validate the shape and dtype of 3 qubit matrix in "Matrix" class.
-    """
-    matrix_list = ['CCX', 'CSWAP']
-    for m_name in matrix_list:
-        m = getattr(quasar.Matrix, m_name)
-        if not m.shape==(8,8):
-            return False
-        if not m.dtype == np.complex128:
-            return False
-            
-    return True
-
-
-def one_qubit_1param_matrices():
-    """
-    Validate the shape and dtype of 1 qubit matrix in "Matrix" class.
-    """
-    matrix_list = ['Rx', 'Ry', 'Rz', 'u1', 'Rz_ion']
-    for m_name in matrix_list:
-        m = getattr(quasar.Matrix, m_name)(np.random.rand())
-        if not m.shape==(2,2):
-            return False
-        if not m.dtype == np.complex128:
-            return False
-            
-    return True    
-    
-    
-def one_qubit_2param_matrices():
-    """
-    Validate the shape and dtype of 1 qubit matrix in "Matrix" class.
-    """
-    matrix_list = ['u2','R_ion',]
-    for m_name in matrix_list:
-        m = getattr(quasar.Matrix, m_name)(*np.random.rand(2))
-        if not m.shape==(2,2):
-            return False
-        if not m.dtype == np.complex128:
-            return False
-            
-    return True     
-    
-
-def one_qubit_3param_matrices():
-    """
-    Validate the shape and dtype of 1 qubit matrix in "Matrix" class.
-    """
-    matrix_list = ['u3']
-    for m_name in matrix_list:
-        m = getattr(quasar.Matrix, m_name)(*np.random.rand(3))
-        if not m.shape==(2,2):
-            return False
-        if not m.dtype == np.complex128:
-            return False
-            
-    return True 
-
-
-def two_qubit_1param_matrices():
-    """
-    Validate the shape and dtype of 1 qubit matrix in "Matrix" class.
-    """
-    matrix_list = ['XX_ion']
-    for m_name in matrix_list:
-        m = getattr(quasar.Matrix, m_name)(np.random.rand())
-        if not m.shape==(4,4):
-            return False
-        if not m.dtype == np.complex128:
-            return False
-            
-    return True     
-    
-    
-# print(two_qubit_1param_matrices())
-    
         
-        
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+ 

@@ -1,5 +1,7 @@
-import collections
+import sortedcontainers
 import numpy as np
+from .circuit import Matrix
+import itertools
 
 class PauliOperator(tuple):
 
@@ -10,7 +12,6 @@ class PauliOperator(tuple):
         ):
 
         if not isinstance(qubit, int): raise RuntimeError('qubit must be int')
-        if qubit < 0: raise RuntimeError('qubit must be positive')
         if not isinstance(char, str): raise RuntimeError('char must be str')
         if char not in ['X', 'Y', 'Z']: raise RuntimeError('char must be one of X, Y, or Z')
 
@@ -84,9 +85,27 @@ class PauliString(tuple):
                 operators=tuple(PauliOperator.from_string(_) for _ in string.split('*')),
                 )
 
-PauliString.I = PauliString(tuple())
+    @staticmethod
+    def I():
+        return PauliString(tuple())
 
-class Pauli(collections.OrderedDict):
+    def __lt__(self, other):
+        if len(self) < len(other): return True
+        return super().__lt__(other)
+
+    def __gt__(self, other):
+        if len(self) > len(other): return True
+        return super().__gt__(other)
+
+    def __le__(self, other):
+        if len(self) < len(other): return True
+        return super().__le__(other)
+
+    def __ge__(self, other):
+        if len(self) > len(other): return True
+        return super().__ge__(other)
+
+class Pauli(sortedcontainers.SortedDict):
 
     def __init__(
         self,
@@ -165,7 +184,7 @@ class Pauli(collections.OrderedDict):
     @property
     def summary_str(self):
         s = 'Pauli:\n'
-        s += '  %-10s = %d\n' % ('N', self.N)
+        s += '  %-10s = %d\n' % ('nqubit', self.nqubit)
         s += '  %-10s = %d\n' % ('nterm', self.nterm)
         s += '  %-10s = %d\n' % ('max_order', self.max_order)
         return s 
@@ -173,9 +192,34 @@ class Pauli(collections.OrderedDict):
     # => Attributes <= #
 
     @property
-    def N(self):
-        return max(max(_.qubits) for _ in self.keys() if _.order > 0) + 1
-        
+    def qubits(self):
+        # TODO: Might want to dynamically memoize this
+        qubits = sortedcontainers.SortedSet()
+        for string in self.keys():
+            for qubit in string.qubits:
+                qubits.add(qubit)
+        return qubits
+
+    @property
+    def min_qubit(self):
+        """ The minimum occupied qubit index (or 0 if no occupied qubits) """
+        return self.qubits[0] if len(self.qubits) else 0
+    
+    @property
+    def max_qubit(self):
+        """ The maximum occupied qubit index (or -1 if no occupied qubits) """
+        return self.qubits[-1] if len(self.qubits) else -1
+
+    @property
+    def nqubit(self):
+        """ The total number of qubit indices in the circuit (including empty qubit indices). """
+        return self.qubits[-1] - self.qubits[0] + 1 if len(self.qubits) else 0
+
+    @property
+    def nqubit_sparse(self):
+        """ The total number of occupied qubit indices in the circuit (excluding empty qubit indices). """
+        return len(self.qubits)
+    
     @property
     def nterm(self):
         return len(self)
@@ -187,10 +231,10 @@ class Pauli(collections.OrderedDict):
     # => Arithmetic <= #
 
     def __pos__(self):
-        return Pauli(collections.OrderedDict((k, v) for k, v in self.items()))
+        return Pauli(sortedcontainers.SortedDict((k, v) for k, v in self.items()))
 
     def __neg__(self):
-        return Pauli(collections.OrderedDict((k, -v) for k, v in self.items()))
+        return Pauli(sortedcontainers.SortedDict((k, -v) for k, v in self.items()))
 
     def __mul__(self, other):
         
@@ -234,29 +278,29 @@ class Pauli(collections.OrderedDict):
                 for string2 in strings2:
                     if string2.qubit not in qubits1:
                         operators.append(string2)
-                return Pauli(collections.OrderedDict([(PauliString(tuple(operators)), value)]))
+                return Pauli(sortedcontainers.SortedDict([(PauliString(tuple(operators)), value)]))
             else:
-                pauli = Pauli(collections.OrderedDict())
+                pauli = Pauli(sortedcontainers.SortedDict())
                 for k1, v1 in self.items():
-                    pauli1 = Pauli(collections.OrderedDict([(k1, v1)]))
+                    pauli1 = Pauli(sortedcontainers.SortedDict([(k1, v1)]))
                     for k2, v2 in other.items():
-                        pauli2 = Pauli(collections.OrderedDict([(k2, v2)]))
+                        pauli2 = Pauli(sortedcontainers.SortedDict([(k2, v2)]))
                         pauli += pauli1 * pauli2 # You see that?!!
                 return pauli
 
         else:
         
-            return Pauli(collections.OrderedDict((k, other*v) for k, v in self.items()))
+            return Pauli(sortedcontainers.SortedDict((k, other*v) for k, v in self.items()))
 
         return NotImplemented
             
     def __rmul__(self, other):
         
-        return Pauli(collections.OrderedDict((k, other*v) for k, v in self.items()))
+        return Pauli(sortedcontainers.SortedDict((k, other*v) for k, v in self.items()))
 
     def __truediv__(self, other):
         
-        return Pauli(collections.OrderedDict((k, v/other) for k, v in self.items()))
+        return Pauli(sortedcontainers.SortedDict((k, v/other) for k, v in self.items()))
 
     def __add__(self, other):
 
@@ -270,7 +314,7 @@ class Pauli(collections.OrderedDict):
         else:
 
             pauli2 = self.copy()
-            pauli2[PauliString.I] = self.get(PauliString.I, 0.0) + other
+            pauli2[PauliString.I()] = self.get(PauliString.I(), 0.0) + other
             return pauli2 
 
         return NotImplemented
@@ -287,7 +331,7 @@ class Pauli(collections.OrderedDict):
         else:
 
             pauli2 = self.copy()
-            pauli2[PauliString.I] = self.get(PauliString.I, 0.0) - other
+            pauli2[PauliString.I()] = self.get(PauliString.I(), 0.0) - other
             return pauli2 
 
         return NotImplemented
@@ -295,13 +339,13 @@ class Pauli(collections.OrderedDict):
     def __radd__(self, other):
     
         pauli2 = self.copy()
-        pauli2[PauliString.I] = pauli2.get(PauliString.I, 0.0) + other
+        pauli2[PauliString.I()] = pauli2.get(PauliString.I(), 0.0) + other
         return pauli2 
 
     def __rsub__(self, other):
     
         pauli2 = -self
-        pauli2[PauliString.I] = pauli2.get(PauliString.I, 0.0) + other
+        pauli2[PauliString.I()] = pauli2.get(PauliString.I(), 0.0) + other
         return pauli2 
 
     def __iadd__(self, other):
@@ -314,7 +358,7 @@ class Pauli(collections.OrderedDict):
 
         else:
 
-            self[PauliString.I] = self.get(PauliString.I, 0.0) + other
+            self[PauliString.I()] = self.get(PauliString.I(), 0.0) + other
             return self
 
         return NotImplemented
@@ -329,7 +373,7 @@ class Pauli(collections.OrderedDict):
 
         else:
         
-            self[PauliString.I] = self.get(PauliString.I, 0.0) - other
+            self[PauliString.I()] = self.get(PauliString.I(), 0.0) - other
             return self
 
         return NotImplemented
@@ -342,7 +386,7 @@ class Pauli(collections.OrderedDict):
 
     @property
     def conj(self):
-        return Pauli(collections.OrderedDict((k, np.conj(v)) for k, v in self.items()))
+        return Pauli(sortedcontainers.SortedDict((k, np.conj(v)) for k, v in self.items()))
 
     @property
     def norm2(self):
@@ -354,122 +398,150 @@ class Pauli(collections.OrderedDict):
 
     @staticmethod
     def zero():
-        return Pauli(collections.OrderedDict())
+        return Pauli(sortedcontainers.SortedDict())
 
     @staticmethod   
     def zeros_like(x):
-        return Pauli(collections.OrderedDict((k, 0.0) for k, v in x.items()))
+        return Pauli(sortedcontainers.SortedDict((k, 0.0) for k, v in x.items()))
 
     def sieved(self, cutoff=1.0E-14):
-        return Pauli(collections.OrderedDict((k, v) for k, v in self.items() if np.abs(v) > cutoff))
+        return Pauli(sortedcontainers.SortedDict((k, v) for k, v in self.items() if np.abs(v) > cutoff))
 
     @staticmethod
     def I():
-        return Pauli(collections.OrderedDict([(PauliString.I, 1.0)]))
+        return Pauli(sortedcontainers.SortedDict([(PauliString.I(), 1.0)]))
 
     @staticmethod
     def IXYZ():
-        return Pauli(collections.OrderedDict([(PauliString.I, 1.0)])), PauliStarter('X'), PauliStarter('Y'), PauliStarter('Z')
+        return PauliStarter('I'), PauliStarter('X'), PauliStarter('Y'), PauliStarter('Z')
 
-    # > Extra utility for run_pauli_expectation < #
+    # > Pauli <-> Computational basis matrix conversion utilities < #
 
-    def extract_orders(
-        self,
-        orders,
-        ):
-
-        """ Return a subset of Pauli with only terms with specific orders retained.
-        
-        Params:
-            orders (int, or tuple of int) - tuple of orders to retain
-        Returns:
-            (Pauli) - a version of this Pauli, but with only strings with order
-                present in orders retained.
-        """
-        if isinstance(orders, int): orders=(orders,)
-        
-        return Pauli(collections.OrderedDict([(k, v) for k, v in self.items() if k.order in orders]))
-
-    @property
-    def qubits(self):
-
-        return tuple([_.qubits for _ in self.keys()])
-
-    @property
-    def chars(self):
-
-        return tuple([_.chars for _ in self.keys()])
-
-    @property
-    def unique_chars(self):
-        
-        return tuple(sorted(set(''.join(''.join(_) for _ in self.chars))))
-
-    def compute_hilbert_matrix(
+    def to_matrix(
         self,
         dtype=np.complex128,
-        N=None,
+        min_qubit=None,
+        nqubit=None,
         ):
-    
-        N = self.N if N is None else N
-        O = np.zeros((2**N,)*2, dtype=np.complex128)
 
+        min_qubit = self.min_qubit if min_qubit is None else min_qubit
+        nqubit = self.nqubit if nqubit is None else nqubit
+    
+        matrix = np.zeros((2**nqubit,)*2, dtype=np.complex128)
+
+        min_qubit = self.min_qubit
         for string, value in self.items():
-            bra_inds = list(range(2**N))
-            factors = np.ones((2**N,), dtype=np.complex128)
+            bra_inds = list(range(2**nqubit))
+            factors = np.ones((2**nqubit,), dtype=np.complex128)
             for operator in string:
                 qubit, char = operator 
-                test = 1 << (N - qubit - 1)
+                qubit -= min_qubit
+                test = 1 << (nqubit - qubit - 1)
                 if char == 'Z':
-                    for I in range(2**N):
+                    for I in range(2**nqubit):
                         if I & test: factors[I] *= -1.0
                 elif char == 'X':
-                    for I in range(2**N):
+                    for I in range(2**nqubit):
                         bra_inds[I] ^= test
                 elif char == 'Y':
-                    for I in range(2**N):
+                    for I in range(2**nqubit):
                         bra_inds[I] ^= test
                     factors *= 1.j
-                    for I in range(2**N):
+                    for I in range(2**nqubit):
                         if I & test: factors[I] *= -1.0
                 else:
                     raise RuntimeError('Unknown char: %s' % char)
-            O[bra_inds, range(2**N)] += factors * value
+            matrix[bra_inds, range(2**nqubit)] += factors * value
 
-        return np.array(O, dtype=dtype)
+        return np.array(matrix, dtype=dtype)
 
-    def compute_hilbert_matrix_vector_product(
-        self,
-        statevector,
+    @staticmethod
+    def from_matrix(
+        matrix,
+        qubit_indices=None,
+        cutoff=1.0E-14,
         ):
 
-        N = self.N
-        if statevector.shape != (2**N,): raise RuntimeError('statevector must be shape (2**N,)')
-        sigmavector = np.zeros((2**N,), dtype=np.complex128)
+        if not isinstance(matrix, np.ndarray): 
+            raise RuntimeError('operator must be ndarray')
+
+        nqubit = int(np.round(np.log2(matrix.shape[0])))
+        if matrix.shape != (2**nqubit,)*2:
+            raise RuntimeError('matrix shape must be (2**nqubit, 2**nqubit)')
+
+        if qubit_indices is None:
+            qubit_indices = list(range(nqubit))
+
+        pauli = Pauli.zero()
+        I, X, Y, Z = Pauli.IXYZ()
+        pauli_operators = (
+            I,
+            X,
+            Y,
+            Z,
+            )
+        pauli_vectors = (
+            Matrix.I,
+            Matrix.X,
+            Matrix.Y,
+            Matrix.Z,
+            )
+        for key in itertools.product((0,1,2,3), repeat=nqubit):
+            pauli_vector = 1.0
+            for index, value in enumerate(key):
+                pauli_vector = np.kron(pauli_vector, pauli_vectors[value])
+            pauli_coef = np.sum(pauli_vector.conj() * matrix) / (2.0**nqubit)
+            # Can save some time 
+            if np.abs(pauli_coef) < cutoff: 
+                continue
+            pauli_operator = 1.0 * I[-1]
+            for index, value in enumerate(key):
+                qubit_index = qubit_indices[index]
+                pauli_operator *= pauli_operators[value][qubit_index]
+            pauli += pauli_coef * pauli_operator
+
+        pauli = pauli.sieved(cutoff=cutoff)
+                
+        return pauli 
+
+    def matrix_vector_product(
+        self,
+        statevector,
+        dtype=np.complex128,
+        min_qubit=None,
+        nqubit=None,
+        ):
+
+        min_qubit = self.min_qubit if min_qubit is None else min_qubit
+        nqubit = self.nqubit if nqubit is None else nqubit
+    
+        if statevector.shape != (2**nqubit,): raise RuntimeError('statevector must be shape (2**nqubit,)')
+        sigmavector = np.zeros((2**nqubit,), dtype=np.complex128)
 
         for string, value in self.items():
-            bra_inds = list(range(2**N))
-            factors = np.ones((2**N,), dtype=np.complex128)
+            bra_inds = list(range(2**nqubit))
+            factors = np.ones((2**nqubit,), dtype=np.complex128)
             for operator in string:
                 qubit, char = operator 
-                test = 1 << (N - qubit - 1)
+                qubit -= min_qubit
+                test = 1 << (nqubit - qubit - 1)
                 if char == 'Z':
-                    for I in range(2**N):
+                    for I in range(2**nqubit):
                         if I & test: factors[I] *= -1.0
                 elif char == 'X':
-                    for I in range(2**N):
+                    for I in range(2**nqubit):
                         bra_inds[I] ^= test
                 elif char == 'Y':
-                    for I in range(2**N):
+                    for I in range(2**nqubit):
                         bra_inds[I] ^= test
                     factors *= 1.j
-                    for I in range(2**N):
+                    for I in range(2**nqubit):
                         if I & test: factors[I] *= -1.0
                 else:
                     raise RuntimeError('Unknown char: %s' % char)
             sigmavector[bra_inds] += factors * value * statevector
 
-        return np.array(sigmavector, dtype=statevector.dtype)
+        return np.array(sigmavector, dtype=dtype)
     
 class PauliExpectation(Pauli):
 
@@ -479,9 +551,13 @@ class PauliExpectation(Pauli):
             lines.append('<%s> = %s' % (string, value))
         return '\n'.join(lines)
 
+    @staticmethod
+    def zero():
+        return PauliExpectation(sortedcontainers.SortedDict())
+
     @staticmethod   
     def zeros_like(x):
-        return PauliExpectation(collections.OrderedDict((k, 0.0) for k, v in x.items()))
+        return PauliExpectation(sortedcontainers.SortedDict((k, 0.0) for k, v in x.items()))
 
 class PauliStarter(object):
 
@@ -490,183 +566,11 @@ class PauliStarter(object):
         char,
         ):
 
-        if char not in ['X', 'Y', 'Z']: raise RuntimeError('char must be one of X, Y, or Z')
+        if char not in ['I', 'X', 'Y', 'Z']: raise RuntimeError('char must be one of I, X, Y, or Z')
         self.char = char
 
     def __getitem__(self, qubit):
-        return Pauli(collections.OrderedDict([(PauliString((PauliOperator(qubit=qubit, char=self.char),)), 1.0)]))
-
-class PauliJordanWigner(object):
-
-    class Composition(object):
-
-        def __init__(
-            self,
-            creation=True,
-            ):
-
-            self.creation = creation
-
-        def __getitem__(
-            self,
-            index,
-            ):
-
-            if not isinstance(index, int): raise RuntimeError('index must be int')
-
-            Zstr = []
-            for index2 in range(index):
-                Zstr.append(PauliOperator(qubit=index2, char='Z'))
-            Xstr = Zstr + [PauliOperator(qubit=index, char='X')]
-            Ystr = Zstr + [PauliOperator(qubit=index, char='Y')]
-            Xkey = PauliString(tuple(Xstr))
-            Ykey = PauliString(tuple(Ystr))
-            
-            return Pauli(collections.OrderedDict([
-                (Xkey, 0.5),
-                (Ykey, -0.5j if self.creation else +0.5j),
-                ]))
-
-    @staticmethod
-    def composition_operators():
-        return PauliJordanWigner.Composition(creation=True), PauliJordanWigner.Composition(creation=False)
-
-    class one_body(object):
-
-        def __getitem__(
-            self,   
-            indices,
-            ):
-
-            """ Returns 0.5 * (p^+ q + q^+ p) """
-
-            if not isinstance(indices, tuple): raise RuntimeError('indices must be tuple')
-            if len(indices) != 2: raise RuntimeError('indices must be len 2')
-            if not all(isinstance(_, int) for _ in indices): raise RuntimeError('indices must be tuple of int')
-
-            if indices[0] == indices[1]:
-                I, X, Y, Z = Pauli.IXYZ()
-                return 0.5 * I - 0.5 * Z[indices[0]]
-            else:
-                index1 = min(indices)
-                index2 = max(indices)
-                Zstr = []
-                for index3 in range(index1+1, index2):
-                    Zstr.append(PauliOperator(qubit=index3, char='Z'))
-                Xstr = [PauliOperator(qubit=index1, char='X')] + Zstr + [PauliOperator(qubit=index2, char='X')]
-                Ystr = [PauliOperator(qubit=index1, char='Y')] + Zstr + [PauliOperator(qubit=index2, char='Y')]
-                Xkey = PauliString(tuple(Xstr))
-                Ykey = PauliString(tuple(Ystr))
-                
-                return Pauli(collections.OrderedDict([
-                    (Xkey, 0.25),
-                    (Ykey, 0.25),
-                    ]))
-    
-    
-    class two_body(object):
-        '''
-        Two body terms: p^+ q r^+ s
-        '''
-        
-        def __getitem__(
-            self,   
-            indices,
-            ):
-            pass
-        
-        
-        def two_states(
-            self,   
-            indices,
-            ):
-            
-            # check
-            if len(indices) != 4: raise RuntimeError('indices must be len 4')
-            if all((indices.count(x)==2) for x in set(indices)): raise RuntimeError('indices must two pairs of identical integers')
-            
-            I, X, Y, Z = Pauli.IXYZ()
-            i,j,k,l = np.argsort(indices)
-            p, q = sorted(set(indices))
-            
-            # pauli operators
-            init_str = 'abba'
-            new_str = init_str[i] +init_str[j] +init_str[k] +init_str[l]
-            if new_str=='abba' or 'baab':
-                hamiltonian_pauli = +1/8 * (I + Z[p] + Z[q] + Z[p]*Z[q])
-            elif new_str=='abab' or 'baba':
-                hamiltonian_pauli = -1/8 * (I + Z[p] + Z[q] + Z[p]*Z[q])
-            elif new_str=='aabb' or 'bbaa':
-                hamiltonian_pauli = 0
-            
-            return hamiltonian_pauli
-        
-        
-        
-        def four_states(
-            self,   
-            indices,
-            ):
-        
-            """
-            Reference: Equation (34) in https://arxiv.org/pdf/0705.1928.pdf . The reference uses physicist's notation, while below we use chemist's notation, so the expression is a bit different. 
-            
-            Returns: p^+ q  r^+ s            
-            """
-  
-            # check
-            if len(indices) != 4: raise RuntimeError('indices must be len 4')
-            if len(set(indices)) != 4: raise RuntimeError('all indices must be unique')
-            
-            p,q,r,s = indices
-            I, X, Y, Z = Pauli.IXYZ()
-            
-            # (1) prefactor
-            from sympy import Eijk
-            i,j,k,l = np.argsort(indices)
-            prefactor = 1/8 * Eijk(i, j, k, l)
-            
-            # (2) class of ordering
-            init_str = 'abab'
-            new_str = init_str[i] +init_str[j] +init_str[k] +init_str[l]
-            if new_str=='aabb' or 'bbaa':
-                postfactors = [1.0, -1.0, 1.0, 1.0, 1.0, 1.0, -1.0, 1.0]
-            elif new_str=='abab' or 'baba':
-                postfactors = [1.0, 1.0, -1.0, 1.0, 1.0, -1.0, 1.0, 1.0]
-            elif new_str=='abba':
-                postfactors = [1.0, 1.0, 1.0, -1.0, -1.0, 1.0, 1.0, 1.0]
-        
-            # (3) pauli operators
-            Zstr1 = Z[indices[i]+1]
-            for idx in range(indices[i]+1, indices[j]-1):
-                Zstr1 *= Z[idx]
-            Zstr2 = Z[indices[k]+1]
-            for idx in range(indices[k]+1, indices[l]-1):
-                Zstr2 *= Z[idx]
-            op0 = X[indices[i]] * Zstr1 * X[indices[j]] * X[indices[k]] * Zstr2 * X[indices[l]]
-            op1 = X[indices[i]] * Zstr1 * X[indices[j]] * Y[indices[k]] * Zstr2 * Y[indices[l]]
-            op2 = X[indices[i]] * Zstr1 * Y[indices[j]] * X[indices[k]] * Zstr2 * Y[indices[l]]
-            op3 = X[indices[i]] * Zstr1 * Y[indices[j]] * Y[indices[k]] * Zstr2 * X[indices[l]]
-            op4 = Y[indices[i]] * Zstr1 * X[indices[j]] * X[indices[k]] * Zstr2 * Y[indices[l]]
-            op5 = Y[indices[i]] * Zstr1 * X[indices[j]] * Y[indices[k]] * Zstr2 * X[indices[l]]
-            op6 = Y[indices[i]] * Zstr1 * Y[indices[j]] * X[indices[k]] * Zstr2 * X[indices[l]]
-            op7 = Y[indices[i]] * Zstr1 * Y[indices[j]] * Y[indices[k]] * Zstr2 * Y[indices[l]]
-            ops = [op0, op1, op2, op3, op4, op5, op6, op7]
-            
-            # combine
-            hamiltonian_pauli = Pauli(collections.OrderedDict())
-            for idx in range(8):
-                hamiltonian_pauli += prefactor * postfactors[idx] * ops[idx]
-            
-            return hamiltonian_pauli
-            
-            
-            
-            
-            
-    
-    
-    @staticmethod
-    def substitution1_operator():
-        return PauliJordanWigner.Substitution1()
-    
+        if self.char == 'I':
+            return Pauli.I()
+        else:
+            return Pauli(sortedcontainers.SortedDict([(PauliString((PauliOperator(qubit=qubit, char=self.char),)), 1.0)]))

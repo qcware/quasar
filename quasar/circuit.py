@@ -1,15 +1,9 @@
-# Quasar: an ultralight python-2.7/python-3.X quantum simulator package
-# Copyright (C) 2019 QC Ware Corporation - All Rights Reserved
-# Unauthorized copying of this file, via any medium is strictly prohibited
-# Proprietary and confidential
-# Written by Robert Parrish <rob.parrish@qcware.com>, 2019
-
 import numpy as np
-import collections
-import itertools
-from .measurement import Ket, MeasurementResult
+import sortedcontainers # SortedSet, SortedDict
+import collections      # OrderedDict
+from .algebra import Algebra
 
-""" Quasar: an ultralight python-2.7/python-3.X quantum simulator package
+""" Quasar: an ultralight python-3.X quantum simulator package
 
 Note on Qubit Order:
 
@@ -40,8 +34,7 @@ E.g., the 0-th (|0000>) and 8-th (|1000>) coefficient are set.
 This ordering is used in many places in QIS, e.g., Cirq, but the opposite
 ordering is also sometimes seen, e.g., in Qiskit.
 """
-
-# => Matrix class <= #
+# ==> Matrix class <== #
 
 class Matrix(object):
 
@@ -74,8 +67,14 @@ class Matrix(object):
     S = np.array([[1.0, 0.0], [0.0, 1.0j]], dtype=np.complex128)
     """ The 1-qubit S (Phase) matrix """
 
+    ST = np.array([[1.0, 0.0], [0.0, -1.0j]], dtype=np.complex128)
+    """ The 1-qubit S^+ (Phase adjoint) matrix """
+
     T = np.array([[1.0, 0.0], [0.0, np.exp(np.pi/4.0*1.j)]], dtype=np.complex128)
     """ The 1-qubit T (sqrt-S) matrix """
+
+    TT = np.array([[1.0, 0.0], [0.0, np.exp(-np.pi/4.0*1.j)]], dtype=np.complex128)
+    """ The 1-qubit T (sqrt-S-adjoint) matrix """
 
     H = 1.0 / np.sqrt(2.0) * np.array([[1.0, 1.0], [1.0, -1.0]], dtype=np.complex128)
     """ The 1-qubit H (Hadamard) matrix """
@@ -166,6 +165,14 @@ class Matrix(object):
         [0.0, 0.0, 0.0, 1.0j],
         ], dtype=np.complex128)
     """ The 2-qubit CS (controlled-S) matrix """
+
+    CST = np.array([
+        [1.0, 0.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0, 0.0],
+        [0.0, 0.0, 1.0, 0.0],
+        [0.0, 0.0, 0.0, -1.0j],
+        ], dtype=np.complex128)
+    """ The 2-qubit CS^+ (controlled-S-adjoint) matrix """
 
     SWAP = np.array([
         [1.0, 0.0, 0.0, 0.0],
@@ -290,82 +297,73 @@ class Matrix(object):
             [-1.j * s, 0.0, 0.0, c],
             ], dtype=np.complex128)
     
-# => Gate class <= #
+# ==> Gate Class <== #
 
 class Gate(object):
 
-    """ Class Gate represents a general N-body quantum gate. 
+    """ Class Gate represents a quantum gate operation, i.e., a (usually)
+        unitary operator acting on a specific number of qubits.
+        
+    This specific Gate class represents a "primitive" gate with an explicitly
+    defined operator that occupies a single time index. Primitive Gate objects
+    do not contain any subsidiary Gate or Circuit objects.
 
-    An N-body quantum gate applies a unitary operator to the state of a subset
-    of N qubits, with an implicit identity matrix acting on the remaining
-    qubits. The Gate class specifies the (2**N,)*2 unitary matrix U for the N
-    active qubits, but does not specify which qubits are active.
-
-    Usually, most users will not initialize their own Gates, but will use gates
-    from the standard library, which are defined as Gate class members (for
-    parameter-free gates) or Gate class methods (for parameter-including gates).
-    Some simple examples include:
-
-    >>> I = Gate.I
-    >>> Ry = Gate.Ry(theta=np.pi/4.0)
-    >>> SO4 = Gate.SO4(A=0.0, B=0.0, C=0.0, D=0.0, E=0.0, F=0.0)
-    >>> CF = Gate.CF(theta=np.pi/3.0)
     """
-
+    
     def __init__(
         self,
-        N,
-        Ufun,
-        params,
+        nqubit,
+        operator_function,
+        parameters,
         name,
         ascii_symbols,
+        involutary=False,
+        adjoint_function=None,
         ):
-
-        """ Initializer. Params are set as object attributes.
-
-        Params:
-            N (int > 0) - the dimensionality of the quantum gate, e.g, 1 for
-                1-body, 2 for 2-body, etc.
-            Ufun (function of OrderedDict of str : float -> np.ndarray of shape
-                (2**N,)*2) - a function which generates the unitary
-                matrix for this gate from the current parameter set.
-            params (OrderedDict of str : float) - the dictionary of initial
-                gate parameters.
-            name (str) - a simple name for the gate, e.g., 'CX'
-            ascii_symbols (list of str of len N) - a list of ASCII symbols for
-                each active qubit of the gate, for use in generating textual diagrams, e.g.,
-                ['@', 'X'] for CX.
-        """
         
-        self.N = N 
-        self.Ufun = Ufun
-        self.params = params
+        self.nqubit = nqubit 
+        self.operator_function = operator_function
+        self.parameters = parameters
         self.name = name
         self.ascii_symbols = ascii_symbols
+        self.involutary = involutary
+        self.adjoint_function = adjoint_function
 
         # Validity checks
-        if not isinstance(self.N, int): raise RuntimeError('N must be int')
-        if self.N <= 0: raise RuntimeError('N <= 0') 
-        if self.U.shape != (2**self.N,)*2: raise RuntimeError('U must be shape (2**N,)*2')
-        if not isinstance(self.params, collections.OrderedDict): raise RuntimeError('params must be collections.OrderedDict')
-        if not all(isinstance(_, str) for _ in list(self.params.keys())): raise RuntimeError('params keys must all be str')
-        if not all(isinstance(_, float) or isinstance(_, int) for _ in list(self.params.values())): raise RuntimeError('params values must all be float or int')
+        if not isinstance(self.nqubit, int): raise RuntimeError('nqubit must be int')
+        if self.nqubit <= 0: raise RuntimeError('nqubit <= 0') 
+        if self.operator.shape != (2**self.nqubit,)*2: raise RuntimeError('U must be shape (2**nqubit,)*2')
+        if not isinstance(self.parameters, collections.OrderedDict): raise RuntimeError('parameters must be collections.OrderedDict')
+        if not all(isinstance(_, str) for _ in list(self.parameters.keys())): raise RuntimeError('parameters keys must all be str')
+        if not all(isinstance(_, float) for _ in list(self.parameters.values())): raise RuntimeError('parameters values must all be float')
         if not isinstance(self.name, str): raise RuntimeError('name must be str')
         if not isinstance(self.ascii_symbols, list): raise RuntimeError('ascii_symbols must be list')
-        if len(self.ascii_symbols) != self.N: raise RuntimeError('len(ascii_symbols) != N')
+        if len(self.ascii_symbols) != self.nqubit: raise RuntimeError('len(ascii_symbols) != nqubit')
         if not all(isinstance(_, str) for _ in self.ascii_symbols): raise RuntimeError('ascii_symbols must all be str')
+        if not isinstance(self.involutary, bool): raise RuntimeError('involutary must be bool')
+        
+    @property
+    def ntime(self):
+        """ (int) - Number of time indices occupied by this Gate (always 1) """
+        return 1
+
+    @property
+    def is_composite(self):
+        """ (bool) - Is this Gate CompositeGate (containing subgates) (always False) """
+        return False
+
+    @property
+    def is_controlled(self):
+        """ (bool) - Is this Gate ControlledGate (containing controls + Gate) (always False) """
+        return False
 
     def __str__(self):
         """ String representation of this Gate (self.name) """
         return self.name
 
-    def same_unitary(self, other):
-        """ Returns true if the unitary generated by two gates are equivalent (up to a tolerance) """
-        return np.allclose(self.U, other.U)
-    
     @property
-    def U(self): 
-        """ The (2**N,)*2 unitary matrix underlying this Gate. 
+    def operator(self): 
+        """ The (2**N,)*2 operator (unitary) matrix underlying this Gate. 
 
         The action of the gate on a given state is given graphically as,
 
@@ -376,10 +374,38 @@ class Gate(object):
         |\Psi_I'> = \sum_J U_IJ |\Psi_J>
 
         Returns:
-            (np.ndarray of shape (2**N,)*2) - the unitary matrix underlying
-                this gate, built from the current parameter state.
+            (np.ndarray of shape (2**N,)*2) - the operator (unitary) matrix
+                underlying this gate, built from the current parameter state.
         """
-        return self.Ufun(self.params)
+        return self.operator_function(self.parameters)
+
+    # > Equivalence < #
+
+    def test_operator_equivalence(
+        gate1,
+        gate2,
+        operator_tolerance=1.0E-12,
+        ):
+    
+        """ Test if the operator matrices of two gates are numerically
+            equivalent to within a maximum absolute deviation of
+            operator_tolerance.
+
+            Note that the gates might still have different recipes, but produce
+            the same operator. Therefore, this definition should be considered
+            to be an intermediate level of equivalence.
+
+        Params:
+            gate1 (Gate) - first gate to compare
+            gate2 (Gate) - second gate to compare
+            operator_tolerance (float) - maximum absolute deviation threshold
+                for declaring Gate operator matrices to be identical.
+        Returns:
+            (bool) - True if the gates are equivalent under the definition
+                above, else False.
+        """
+
+        return np.max(np.abs(gate1.operator - gate2.operator)) < operator_tolerance
 
     # > Copying < #
     
@@ -391,183 +417,346 @@ class Gate(object):
                 without modifying the parameters of self.
         """
         return Gate(
-            N=self.N, 
-            Ufun=self.Ufun, 
-            params=self.params.copy(), 
+            nqubit=self.nqubit, 
+            operator_function=self.operator_function, 
+            parameters=self.parameters.copy(), 
             name=self.name,  
-            ascii_symbols=self.ascii_symbols,
+            ascii_symbols=self.ascii_symbols.copy(),
+            involutary=self.involutary,
+            adjoint_function=self.adjoint_function,
             )
+
+    # > Adjoint < #
+
+    def adjoint(self):
+        """ Make the adjoint of the current Gate (always a copy).
+
+        Returns:
+            (Gate) - a Gate representing the adjoint of this Gate. 
+                - If self.involutary is True, a copy of self is returned.
+                - Else if self.adjoint_function is not None,
+                    self.adjoint_function(self.parameters) is called and used to
+                    return the desired Gate.
+                - Else an extended copy of this Gate with propery dressed
+                    adjoint operator_function and '^+' added to name and
+                    ascii_symbols is returned (works correctly always, but
+                    ^+^+^+ runs build up under repeated calls to adjoint).
+        """
+
+        if self.involutary:
+            return self.copy()
+        elif self.adjoint_function:
+            return self.adjoint_function(self.parameters)
+        else:
+            return Gate(
+                nqubit=self.nqubit,
+                operator_function=lambda parameters : self.operator_function(parameters).T.conj(),
+                parameters=self.parameters.copy(), 
+                name=self.name+'^+',
+                ascii_symbols=[symbol + ('' if symbol in ['@', 'O'] else '^+') for symbol in self.ascii_symbols],
+                involutary=self.involutary,
+                adjoint_function=self.adjoint_function,
+                )
+
+    # > Explosion Utility < #
+
+    def exploded_gates(self):
+        return { (0, tuple(range(self.nqubit))) : self }
 
     # > Parameter Access < #
 
-    def set_param(self, key, param):
+    @property
+    def nparameter(self):
+        """ Total number of parameters in this Gate """
+        return len(self.parameters)
+
+    def set_parameter(self, key, value):
         """ Set the value of a parameter of this Gate. 
 
         Params:
             key (str) - the key of the parameter
-            param (float) - the value of the parameter
+            value (float) - the value of the parameter
         Result:
-            self.params[key] = param. If the Gate does not have a parameter
+            self.parameters[key] = value. If the Gate does not have a parameter
                 corresponding to key, a RuntimeError is thrown.
         """
-        if key not in self.params: raise RuntimeError('Key %s is not in params' % key)
-        self.params[key] = param
+        if key not in self.parameters: raise RuntimeError('Key %s is not in parameters' % key)
+        self.parameters[key] = value
 
-    def set_params(self, params):
+    def set_parameters(self, parameters):
         """ Set the values of multiple parameters of this Gate.
 
         Params:
-            params (dict of str : float) -  dict of param values
+            parameters (dict of str : float) -  dict of parameter values
         Result:
-            self.params is updated with the contents of params by calling
-                self.set_param for each key/value pair.
+            self.parameters is updated with the contents of parameters by
+                calling self.set_parameter for each key/value pair.
         """
-        for key, param in params.items():
-            self.set_param(key=key, param=param)
+        for key, value in parameters.items():
+            self.set_parameter(key=value, parameter=value)
+
+    def apply_to_statevector(
+        self,
+        statevector1,
+        statevector2,
+        qubits,
+        dtype=np.complex128,
+        ):
+
+        """ Apply this gate to statevector1, acting on qubit indices in qubits,
+            and return the result, along with a scratch statevector. Ideally,
+            no statevector allocations will be performed in the course of this
+            operation - a scratch statevector is provided as input to help with
+            this.
+
+        Params:
+            statevector1 (np.ndarray of shape 2**K) - input statevector
+            statevector2 (np.ndarray of shape 2**K) - scratch statevector
+            qubits (iterable of int of size self.nqubit) - qubit indices to
+                apply this gate to. 
+            dtype (real or complex dtype) - the dtype to perform the
+                computation at. The gate operator will be cast to this dtype.
+                Note that using real dtypes (float64 or float32) can reduce
+                storage and runtime, but the imaginary parts of the input wfn
+                and all gate unitary operators will be discarded without
+                checking. In these cases, the user is responsible for ensuring
+                that the circuit works on O(2^N) rather than U(2^N) and that
+                the output is valid.
+        Result:
+            Either or both of statevector1 and statevector2 may be modified.
+            One of them is modified to contain the resultant statevector, and
+            then this output statevector and the new scratch statevector are
+            returned.
+        Returns:
+            output, scratch (np.ndarray of shape 2**K) - output statevector,
+                then scratch statevector.
+        """
+
+        if self.nqubit != len(qubits): raise RuntimeError('self.nqubit != len(qubits)')
+
+        operator = np.array(self.operator, dtype=dtype)
+
+        if self.nqubit == 1:
+            return Algebra.apply_operator_1(
+                statevector1=statevector1,
+                statevector2=statevector2,
+                operator=operator,
+                A=qubits[0],
+                )
+        elif self.nqubit == 2:
+            return Algebra.apply_operator_2(
+                statevector1=statevector1,
+                statevector2=statevector2,
+                operator=operator,
+                A=qubits[0],
+                B=qubits[1],
+                )
+        elif self.nqubit == 3:
+            return Algebra.apply_operator_3(
+                statevector1=statevector1,
+                statevector2=statevector2,
+                operator=operator,
+                A=qubits[0],
+                B=qubits[1],
+                C=qubits[2],
+                )
+        else:
+            return Algebra.apply_operator_n(
+                statevector1=statevector1,
+                statevector2=statevector2,
+                operator=operator,
+                qubits=qubits,
+                )
 
 # > Explicit 1-body gates < #
 
 Gate.I = Gate(
-    N=1,
-    Ufun = lambda params : Matrix.I,
-    params=collections.OrderedDict(),
+    nqubit=1,
+    operator_function = lambda parameters : Matrix.I,
+    parameters=collections.OrderedDict(),
     name='I',
     ascii_symbols=['I'],
+    involutary=True,
     )
 """ I (identity) gate """
 
 Gate.X = Gate(
-    N=1,
-    Ufun = lambda params : Matrix.X,
-    params=collections.OrderedDict(),
+    nqubit=1,
+    operator_function = lambda parameters : Matrix.X,
+    parameters=collections.OrderedDict(),
     name='X',
     ascii_symbols=['X'],
+    involutary=True,
     )
 """ X (NOT) gate """
 
 Gate.Y = Gate(
-    N=1,
-    Ufun = lambda params : Matrix.Y,
-    params=collections.OrderedDict(),
+    nqubit=1,
+    operator_function = lambda parameters : Matrix.Y,
+    parameters=collections.OrderedDict(),
     name='Y',
     ascii_symbols=['Y'],
+    involutary=True,
     )
 """ Y gate """
 
 Gate.Z = Gate(
-    N=1,
-    Ufun = lambda params : Matrix.Z,
-    params=collections.OrderedDict(),
+    nqubit=1,
+    operator_function = lambda parameters : Matrix.Z,
+    parameters=collections.OrderedDict(),
     name='Z',
     ascii_symbols=['Z'],
+    involutary=True,
     )
 """ Z gate """
 
 Gate.H = Gate(
-    N=1,
-    Ufun = lambda params : Matrix.H,
-    params=collections.OrderedDict(),
+    nqubit=1,
+    operator_function = lambda parameters : Matrix.H,
+    parameters=collections.OrderedDict(),
     name='H',
     ascii_symbols=['H'],
+    involutary=True,
     )
 """ H (Hadamard) gate """
 
 Gate.S = Gate(
-    N=1,
-    Ufun = lambda params : Matrix.S,
-    params=collections.OrderedDict(),
+    nqubit=1,
+    operator_function = lambda parameters : Matrix.S,
+    parameters=collections.OrderedDict(),
     name='S',
     ascii_symbols=['S'],
+    adjoint_function = lambda parameters : Gate.ST,
     )
 """ S gate """
 
+Gate.ST = Gate(
+    nqubit=1,
+    operator_function = lambda parameters : Matrix.ST,
+    parameters=collections.OrderedDict(),
+    name='S^+',
+    ascii_symbols=['S^+'],
+    adjoint_function = lambda parameters : Gate.S,
+    )
+""" S^+ gate """
+
 Gate.T = Gate(
-    N=1,
-    Ufun = lambda params : Matrix.T,
+    nqubit=1,
+    operator_function = lambda parameters : Matrix.T,
     name='T',
-    params=collections.OrderedDict(),
+    parameters=collections.OrderedDict(),
     ascii_symbols=['T'],
+    adjoint_function = lambda parameters : Gate.TT,
     )
 """ T gate """
 
+Gate.TT = Gate(
+    nqubit=1,
+    operator_function = lambda parameters : Matrix.TT,
+    name='T^+',
+    parameters=collections.OrderedDict(),
+    ascii_symbols=['T^+'],
+    adjoint_function = lambda parameters : Gate.T,
+    )
+""" T^+ gate """
+
 Gate.Rx2 = Gate(
-    N=1,
-    Ufun = lambda params : Matrix.Rx2,
-    params=collections.OrderedDict(),
+    nqubit=1,
+    operator_function = lambda parameters : Matrix.Rx2,
+    parameters=collections.OrderedDict(),
     name='Rx2',
     ascii_symbols=['Rx2'],
+    adjoint_function = lambda parameters : Gate.Rx2T,
     )
 """ Rx2 gate """
 
 Gate.Rx2T = Gate(
-    N=1,
-    Ufun = lambda params : Matrix.Rx2T,
-    params=collections.OrderedDict(),
+    nqubit=1,
+    operator_function = lambda parameters : Matrix.Rx2T,
+    parameters=collections.OrderedDict(),
     name='Rx2T',
     ascii_symbols=['Rx2T'],
+    adjoint_function = lambda parameters : Gate.Rx2,
     )
 """ Rx2T gate """
 
 # > Explicit 2-body gates < #
 
-""" CX (CNOT) gate """
 Gate.CX = Gate(
-    N=2,
-    Ufun = lambda params: Matrix.CX,
-    params=collections.OrderedDict(),
+    nqubit=2,
+    operator_function = lambda parameters: Matrix.CX,
+    parameters=collections.OrderedDict(),
     name='CX',
     ascii_symbols=['@', 'X'],
+    involutary=True,
     )
-""" CY gate """
+""" CX (CNOT) gate """
 Gate.CY = Gate(
-    N=2,
-    Ufun = lambda params: Matrix.CY,
-    params=collections.OrderedDict(),
+    nqubit=2,
+    operator_function = lambda parameters: Matrix.CY,
+    parameters=collections.OrderedDict(),
     name='CY',
     ascii_symbols=['@', 'Y'],
+    involutary=True,
     )
-""" CZ gate """
+""" CY gate """
 Gate.CZ = Gate(
-    N=2,
-    Ufun = lambda params: Matrix.CZ,
-    params=collections.OrderedDict(),
+    nqubit=2,
+    operator_function = lambda parameters: Matrix.CZ,
+    parameters=collections.OrderedDict(),
     name='CZ',
     ascii_symbols=['@', 'Z'],
+    involutary=True,
     )
-""" CS gate """
+""" CZ gate """
 Gate.CS = Gate(
-    N=2,
-    Ufun = lambda params: Matrix.CS,
-    params=collections.OrderedDict(),
+    nqubit=2,
+    operator_function = lambda parameters: Matrix.CS,
+    parameters=collections.OrderedDict(),
     name='CS',
     ascii_symbols=['@', 'S'],
+    adjoint_function = lambda parameters : Gate.CST,
     )
-""" SWAP gate """
+""" CS gate """
+Gate.CST = Gate(
+    nqubit=2,
+    operator_function = lambda parameters: Matrix.CST,
+    parameters=collections.OrderedDict(),
+    name='CS^+',
+    ascii_symbols=['@', 'S^+'],
+    adjoint_function = lambda parameters : Gate.CS,
+    )
+""" CS^+ gate """
 Gate.SWAP = Gate(
-    N=2,
-    Ufun = lambda params: Matrix.SWAP,
-    params=collections.OrderedDict(),
+    nqubit=2,
+    operator_function = lambda parameters: Matrix.SWAP,
+    parameters=collections.OrderedDict(),
     name='SWAP',
     ascii_symbols=['X', 'X'],
+    involutary=True,
     )
+""" SWAP gate """
 
-""" CCX (Toffoli gate) """
+# > Explicit 3-body gates < #
+
 Gate.CCX = Gate(
-    N=3,
-    Ufun = lambda params: Matrix.CCX,
-    params=collections.OrderedDict(),
+    nqubit=3,
+    operator_function = lambda parameters: Matrix.CCX,
+    parameters=collections.OrderedDict(),
     name='CCX',
     ascii_symbols=['@', '@', 'X'],
+    involutary=True,
     )
-
-""" CSWAP (Toffoli gate) """
+""" CCX (Toffoli gate) """
 Gate.CSWAP = Gate(
-    N=3,
-    Ufun = lambda params: Matrix.CSWAP,
-    params=collections.OrderedDict(),
+    nqubit=3,
+    operator_function = lambda parameters: Matrix.CSWAP,
+    parameters=collections.OrderedDict(),
     name='CSWAP',
     ascii_symbols=['@', 'X', 'X'],
+    involutary=True,
     )
+""" CSWAP (Toffoli gate) """
 
 # > Parametrized 1-body gates < #
 
@@ -576,18 +765,19 @@ def _GateRx(theta=0.0):
 
     """ Rx (theta) = exp(-i * theta * x) """
     
-    def Ufun(params):
-        theta = params['theta']
+    def operator_function(parameters):
+        theta = parameters['theta']
         c = np.cos(theta)
         s = np.sin(theta)
         return np.array([[c, -1.j*s], [-1.j*s, c]], dtype=np.complex128)
     
     return Gate(
-        N=1,
-        Ufun=Ufun,
-        params=collections.OrderedDict([('theta', theta)]),
+        nqubit=1,
+        operator_function=operator_function,
+        parameters=collections.OrderedDict([('theta', theta)]),
         name='Rx',
         ascii_symbols=['Rx'],
+        adjoint_function=lambda parameters : Gate.Rx(**{ k : -v for k, v in parameters.items()})
         )
     
 @staticmethod
@@ -595,18 +785,19 @@ def _GateRy(theta=0.0):
 
     """ Ry (theta) = exp(-i * theta * Y) """
     
-    def Ufun(params):
-        theta = params['theta']
+    def operator_function(parameters):
+        theta = parameters['theta']
         c = np.cos(theta)
         s = np.sin(theta)
         return np.array([[c, -s], [+s, c]], dtype=np.complex128)
 
     return Gate(
-        N=1,
-        Ufun=Ufun,
-        params=collections.OrderedDict([('theta', theta)]),
+        nqubit=1,
+        operator_function=operator_function,
+        parameters=collections.OrderedDict([('theta', theta)]),
         name='Ry',
         ascii_symbols=['Ry'],
+        adjoint_function=lambda parameters : Gate.Ry(**{ k : -v for k, v in parameters.items()})
         )
     
 @staticmethod
@@ -614,18 +805,19 @@ def _GateRz(theta=0.0):
 
     """ Rz (theta) = exp(-i * theta * Z) """
     
-    def Ufun(params):
-        theta = params['theta']
+    def operator_function(parameters):
+        theta = parameters['theta']
         c = np.cos(theta)
         s = np.sin(theta)
         return np.array([[c-1.j*s, 0.0], [0.0, c+1.j*s]], dtype=np.complex128)
 
     return Gate(
-        N=1,
-        Ufun=Ufun,
-        params=collections.OrderedDict([('theta', theta)]),
+        nqubit=1,
+        operator_function=operator_function,
+        parameters=collections.OrderedDict([('theta', theta)]),
         name='Rz',
         ascii_symbols=['Rz'],
+        adjoint_function=lambda parameters : Gate.Rz(**{ k : -v for k, v in parameters.items()})
         )
     
 Gate.Rx = _GateRx
@@ -635,43 +827,46 @@ Gate.Rz = _GateRz
 @staticmethod
 def _Gateu1(lam=0.0):
 
-    def Ufun(params):
-        return Matrix.u1(lam=params['lam'])
+    def operator_function(parameters):
+        return Matrix.u1(lam=parameters['lam'])
 
     return Gate(
-        N=1,
-        Ufun=Ufun,
-        params=collections.OrderedDict([('lam', lam)]),
+        nqubit=1,
+        operator_function=operator_function,
+        parameters=collections.OrderedDict([('lam', lam)]),
         name='u1',
         ascii_symbols=['u1'],
+        adjoint_function=lambda parameters : Gate.u1(**{ k : -v for k, v in parameters.items()})
         )
 
 @staticmethod
 def _Gateu2(phi=0.0, lam=0.0):
 
-    def Ufun(params):
-        return Matrix.u2(phi=params['phi'], lam=params['lam'])
+    def operator_function(parameters):
+        return Matrix.u2(phi=parameters['phi'], lam=parameters['lam'])
 
     return Gate(
-        N=1,
-        Ufun=Ufun,
-        params=collections.OrderedDict([('phi', phi), ('lam', lam)]),
+        nqubit=1,
+        operator_function=operator_function,
+        parameters=collections.OrderedDict([('phi', phi), ('lam', lam)]),
         name='u2',
         ascii_symbols=['u2'],
+        adjoint_function=lambda parameters : Gate.u2(**{ k : -v for k, v in parameters.items()})
         )
 
 @staticmethod
 def _Gateu3(theta=0.0, phi=0.0, lam=0.0):
 
-    def Ufun(params):
-        return Matrix.u3(theta=params['theta'], phi=params['phi'], lam=params['lam'])
+    def operator_function(parameters):
+        return Matrix.u3(theta=parameters['theta'], phi=parameters['phi'], lam=parameters['lam'])
 
     return Gate(
-        N=1,
-        Ufun=Ufun,
-        params=collections.OrderedDict([('theta', theta), ('phi', phi), ('lam', lam)]),
+        nqubit=1,
+        operator_function=operator_function,
+        parameters=collections.OrderedDict([('theta', theta), ('phi', phi), ('lam', lam)]),
         name='u3',
         ascii_symbols=['u3'],
+        adjoint_function=lambda parameters : Gate.u3(**{ k : -v for k, v in parameters.items()})
         )
 
 Gate.u1 = _Gateu1
@@ -683,13 +878,13 @@ Gate.u3 = _Gateu3
 @staticmethod
 def _GateSO4(A=0.0, B=0.0, C=0.0, D=0.0, E=0.0, F=0.0):
     
-    def Ufun(params):
-        A = params['A']
-        B = params['B']
-        C = params['C']
-        D = params['D']
-        E = params['E']
-        F = params['F']
+    def operator_function(parameters):
+        A = parameters['A']
+        B = parameters['B']
+        C = parameters['C']
+        D = parameters['D']
+        E = parameters['E']
+        F = parameters['F']
         X = np.array([
             [0.0, +A,  +B,  +C],
             [-A, 0.0,  +D,  +E],
@@ -701,11 +896,12 @@ def _GateSO4(A=0.0, B=0.0, C=0.0, D=0.0, E=0.0, F=0.0):
         return np.array(U, dtype=np.complex128)
 
     return Gate(
-        N=2,
-        Ufun=Ufun,
-        params=collections.OrderedDict([('A', A), ('B', B), ('C', C), ('D', D), ('E', E), ('F', F)]),
+        nqubit=2,
+        operator_function=operator_function,
+        parameters=collections.OrderedDict([('A', A), ('B', B), ('C', C), ('D', D), ('E', E), ('F', F)]),
         name='SO4',
         ascii_symbols=['SO4A', 'SO4B'],
+        adjoint_function=lambda parameters : Gate.SO4(**{ k : -v for k, v in parameters.items()})
         )
 
 Gate.SO4 = _GateSO4
@@ -713,13 +909,13 @@ Gate.SO4 = _GateSO4
 @staticmethod
 def _GateSO42(thetaIY=0.0, thetaYI=0.0, thetaXY=0.0, thetaYX=0.0, thetaZY=0.0, thetaYZ=0.0):
     
-    def Ufun(params):
-        A = -(params['thetaIY'] + params['thetaZY'])
-        F = -(params['thetaIY'] - params['thetaZY'])
-        C = -(params['thetaYX'] + params['thetaXY'])
-        D = -(params['thetaYX'] - params['thetaXY'])
-        B = -(params['thetaYI'] + params['thetaYZ'])
-        E = -(params['thetaYI'] - params['thetaYZ'])
+    def operator_function(parameters):
+        A = -(parameters['thetaIY'] + parameters['thetaZY'])
+        F = -(parameters['thetaIY'] - parameters['thetaZY'])
+        C = -(parameters['thetaYX'] + parameters['thetaXY'])
+        D = -(parameters['thetaYX'] - parameters['thetaXY'])
+        B = -(parameters['thetaYI'] + parameters['thetaYZ'])
+        E = -(parameters['thetaYI'] - parameters['thetaYZ'])
         X = np.array([
             [0.0, +A,  +B,  +C],
             [-A, 0.0,  +D,  +E],
@@ -731,9 +927,9 @@ def _GateSO42(thetaIY=0.0, thetaYI=0.0, thetaXY=0.0, thetaYX=0.0, thetaZY=0.0, t
         return np.array(U, dtype=np.complex128)
 
     return Gate(
-        N=2,
-        Ufun=Ufun,
-        params=collections.OrderedDict([
+        nqubit=2,
+        operator_function=operator_function,
+        parameters=collections.OrderedDict([
             ('thetaIY' , thetaIY),
             ('thetaYI' , thetaYI),
             ('thetaXY' , thetaXY),
@@ -743,6 +939,7 @@ def _GateSO42(thetaIY=0.0, thetaYI=0.0, thetaXY=0.0, thetaYX=0.0, thetaZY=0.0, t
         ]),
         name='SO42',
         ascii_symbols=['SO42A', 'SO42B'],
+        adjoint_function=lambda parameters : Gate.SO42(**{ k : -v for k, v in parameters.items()})
         )
 
 Gate.SO42 = _GateSO42
@@ -752,8 +949,8 @@ def _CF(theta=0.0):
 
     """ Controlled F gate """
     
-    def Ufun(params):
-        theta = params['theta']
+    def operator_function(parameters):
+        theta = parameters['theta']
         c = np.cos(theta)
         s = np.sin(theta)
         return np.array([
@@ -764,11 +961,12 @@ def _CF(theta=0.0):
             ], dtype=np.complex128)
     
     return Gate(
-        N=2,
-        Ufun=Ufun,
-        params=collections.OrderedDict([('theta', theta)]),
+        nqubit=2,
+        operator_function=operator_function,
+        parameters=collections.OrderedDict([('theta', theta)]),
         name='CF',
         ascii_symbols=['@', 'F'],
+        adjoint_function=lambda parameters : Gate.CF(**{ k : -v for k, v in parameters.items()})
         )
 
 Gate.CF = _CF
@@ -777,67 +975,72 @@ Gate.CF = _CF
 
 def _GateR_ion(theta=0.0, phi=0.0):
 
-    def Ufun(params):
-        return Matrix.R_ion(theta=params['theta'], phi=params['phi'])
+    def operator_function(parameters):
+        return Matrix.R_ion(theta=parameters['theta'], phi=parameters['phi'])
     
     return Gate(
-        N=1,
-        Ufun=Ufun,
-        params=collections.OrderedDict([('theta', theta), ('phi', phi)]),
+        nqubit=1,
+        operator_function=operator_function,
+        parameters=collections.OrderedDict([('theta', theta), ('phi', phi)]),
         name='R_ion',
         ascii_symbols=['R'],
+        adjoint_function=lambda parameters : Gate.R_ion(**{ k : -v for k, v in parameters.items()})
         )
 
 def _GateRx_ion(theta=0.0):
 
-    def Ufun(params):
-        return Matrix.R_ion(theta=params['theta'], phi=0.0)
+    def operator_function(parameters):
+        return Matrix.R_ion(theta=parameters['theta'], phi=0.0)
     
     return Gate(
-        N=1,
-        Ufun=Ufun,
-        params=collections.OrderedDict([('theta', theta)]),
+        nqubit=1,
+        operator_function=operator_function,
+        parameters=collections.OrderedDict([('theta', theta)]),
         name='Rx_ion',
         ascii_symbols=['Rx'],
+        adjoint_function=lambda parameters : Gate.Rx_ion(**{ k : -v for k, v in parameters.items()})
         )
 
 def _GateRy_ion(theta=0.0):
 
-    def Ufun(params):
-        return Matrix.R_ion(theta=params['theta'], phi=np.pi/2.0)
+    def operator_function(parameters):
+        return Matrix.R_ion(theta=parameters['theta'], phi=np.pi/2.0)
     
     return Gate(
-        N=1,
-        Ufun=Ufun,
-        params=collections.OrderedDict([('theta', theta)]),
+        nqubit=1,
+        operator_function=operator_function,
+        parameters=collections.OrderedDict([('theta', theta)]),
         name='Ry_ion',
         ascii_symbols=['Ry'],
+        adjoint_function=lambda parameters : Gate.Ry_ion(**{ k : -v for k, v in parameters.items()})
         )
 
 def _GateRz_ion(theta=0.0):
 
-    def Ufun(params):
-        return Matrix.Rz_ion(theta=params['theta'])
+    def operator_function(parameters):
+        return Matrix.Rz_ion(theta=parameters['theta'])
     
     return Gate(
-        N=1,
-        Ufun=Ufun,
-        params=collections.OrderedDict([('theta', theta)]),
+        nqubit=1,
+        operator_function=operator_function,
+        parameters=collections.OrderedDict([('theta', theta)]),
         name='Rz_ion',
         ascii_symbols=['Rz'],
+        adjoint_function=lambda parameters : Gate.Rz_ion(**{ k : -v for k, v in parameters.items()})
         )
 
 def _GateXX_ion(chi=0.0):
 
-    def Ufun(params):
-        return Matrix.XX_ion(chi=params['chi'])
+    def operator_function(parameters):
+        return Matrix.XX_ion(chi=parameters['chi'])
     
     return Gate(
-        N=2,
-        Ufun=Ufun,
-        params=collections.OrderedDict([('chi', chi)]),
+        nqubit=2,
+        operator_function=operator_function,
+        parameters=collections.OrderedDict([('chi', chi)]),
         name='XX_ion',
         ascii_symbols=['XX', 'XX'],
+        adjoint_function=lambda parameters : Gate.XX_ion(**{ k : -v for k, v in parameters.items()})
         )
 
 Gate.R_ion = _GateR_ion
@@ -854,9 +1057,9 @@ def _GateU1(U):
     """ An explicit 1-body gate that is specified by the user. """
 
     return Gate(
-        N=1,
-        Ufun = lambda params : U,
-        params=collections.OrderedDict(),
+        nqubit=1,
+        operator_function = lambda parameters : U,
+        parameters=collections.OrderedDict(),
         name='U1',
         ascii_symbols=['U1'],
         )
@@ -867,9 +1070,9 @@ def _GateU2(U):
     """ An explicit 2-body gate that is specified by the user. """
 
     return Gate(
-        N=2,
-        Ufun = lambda params : U,
-        params=collections.OrderedDict(),
+        nqubit=2,
+        operator_function = lambda parameters : U,
+        parameters=collections.OrderedDict(),
         name='U2',
         ascii_symbols=['U2A', 'U2B'],
         )
@@ -877,111 +1080,203 @@ def _GateU2(U):
 Gate.U1 = _GateU1
 Gate.U2 = _GateU2
 
+class CompositeGate(Gate):
+
+    def __init__(
+        self,
+        circuit,
+        name=None,
+        ascii_symbols=None,
+        ):
+
+        self.circuit = circuit
+        self.name = 'CG' if name is None else name
+        self.ascii_symbols = ['CG'] * self.circuit.nqubit if ascii_symbols is None else ascii_symbols
+
+    @property
+    def ntime(self):
+        return self.circuit.ntime
+
+    @property
+    def nqubit(self):
+        return self.circuit.nqubit 
+
+    @property
+    def is_composite(self):
+        return True
+
+    @property
+    def is_controlled(self):
+        return self.circuit.is_controlled
+
+    @property
+    def operator_function(self):
+        def Ufun(parameters):
+            U = np.zeros((2**self.nqubit,)*2, dtype=np.complex128)
+            statevector1 = np.zeros((2**self.nqubit), dtype=np.complex128)
+            statevector2 = np.zeros((2**self.nqubit), dtype=np.complex128)
+            qubits = list(range(self.nqubit))
+            for i in range(2**self.nqubit):
+                statevector1[...] = 0.0
+                statevector1[i] = 1.0
+                statevector1, statevector2 = self.apply_to_statevector(
+                    statevector1=statevector1,
+                    statevector2=statevector2,
+                    qubits=qubits,
+                    dtype=np.complex128,
+                    )
+                U[:, i] = statevector1
+            return U
+        return Ufun
+
+    def apply_to_statevector(
+        self,
+        statevector1,
+        statevector2,
+        qubits,
+        dtype=np.complex128,
+        ):
+
+        return self.circuit.apply_to_statevector(
+            statevector1=statevector1,
+            statevector2=statevector2,
+            qubits=qubits,  
+            dtype=dtype,
+            )
+
+    @property
+    def parameters(self):
+        return self.circuit.parameters
+
+    def set_parameter(self, key, value):
+        self.circuit.set_parameter(key, value)
+
+    def set_parameters(self, parameters):
+        self.circuit.set_parameters(parameters)
+
+    def copy(self):
+        return CompositeGate(
+            circuit=self.circuit.copy(), 
+            name=self.name,
+            ascii_symbols=self.ascii_symbols.copy(),
+            )
+
+    def adjoint(self):
+        return CompositeGate(
+            circuit=self.circuit.adjoint(),
+            name=self.name+'^+',
+            ascii_symbols=[symbol + ('' if symbol in ['@', 'O'] else '^+') for symbol in self.ascii_symbols],
+            )
+
+    def exploded_gates(self):
+        gates = {}
+        for key, gate in self.circuit.explode(copy=False).gates.items():
+            times, qubits = key
+            time2 = times[0] - self.circuit.min_time
+            qubits2 = tuple(_ - self.circuit.min_qubit for _ in qubits)
+            gates[(time2, qubits2)] = gate
+        return gates
+
 class ControlledGate(Gate):
-
-    """ Class ControlledGate extends Gate to allow an arbitrary number of controls.
-
-    """
 
     def __init__(
         self,
         gate,
-        ncontrol=1,
+        controls=None,
         ):
 
+        if controls is None: controls = [True]
+
         self.gate = gate
-        self.ncontrol = ncontrol
+        self.controls = controls
+
+        if not isinstance(self.controls, list): raise RuntimeError('controls must be list')
+        if not all(isinstance(_, bool) for _ in self.controls): raise RuntimeError('controls must be list of bool')
 
     @property
-    def N(self):
-        return self.gate.N + self.ncontrol
+    def ncontrol(self):
+        return len(self.controls)
 
     @property
-    def Ufun(self):
+    def ntime(self):
+        return self.gate.ntime
+
+    @property
+    def nqubit(self):
+        return self.ncontrol + self.gate.nqubit
+
+    @property
+    def is_composite(self):
+        return self.gate.is_composite
+
+    @property
+    def is_controlled(self):
+        return True
+
+    @property
+    def operator_function(self):
         def cU(params):        
-            U = np.eye(2**self.N, dtype=np.complex128)
-            U[(2**self.N - 2**self.gate.N):, (2**self.N - 2**self.gate.N):] = self.gate.Ufun(params)
+            start = sum([2**(self.nqubit - index - 1) for index, control in enumerate(self.controls) if control] + [0])
+            end = start + 2**self.gate.nqubit
+            U = np.eye(2**self.nqubit, dtype=np.complex128)
+            U[start:end, start:end] = self.gate.operator
             return U
         return cU
 
     @property
-    def params(self):
-        return self.gate.params
-
-    @property
     def name(self):
-        return 'C'*self.ncontrol + self.gate.name
+        return ''.join(['c' if control else 'o' for control in self.controls]) + self.gate.name
 
     @property
     def ascii_symbols(self):
-        return ['@']*self.ncontrol + self.gate.ascii_symbols
+        return ['@' if control else 'O' for control in self.controls] + self.gate.ascii_symbols
+
+    @property
+    def parameters(self):
+        return self.gate.parameters
+
+    def set_parameter(self, key, value):
+        self.gate.set_parameter(key, value)
+
+    def set_parameters(self, parameters):
+        self.gate.set_parameters(parameters)
 
     def copy(self):
-        return ControlledGate(gate=self.gate.copy(), ncontrol=self.ncontrol)
+        return ControlledGate(
+            gate=self.gate.copy(), 
+            controls=self.controls.copy(),
+            )
 
-    def set_param(self, key, param):
-        self.gate.set_param(key, param)
+    def adjoint(self):
+        return ControlledGate(
+            gate=self.gate.adjoint(),
+            controls=self.controls.copy(),
+            )
 
-    def set_params(self, params):
-        self.gate.set_params(params)
-
-# => Gate class <= #
+    def exploded_gates(self):
+        gates = {}
+        for key, gate in self.gate.exploded_gates().items():
+            time, qubits = key
+            qubits2 = tuple(list(range(self.ncontrol)) + [_ + self.ncontrol for _ in qubits])
+            gates[(time, qubits2)] = ControlledGate(gate, self.controls)
+        return gates 
 
 class Circuit(object):
 
-    """ Class Circuit represents a general quantum circuit acting on N
-        linearly-arranged cubits. Non-local connectivity is permitted - the
-        linear arrangement is strictly for simplicity.
-
-        An example Circuit construction is,
-
-        >>> circuit = Circuit(N=2).H(0).X(1).CX(0,1)
-        >>> print(circuit)
-        
-        A Circuit is always constructed with a fixed number of qubits N, but
-        the time window of the circuit is freely expandable from time=0 onward.
-        The Circuit starts empty, and is filled one gate at a time by the
-        add_gate function or by helper methods such as H, X, CX, etc.
-    
-        The Circuit attribute Ts (list of int) contains the sorted list of time
-        indices T with significant gates, and the Circuit attribute ntime
-        (int) contains the total number of time moments, including empty
-        moments.
-
-        The core data of a Circuit is the gates attribute, which contains an
-        OrderedDict of (time, qubits) : Gate pairs for significant gates. The
-        (time, qubits) compound key specifies the time moment of the gate
-        (int), and the qubit indices (tuple of int). len(qubits) is always
-        gate.N.  
-    """
+    # => Initializer <= #
 
     def __init__(
         self,
-        N,
         ):
 
-        """ Initializer.
-
-        Params:
-            N (int) - number of qubits in this circuit
-        """
-
-        self.N = N
-        # All circuits must have at least one qubit
-        if self.N <= 0: raise RuntimeError('N <= 0')
+        self.gates = sortedcontainers.SortedDict()
     
-        # Primary circuit data structure
-        self.gates = collections.OrderedDict() # (T, (A, [B], [C], ...)) -> Gate
-        # Memoization
-        self.Ts = [] # [T] tells ordered, unique time moments
-        self.TAs = set() # ({T,A}) tells occupied circuit indices
+        # Memoization of occupied time/qubit indices
+        self.times = sortedcontainers.SortedSet()
+        self.qubits = sortedcontainers.SortedSet()
+        self.times_and_qubits = sortedcontainers.SortedSet()
 
-    # > Simple Circuit characteristics < #
-
-    @property
-    def ntime(self):
-        """ The total number of time moments in the circuit (including blank moments). """
-        return self.Ts[-1] + 1 if len(self.Ts) else 0
+    # => Simple Circuit Attributes <= #
 
     @property
     def ngate(self):
@@ -990,72 +1285,173 @@ class Circuit(object):
 
     @property
     def ngate1(self):
-        """ The total number of 1-body gates in the circuit. """
-        return len([gate for gate in list(self.gates.values()) if gate.N == 1])
+        """ The total number of 1-qubit gates in the circuit. """
+        return self.ngate_nqubit(nqubit=1)
 
     @property
     def ngate2(self):
-        """ The total number of 2-body gates in the circuit. """
-        return len([gate for gate in list(self.gates.values()) if gate.N == 2])
+        """ The total number of 2-qubit gates in the circuit. """
+        return self.ngate_nqubit(nqubit=2)
 
-    def is_equivalent(self, other):
-        """ Returns True if two circuits have the same values for all attributes.
-            Also calls sort_gates() on both circuits. 
+    @property
+    def ngate3(self):
+        """ The total number of 3-qubit gates in the circuit. """
+        return self.ngate_nqubit(nqubit=3)
+
+    @property
+    def ngate4(self):
+        """ The total number of 4-qubit gates in the circuit. """
+        return self.ngate_nqubit(nqubit=4)
+
+    def ngate_nqubit(self, nqubit):
+        """ The total number of nqubit-qubit gates in the circuit. 
+
+        Params:
+            nqubit (int) - number of qubits to screen on.
         """
-        if not isinstance(other, Circuit): raise RuntimeError('Circuit object can only compare with Circuit object.')
-        self.sort_gates()
-        other.sort_gates()
-        if self.N != other.N:
+        return sum(1 for gate in self.gates.values() if gate.nqubit == nqubit)
+
+    @property
+    def max_gate_nqubit(self):
+        """ Maximum number of qubits in any gate in the circuit. """
+        return max(gate.nqubit for gate in self.gates.values()) if self.ngate else 0
+    
+    @property
+    def max_gate_ntime(self):
+        """ Maximum number of times in any gate in the circuit. """
+        return max(gate.ntime for gate in self.gates.values()) if self.ngate else 0
+    
+    @property
+    def min_time(self):
+        """ The minimum occupied time index (or 0 if no occupied times) """
+        return self.times[0] if len(self.times) else 0
+    
+    @property
+    def max_time(self):
+        """ The maximum occupied time index (or -1 if no occupied times) """
+        return self.times[-1] if len(self.times) else -1
+
+    @property
+    def ntime(self):
+        """ The total number of time indices in the circuit (including empty time indices). """
+        return self.times[-1] - self.times[0] + 1 if len(self.times) else 0
+
+    @property
+    def ntime_sparse(self):
+        """ The total number of occupied time indices in the circuit (excluding empty time indices). """
+        return len(self.times)
+
+    @property
+    def min_qubit(self):
+        """ The minimum occupied qubit index (or 0 if no occupied qubits) """
+        return self.qubits[0] if len(self.qubits) else 0
+    
+    @property
+    def max_qubit(self):
+        """ The maximum occupied qubit index (or -1 if no occupied qubits) """
+        return self.qubits[-1] if len(self.qubits) else -1
+
+    @property
+    def nqubit(self):
+        """ The total number of qubit indices in the circuit (including empty qubit indices). """
+        return self.qubits[-1] - self.qubits[0] + 1 if len(self.qubits) else 0
+
+    @property
+    def nqubit_sparse(self):
+        """ The total number of occupied qubit indices in the circuit (excluding empty qubit indices). """
+        return len(self.qubits)
+
+    @property
+    def is_composite(self):
+        """ Does this circuit contain any CompositeGate objects? """
+        return any(gate.is_composite for gate in self.gates.values())
+
+    @property
+    def is_controlled(self):
+        """ Does this circuit contain any ControlledGate objects? """
+        return any(gate.is_controlled for gate in self.gates.values())
+
+    # => Circuit Equivalence <= #
+
+    @staticmethod
+    def test_equivalence(
+        circuit1,
+        circuit2,
+        operator_tolerance=1.0E-12,
+        ):
+
+        """ Test logical circuit equivalence at the level of geographic
+            locations of Gate objects and operator equivalence of Gate objects.
+
+            Note that this can be conceptually considered to be an intermediate
+            level definition of equivalence. At the lowest level (not this
+            case), one could define equivalence to be in terms of the overall
+            unitary matrix of the circuits - many different gate layouts and
+            definitions would provide equivalence under this definitions. At
+            the highest level (not this case), one could define equivalence to
+            require identical geographic locations of Gate object, and
+            identical Gate objects (e.g., in terms of
+            Gate/ControlledGate/CompositeGate class, parameters, names, etc). 
+            Here, we define circuit equivalence to the intermediate level of
+            identical geographic locations of Gate objects, and numerically
+            identical Gate operators, but do not check the specific recipe of
+            each Gate's definition.
+
+        Params:
+            circuit1 (Circuit) - first circuit to compare
+            circuit2 (Circuit) - second circuit to compare
+            operator_tolerance (float) - maximum absolute deviation threshold
+                for declaring Gate operator matrices to be identical.
+        Returns:
+            (bool) - True if the circuits are equivalent under the definition
+                above, else False.
+        """
+
+        # Check that keys are geographically the same 
+        if circuit1.gates.keys() != circuit2.gates.keys(): 
             return False
-        if self.Ts != other.Ts:
-            return False
-        if self.TAs != other.TAs:
-            return False
-        # Check gate equivalency
-        for i, j in zip(self.gates.items(), other.gates.items()):
-            key1 = i[0]
-            key2 = j[0]
-            gate1 = i[1]
-            gate2 = j[1]
-            if key1 != key2:
-                return False
-            if not gate1.same_unitary(gate2):
+
+        # Check that the operators of the gates are numerically the same
+        for gate1, gate2 in zip(circuit1.gates.values(), circuit2.gates.values()):
+            if not Gate.test_operator_equivalence(gate1, gate2, operator_tolerance=1.0E-12): 
                 return False
 
         return True
     
-        
-    def sort_gates(self):
-        """ Orders the gate dictionary of self.gates based on time then qubit index """
-        sorted_gates = collections.OrderedDict()
-        for key in sorted(self.gates.keys()):
-            sorted_gates[key] = self.gates[key]
-        self.gates = sorted_gates
-
-    # > Gate addition < #
+    # => Gate Addition <= #
 
     def add_gate(
         self,
         gate,
         qubits,
-        time=None, 
+        times=None, 
+        time_start=None, 
         time_placement='early',
         copy=True,
+        name=None,
+        ascii_symbols=None,
+        return_key=False,
         ):
 
-        """ Add a gate to self at specified qubits and time, updating self. The
-            qubits to add gate to are always explicitly specified. The time to
-            add gate to may be explicitly specified in the time argumet (1st
-            priority), or a recipe for determining the time placement can be
-            specified using the time_placement argument (2nd priority).
+        """ Add a gate to self at specified qubits and times, updating self. The
+            qubits to add gate to are always explicitly specified. The times to
+            add the gate to may be explicitly specified in the times argumet
+            (1st priority), or a recipe for determining the time placement can
+            be specified using the time_placement argument (2nd priority).
 
         Params:
-            qate (Gate) - the gate to add into self. 
+            qate (Gate or Circuit) - the gate to add into self. If gate is a
+                Circuit, gate will be cast to a CompositeGate and then added
+                into self.
             qubits (int or tuple of int) - ordered qubit indices in self to add the
                 qubit indices of circuit into. If a single int is provided (for
                 one-qubit gate addition), it is converted to a tuple with a
                 single int entry.
-            time (int) - time moment in self to add the gate into. If None, the
+            times (int or tuple of int or None) - time moments in self to add
+                the gate into. If None, the time_start argument will be
+                considered next.
+            time_start (int or None) - starting time moment in self to add the
+                gate into (often used with ntime > 1 gates). If None, the
                 time_placement argument will be considered next.
             time_placement (str - 'early', 'late', or 'next') - recipe to
                 determine time moment in self to add the gate into. The rules
@@ -1067,479 +1463,115 @@ class Circuit(object):
                         in the next (new) time moment.
                     'next' - add the gate in the next (new) time moment.
             copy (bool) - copy the gate or not?
+            name (str) - name of gate for use in CompositeGate (None indicates
+                default name)
+            ascii_symbols (list of str or None) - ASCII symbols for use in
+                CompositeGate (None indicates default symbols)
+            return_key (bool) - return self for chaining (False - default)
+                or (times, qubits) key (True) to determine gate placement.
         Result:
             self is updated with the added gate. Checks are
-                performed to ensure that the addition is valid.
+                performed to ensure that the addition is valid. 
         Returns:
             self - for chaining
-
-        For one body gate, can add as either of:
-            circuit.add_gate(gate, A, time)
-            circuit.add_gate(gate, (A,), time)
-        For two body gate, must add as:
-            circuit.add_gate(gate, (A, B), time)
         """
+
+        # If gate is Circuit, make it a CompositeGate
+        gate = CompositeGate(gate, name, ascii_symbols) if isinstance(gate, Circuit) else gate
 
         # Make qubits a tuple regardless of input
         qubits = (qubits,) if isinstance(qubits, int) else qubits
+        # Make times a tuple (or None) regardless of input
+        times = (times,) if isinstance(times, int) else times
         
         # Qubit validation
-        if not all(q >= 0 for q in qubits):
-            raise RuntimeError("All qubits indices must be non-negative integers.")
         if len(set(qubits)) != len(qubits):
             raise RuntimeError("Qubit list must not contain repeated indices.")
-        # Qubit validation
 
-        # Time determination
-        if time is None:
-            if time_placement == 'early':
-                timemax = -1
-                for time2, A in self.TAs:
-                    if A in qubits:
-                        timemax = max(timemax, time2)
-                time = timemax + 1
+        # Time determination by rules
+        if times is None:
+            if time_start is not None:
+                times = tuple(range(time_start, time_start + gate.ntime))
+            elif time_placement == 'early':
+                timemax = self.min_time - 1
+                for time, qubit in self.times_and_qubits:
+                    if qubit in qubits:
+                        timemax = max(timemax, time)
+                times = tuple(range(timemax + 1, timemax + 1 + gate.ntime))
             elif time_placement == 'late':
-                time = max(self.ntime - 1, 0)
-                if any((time, A) in self.TAs for A in qubits):
-                    time += 1 
+                timemax = self.max_time
+                if any((timemax, qubit) in self.times_and_qubits for qubit in qubits):
+                    timemax += 1
+                times = tuple(range(timemax, timemax + gate.ntime))
             elif time_placement == 'next':
-                time = self.ntime
+                times = tuple(range(self.max_time + 1, self.max_time + 1 + gate.ntime))
             else:
                 raise RuntimeError('Unknown time_placement: %s. Allowed values are early, late, next' % time_placement)
 
-        # Check that time >= 0
-        if time < 0: raise RuntimeError('Negative time: %d' % time)
-        # Check that qubits makes sense for gate.N
-        if len(qubits) != gate.N: raise RuntimeError('%d qubits entries provided for %d-body gate' % (len(qubits), gate.N))
+        # Check that qubits makes sense for gate.nqubit
+        if len(qubits) != gate.nqubit: raise RuntimeError('%d qubit entries provided for %d-qubit gate' % (len(qubits), gate.nqubit))
+        # Check that times makes sense for gate.ntime
+        if len(times) != gate.ntime: raise RuntimeError('%d time entries provided for %d-time gate' % (len(times), gate.ntime))
+        # Check that the times are sequential and contiguous
+        if len(times) > 1 and times != tuple(range(times[0], times[-1]+1)): raise RuntimeError('times are not sequential: %r' % times)
         # Check that the requested circuit locations are open
-        for A in qubits:
-            if (time,A) in self.TAs: 
-                raise RuntimeError('time=%d, A=%d circuit location is already occupied' % (time,A))
-            if A >= self.N:
-                raise RuntimeError('No qubit location %d' % A)
+        for qubit in qubits:
+            for time in times:
+                if (time, qubit) in self.times_and_qubits:
+                    raise RuntimeError('time=%d, qubit=%d circuit location is already occupied' % (time,qubit))
+
         # Add gate to circuit
-        self.gates[(time, qubits)] = gate.copy() if copy else gate
-        # Update memoization of TAs and Ts
-        for A in qubits:
-            self.TAs.add((time,A))
-        if time not in self.Ts:
-            self.Ts = list(sorted(self.Ts + [time]))
+        self.gates[(times, qubits)] = gate.copy() if copy else gate
+        for qubit in qubits: self.qubits.add(qubit)
+        for time in times: self.times.add(time)
+        for qubit in qubits:
+            for time in times:
+                self.times_and_qubits.add((time, qubit))
 
-        return self
+        return (tuple(times), tuple(qubits)) if return_key else self
 
-    def gate(
+    def add_controlled_gate(
         self,
+        gate,
         qubits,
-        time,
-        ):
+        controls=None,
+        name=None,
+        ascii_symbols=None,
+        **kwargs):
 
-        """ Return the gate at a given moment time and qubit indices qubits
+        gate = CompositeGate(gate, name, ascii_symbols) if isinstance(gate, Circuit) else gate
+        gate = ControlledGate(gate, controls=controls)
+        return self.add_gate(gate=gate, qubits=qubits, **kwargs) 
 
-        Params:
-            qubits (int or tuple of int) - the qubit index or indices of the gate
-            time (int) - the time index of the gate
-        Returns:
-            (Gate) - the gate at the specified circuit coordinates
-
-        For one body gate, can use as either of:
-            gate = circuit.gate(A, time)
-            gate = circuit.gate((A,), time)
-        For two body gate, must use as:
-            gate = circuit.gate((A, B), time)
-        """
-
-        qubits = (qubits,) if isinstance(qubits, int) else qubits
-        return self.gates[(time, qubits)]
-
-    # => Copy/Subsets/Concatenation <= #
-
-    def copy(
-        self,
-        ):
-
-        """ Return a copy of circuit self so that parameter modifications in
-            the copy do not affect self.
-
-        Returns:
-            (Circuit) - copy of self with all Gate objects copied deeply enough
-                to remove parameter dependencies between self and returned
-                Circuit.
-        """
-
-        circuit = Circuit(N=self.N)
-        for key, gate in self.gates.items():
-            T, qubits = key
-            circuit.add_gate(time=T, qubits=qubits, gate=gate.copy())
-        return circuit
-
-    def subset(
-        self,
-        times,
-        copy=True,
-        ):
-
-        """ Return a Circuit with a subset of time moments times.
-
-        Params:
-            times (list of int) - ordered time moments to slice into time moments
-                [0,1,2,...] in the returned circuit.
-            copy (bool) - copy Gate elements to remove parameter dependencies
-                between self and returned circuit (True - default) or not
-                (False). 
-        Returns:
-            (Circuit) - the new time-sliced circuit.
-        """
-
-        circuit = Circuit(N=self.N)
-        for T2, Tref in enumerate(times):
-            if Tref >= self.ntime: raise RuntimeError('time >= self.ntime: %d' % Tref)
-        for key, gate in self.gates.items():
-            T, qubits = key
-            if T in times:
-                T2 = [T2 for T2, Tref in enumerate(times) if Tref == T][0]
-                circuit.add_gate(time=T2, qubits=qubits, gate=gate.copy() if copy else gate)
-        return circuit
-
-    @staticmethod
-    def concatenate(
-        circuits,
-        copy=True,
-        ):
-
-        """ Concatenate a list of Circuits in time.
-        
-        Params:
-            circuits (list of Circuit) - the ordered list of Circuit objects to
-                concatenate in time.
-            copy (bool) - copy Gate elements to remove parameter dependencies
-                between circuits and returned circuit (True - default) or not
-                (False). 
-        Returns:
-            (Circuit) - the new time-concatenated circuit.
-        """
-
-        if any(x.N != circuits[0].N for x in circuits): 
-            raise RuntimeError('Circuits must all have same N to be concatenated')
-        
-        circuit = Circuit(N=circuits[0].N)
-        Tstart = 0
-        for circuit2 in circuits:   
-            for key, gate in circuit2.gates.items():
-                T, qubits = key
-                circuit.add_gate(time=T+Tstart, qubits=qubits, gate=gate.copy() if copy else gate)
-            Tstart += circuit2.ntime
-        return circuit
-
-    def deadjoin(
-        self,
-        qubits,
-        copy=True,
-        ):
-
-        """ Return a circuit with a subset of qubits.
-
-        Params:
-            qubits (list of int) - ordered qubit indices to slice in spatial
-                indices into the [0,1,2...] indices in the returned circuit.
-            copy (bool) - copy Gate elements to remove parameter dependencies
-                between self and returned circuit (True - default) or not
-                (False). 
-        Returns:
-            (Circuit) - the new qubit-sliced circuit.
-        """
-
-        for A2, Aref in enumerate(qubits):
-            if Aref >= self.N: raise RuntimeError('A >= self.A: %d' % Aref)
-
-        Amap = { v : k for k, v in enumerate(qubits) }
-
-        circuit = Circuit(N=len(qubits))
-        for key, gate in self.gates.items():
-            T, qubits = key
-            if all(x in Amap for x in qubits):
-                circuit.add_gate(time=T, qubits=tuple(Amap[x] for x in qubits), gate=gate.copy() if copy else gate)
-        return circuit
-
-    @staticmethod
-    def adjoin(
-        circuits,
-        copy=True,
-        ):
-
-        """ Adjoin a list of Circuits in spatial qubit indices.
-        
-        Params:
-            circuits (list of Circuit) - the ordered list of Circuit objects to
-                adjoin in spatial qubit indices.
-            copy (bool) - copy Gate elements to remove parameter dependencies
-                between circuits and returned circuit (True - default) or not
-                (False). 
-        Returns:
-            (Circuit) - the new spatially qubit-adjoined circuit.
-        """
-        circuit = Circuit(N=sum(x.N for x in circuits))
-        Astart = 0
-        for circuit2 in circuits:   
-            for key, gate in circuit2.gates.items():
-                T, qubits = key
-                circuit.add_gate(time=T, qubits=tuple(x + Astart for x in qubits), gate=gate.copy() if copy else gate)
-            Astart += circuit2.N
-        return circuit
-    
-    def reversed(
-        self,
-        copy=True,
-        ):
-
-        """ Return a circuit with gate operations in reversed time order.
-
-        Note that the gates are not transposed/adjointed => this is not
-            generally equivalent to time reversal.
-
-        Params:
-            copy (bool) - copy Gate elements to remove parameter dependencies
-                between self and returned circuit (True - default) or not
-                (False). 
-        Returns:
-            (Circuit) - the new reversed circuit.
-        """
-
-        circuit = Circuit(N=self.N)
-        for key, gate in self.gates.items():
-            T, qubits = key
-            circuit.add_gate(time=self.ntime-T-1, qubits=qubits, gate=gate)
-        return circuit
-
-    def nonredundant(
-        self,
-        copy=True,
-        ):
-
-        """ Return a circuit with empty time moments removed.
-
-        Params:
-            copy (bool) - copy Gate elements to remove parameter dependencies
-                between self and returned circuit (True - default) or not
-                (False). 
-        Returns:
-            (Circuit) - the new time-dense circuit.
-        """
-
-        circuit = Circuit(N=self.N)
-        Tmap = { v : k for k, v in enumerate(sorted(self.Ts)) }
-        for key, gate in self.gates.items():
-            T, qubits = key
-            circuit.add_gate(time=Tmap[T], qubits=qubits, gate=gate)
-        return circuit
-
-    def compressed(
-        self,
-        ):
-
-        """ Return an equivalent time-dense circuit with 1- and 2-body gates
-            merged together to minimize the number of gates by using composite
-            1- and 2-body gate operations. This operation is designed to reduce
-            the runtime of state vector simulation by reducing the number of 1-
-            and 2-body gate operations that must be simulated.
-
-        This operation freezes the current parameter values of all gates, and
-        constructs composite 1- and 2-body gates from the current values of the gate
-        unitary matrices U. Therefore, the returned circuit will have no
-        parameters, and compressed will have to be called on the original
-        circuit again if the parameters change.
-
-        Returns:
-            (Circuit) - the new compressed circuit.
-        """
-        
-        # Currently will not compress a circuit that uses >3 qubit gates
-        max_gate_n = max([gate.N for key, gate in self.gates.items()])
-        if max_gate_n >= 3:
-            return self.nonredundant()
-
-        # Jam consecutive 1-body gates (removes runs of 1-body gates)
-        circuit1 = self.copy()
-        plan = [[0 for x in range(self.ntime)] for y in range(self.N)]
-        for key, gate in circuit1.gates.items():
-            T, qubits = key
-            if gate.N == 1:
-                A, = qubits
-                plan[A][T] = 1
-            elif gate.N == 2:
-                A, B = qubits
-                plan[A][T] = 2
-                plan[B][T] = -2
-            else:
-                raise RuntimeError("N > 2")   
-        circuit2 = Circuit(N=self.N)
-        for A, row in enumerate(plan):
-            Tstar = None
-            U = None
-            for T, V in enumerate(row):
-                # Start the 1-body gate chain
-                if V == 1 and U is None:
-                    Tstar = T
-                    U = np.copy(circuit1.gates[T,(A,)].U)
-                # Continue the 1-body gate chain
-                elif V == 1:
-                    U = np.dot(circuit1.gates[T,(A,)].U, U)
-                # If 2-body gate or end of circuit encountered, place 1-body gate
-                if U is not None and (V == 2 or V == -2 or T == self.ntime - 1):
-                    circuit2.add_gate(time=Tstar, qubits=(A,), gate=Gate.U1(U=U))
-                    Tstar = None
-                    U = None
-        for key, gate in circuit1.gates.items():
-            T, qubits = key
-            if gate.N == 2:
-                circuit2.add_gate(time=T, qubits=qubits, gate=gate)
-
-        # Jam 1-body gates into 2-body gates if possible (not possible if 1-body gate wire)
-        circuit1 = circuit2
-        plan = [[0 for x in range(self.ntime)] for y in range(self.N)]
-        for key, gate in circuit1.gates.items():
-            T, qubits = key
-            if gate.N == 1:
-                A, = qubits
-                plan[A][T] = 1
-            elif gate.N == 2:
-                A, B = qubits
-                plan[A][T] = 2
-                plan[B][T] = -2
-            else:
-                raise RuntimeError("N > 2")
-        circuit2 = Circuit(N=self.N)
-        jammed_gates = {}                 
-        for key, gate in circuit1.gates.items():
-            if gate.N != 2: continue
-            T, qubits = key
-            A, B = qubits
-            U = np.copy(gate.U)
-            # Left-side 1-body gates
-            for T2 in range(T-1,-1,-1):
-                if plan[A][T2] == 2 or plan[A][T2] == -2: break
-                if plan[A][T2] == 1:
-                    gate1 = circuit1.gates[T2, (A,)]
-                    U = np.dot(U, np.kron(gate1.U, np.eye(2)))
-                    jammed_gates[T2, (A,)] = gate1
-                    break
-            for T2 in range(T-1,-1,-1):
-                if plan[B][T2] == 2 or plan[B][T2] == -2: break
-                if plan[B][T2] == 1:
-                    gate1 = circuit1.gates[T2, (B,)]
-                    U = np.dot(U, np.kron(np.eye(2), gate1.U))
-                    jammed_gates[T2, (B,)] = gate1
-                    break
-            # Right-side 1-body gates (at circuit end)
-            if T+1 < self.ntime and max(abs(plan[A][T2]) for T2 in range(T+1, self.ntime)) == 1:
-                T2 = [T3 for T3, P in enumerate(plan[A][T+1:self.ntime]) if P == 1][0] + T+1
-                gate1 = circuit1.gates[T2, (A,)]
-                U = np.dot(np.kron(gate1.U, np.eye(2)), U)
-                jammed_gates[T2, (A,)] = gate1
-            if T+1 < self.ntime and max(abs(plan[B][T2]) for T2 in range(T+1, self.ntime)) == 1:
-                T2 = [T3 for T3, P in enumerate(plan[B][T+1:self.ntime]) if P == 1][0] + T+1
-                gate1 = circuit1.gates[T2, (B,)]
-                U = np.dot(np.kron(np.eye(2), gate1.U), U)
-                jammed_gates[T2, (B,)] = gate1
-            circuit2.add_gate(time=T, qubits=qubits, gate=Gate.U2(U=U))
-        # Unjammed gates (should all be 1-body on 1-body wires) 
-        for key, gate in circuit1.gates.items():
-            if gate.N != 1: continue
-            T, qubits = key
-            if key not in jammed_gates:
-                circuit2.add_gate(time=T, qubits=qubits, gate=gate)
-
-        # Jam 2-body gates, if possible
-        circuit1 = circuit2
-        circuit2 = Circuit(N=self.N)
-        jammed_gates = {}
-        for T in range(circuit1.ntime):
-            circuit3 = circuit1.subset([T])
-            for key, gate in circuit3.gates.items():
-                if gate.N != 2: continue
-                T4, qubits = key
-                if (T, qubits) in jammed_gates: continue
-                A, B = qubits
-                jams = [((T, qubits), gate, False)]
-                for T2 in range(T+1, self.ntime):
-                    if (T2, (A, B)) in circuit1.gates:
-                        jams.append(((T2, (A, B)), circuit1.gates[(T2, (A, B))], False))
-                    elif (T2, (B, A)) in circuit1.gates:
-                        jams.append(((T2, (B, A)), circuit1.gates[(T2, (B, A))], True))
-                    elif (T2, A) in circuit1.TAs:
-                        break # Interference
-                    elif (T2, B) in circuit1.TAs:
-                        break # Interference
-                U = np.copy(jams[0][1].U)
-                for idx in range(1, len(jams)):
-                    key, gate, trans = jams[idx]
-                    U2 = np.copy(gate.U)
-                    if trans:
-                        U2 = np.reshape(np.einsum('ijkl->jilk', np.reshape(U2, (2,)*4)), (4,)*2)
-                    U = np.dot(U2,U)
-                circuit2.add_gate(time=T, qubits=(A,B), gate=Gate.U2(U=U))
-                for key, gate, trans in jams:
-                    jammed_gates[key] = gate
-        # Unjammed gates (should all be 1-body on 1-body wires)
-        for key, gate in circuit1.gates.items():
-            if gate.N != 1: continue
-            T, qubits = key
-            if key not in jammed_gates:
-                circuit2.add_gate(time=T, qubits=qubits, gate=gate)
-
-        return circuit2.nonredundant()
-
-    def subcircuit(
-        self,
-        qubits,
-        times, 
-        copy=True,
-        ):
-
-        """ Return a circuit which is a subset of self in both qubits and time
-            (a mixture of deadjoin and subset).
-
-        Params:
-            qubits (list of int) - ordered qubit indices to slice in spatial
-                indices into the [0,1,2...] indices in the returned circuit.
-            times (list of int) - ordered time moments to slice into time moments
-                [0,1,2,...] in the returned circuit.
-            copy (bool) - copy Gate elements to remove parameter dependencies
-                between self and returned circuit (True - default) or not
-                (False). 
-        Returns:
-            (Circuit) - the new qubit- and time-sliced circuit.
-        """
-
-        return self.subset(times=times, copy=copy).deadjoin(qubits=qubits, copy=copy)
-
-    def add_circuit(
+    def add_gates(
         self,
         circuit,
         qubits,
         times=None,
-        time=None,
-        time_placement='early', 
+        time_start=None,
+        time_placement='early',
         copy=True,
         ):
 
-        """ Add another circuit to self at specified qubits and times, updating
-            self. Essentially a composite version of add_gate. The qubits to
-            add circuit to are always explicitly specified. The times to add
-            circuit to may be explicitly specified in the times argumet (1st
-            priority), the starting time moment may be explicitly specified and
-            then the circuit added in a time-contiguous manner from that point
-            using the time argument (2nd priority), or a recipe for determining
-            the time-contiguous placement can be specified using the
-            time_placement argument (3rd priority).
+        """ Add the gates of another circuit to self at specified qubits and
+            times, updating self. Essentially a composite version of add_gate.
+            The qubits to add circuit to are always explicitly specified. The
+            times to add circuit to may be explicitly specified in the times
+            argument (1st priority), the starting time moment may be explicitly
+            specified and then the circuit added in a time-contiguous manner
+            from that point using the time_start argument (2nd priority), or a
+            recipe for determining the time-contiguous placement can be
+            specified using the time_placement argument (3rd priority).
 
         Params:
-            circuit (Circuit) - the circuit to add into self. 
+            circuit (Circuit) - the circuit containing the gates to add into
+                self. 
             qubits (tuple of int) - ordered qubit indices in self to add the
                 qubit indices of circuit into.
             times (tuple of int) - ordered time moments in self to add the time
                 moments of circuit into. If None, the time argument will be
                 considered next.
-            time (int) - starting time moment in self to add the time moments
+            time_start (int) - starting time moment in self to add the time moments
                 of circuit into. If None, the time_placement argument will be
                 considered next.
             time_placement (str - 'early', 'late', or 'next') - recipe to
@@ -1565,53 +1597,838 @@ class Circuit(object):
 
         # Make qubits a tuple regardless of input
         qubits = (qubits,) if isinstance(qubits, int) else qubits
-        # Also make times a tuple 
+        # Also make times a tuple if int
         times = (times,) if isinstance(times, int) else times
 
         # circuit validation
-        # Make sure the composite circuit has enough registers to add to 
-        if self.N < circuit.N:
-            raise RuntimeError('Circuit argument must have a fewer or equal number of qubit registers than the circuit you are adding to. Cannot add circuit of size %d to circuit of size %d.' % (circuit.N, self.N))
-        if circuit.N != len(qubits):
+        if circuit.nqubit != len(qubits):
             raise RuntimeError("len(qubits) must be equal to the number of registers in circuit.")
         # circuit validation
         
         if times is None:
-            if time is not None:
-                times = list(range(time,time+circuit.ntime))
+            if time_start is not None:
+                times = list(range(time_start,time_start+circuit.ntime))
             else:
                 if time_placement == 'early':
-                    leads = [circuit.ntime for _ in range(len(qubits))]
-                    for time2, A in circuit.TAs:
-                        leads[A] = min(leads[A], time2)
+                    leads = [circuit.ntime] * circuit.nqubit
+                    for time2, qubit2 in circuit.times_and_qubits:
+                        leads[qubit2 - circuit.min_qubit] = min(leads[qubit2 - circuit.min_qubit], time2 - circuit.min_time)
                     timemax = -1
-                    for time2, A in self.TAs:
-                        if A in qubits:
-                            timemax = max(timemax, time2 - leads[qubits.index(A)])
+                    for time2, qubit2 in self.times_and_qubits:
+                        if qubit2 in qubits:
+                            timemax = max(timemax, time2 - leads[qubits.index(qubit2)])
                     timemax += 1
                     times = list(range(timemax, timemax+circuit.ntime))
                 elif time_placement == 'late':
-                    timemax = max(self.ntime - 1, 0)
-                    if any((timemax, A) in self.TAs for A in qubits):
+                    timemax = self.max_time
+                    if any((timemax, qubit) in self.times_and_qubits for qubit in qubits):
                         timemax += 1 
                     times = list(range(timemax, timemax+circuit.ntime))
                 elif time_placement == 'next':
-                    times = list(range(self.ntime, self.ntime+circuit.ntime))
+                    times = list(range(self.max_time+1, self.max_time+1+circuit.ntime))
                 else:
                     raise RuntimeError('Unknown time_placement: %s. Allowed values are early, late, next' % time_placement)
 
-        if len(qubits) != circuit.N: raise RuntimeError('len(qubits) != circuit.N')
+        if len(qubits) != circuit.nqubit: raise RuntimeError('len(qubits) != circuit.nqubit')
         if len(times) != circuit.ntime: raise RuntimeError('len(times) != circuit.ntime')
 
-        for key, gate in circuit.gates.items():
-            time2, qubits2 = key
-            time3 = times[time2]
-            qubits3 = tuple(qubits[_] for _ in qubits2)
-            self.add_gate(time=time3, qubits=qubits3, gate=gate, copy=copy)
+        circuit.slice(
+            qubits=list(range(circuit.min_qubit, circuit.max_qubit+1)),
+            qubits_to=qubits,
+            times=list(range(circuit.min_time, circuit.max_time+1)),
+            times_to=times,
+            copy=copy,
+            circuit_to=self,
+            )
+
+        return self
+
+    def gate(
+        self,
+        qubits,
+        times,
+        ):
+
+        # OK
+
+        # Make qubits a tuple regardless of input
+        qubits = (qubits,) if isinstance(qubits, int) else qubits
+        # Make times a tuple regardless of input
+        times = (times,) if isinstance(times, int) else times
+
+        return self.gates[(times, qubits)]
+
+    def remove_gate(
+        self,
+        qubits,
+        times,
+        ):
+
+        # OK
+
+        # Make qubits a tuple regardless of input
+        qubits = (qubits,) if isinstance(qubits, int) else qubits
+        # Make times a tuple regardless of input
+        times = (times,) if isinstance(times, int) else times
+
+        # Print sensible error message if key is invalid
+        if (times, qubits) not in self.gates:
+            raise RuntimeError('Key is not in circuit: (times=%r, qubits=%r)' % (times, qubits))
+
+        # Delete the gate
+        del self.gates[(times, qubits)]
+
+        # Rebuild the indexing arrays
+        self.qubits.clear() 
+        self.times.clear() 
+        self.times_and_qubits.clear()
+        for key, gate in self.gates.items():
+            times2, qubits2 = key
+            for qubit in qubits2:
+                self.qubits.add(qubit)
+            for time in times2:
+                self.times.add(time)
+            for qubit in qubits2:
+                for time in times2:
+                    self.times_and_qubits.add((time, qubit))
+
+        return self
+
+    def replace_gate(
+        self,
+        gate,
+        qubits,
+        times,
+        name=None,
+        ascii_symbols=None,
+        ):
+
+        # If gate is Circuit, make it a CompositeGate
+        gate = CompositeGate(gate, name, ascii_symbols) if isinstance(gate, Circuit) else gate
+
+        # Make qubits a tuple regardless of input
+        qubits = (qubits,) if isinstance(qubits, int) else qubits
+        # Make times a tuple regardless of input
+        times = (times,) if isinstance(times, int) else times
+
+        # Print sensible error message if key is invalid
+        if (times, qubits) not in self.gates:
+            raise RuntimeError('Key is not in circuit: (times=%r, qubits=%r)' % (times, qubits))
+        
+        # Check that qubits makes sense for gate.nqubit
+        if len(qubits) != gate.nqubit: raise RuntimeError('%d qubit entries provided for %d-qubit gate' % (len(qubits), gate.nqubit))
+        # Check that times makes sense for gate.ntime
+        if len(times) != gate.ntime: raise RuntimeError('%d time entries provided for %d-time gate' % (len(times), gate.ntime))
+
+        # Replace the gate
+        self.gates[(times, qubits)] = gate 
+
+        return self
+
+    # => Slicing and Dicing <= #
+
+    def copy(
+        self,
+        ):
+    
+        # OK
+
+        """ Return a copy of circuit self so that parameter modifications in
+            the copy do not affect self.
+
+        Returns:
+            (Circuit) - copy of self with all Gate objects copied deeply enough
+                to remove parameter dependencies between self and returned
+                Circuit.
+        """
+
+        circuit = Circuit()
+        for key, gate in self.gates.items():
+            times, qubits = key
+            circuit.add_gate(times=times, qubits=qubits, gate=gate.copy())
+        return circuit
+
+    def slice(
+        self,
+        qubits=None,
+        times=None,
+        qubits_to=None,
+        times_to=None,
+        circuit_to=None,
+        copy=True,
+        ):
+        
+        # OK
+
+        # (Rule 0): Seems bad to have a target but no source (TODO: think about this convention)
+        if qubits_to is not None and qubits is None: raise RuntimeError('qubits_to is not None but qubits is None')
+        if times_to is not None and times is None: raise RuntimeError('times_to is not None but times is None')
+
+        # (Rule 1): Default to leaving dimensions untouched if not specified by the user
+        if qubits is None: 
+            qubits = self.qubits
+            qubits_to = self.qubits
+        if times is None: 
+            times = self.times
+            times_to = self.times
+        
+        # (Rule 2): Default to compressing explicitly sliced dimensions to 0, 1, ...
+        if qubits_to is None: qubits_to = list(range(len(qubits)))
+        if times_to is None: times_to = list(range(len(times)))
+
+        # Validity checks
+        if len(qubits) != len(qubits_to): raise RuntimeError('len(qubits) != len(qubits_to)') 
+        if len(times) != len(times_to): raise RuntimeError('len(times) != len(times_to)') 
+
+        # Map of qubit -> qubit_to (similar for time)
+        qubit_map = { v : k for k, v in zip(qubits_to, qubits) }
+        time_map = { v : k for k, v in zip(times_to, times) }
+
+        # Circuit construction
+        circuit_to = Circuit() if circuit_to is None else circuit_to
+        for key, gate in self.gates.items():
+            times2, qubits2 = key
+            # Check if the gate is in the slice
+            if any(time not in times for time in times2): continue
+            if any(qubit not in qubits for qubit in qubits2): continue
+            # New times (sorted by convention for multi-time gates)
+            times3 = tuple(sorted(time_map[time] for time in times2))
+            # New qubits
+            qubits3 = tuple(qubit_map[qubit] for qubit in qubits2)
+            # Gate addition
+            circuit_to.add_gate(
+                gate=gate,
+                qubits=qubits3,
+                times=times3,
+                copy=copy,
+                )
+    
+        return circuit_to
+         
+    @staticmethod
+    def join_in_time(
+        circuits,
+        copy=True,
+        ):
+
+        # OK
+
+        circuit1 = Circuit()
+        for circuit in circuits:
+            circuit.slice(
+                times=list(range(circuit.min_time, circuit.max_time+1)),
+                times_to=list(range(circuit1.ntime,circuit1.ntime+circuit.ntime)),
+                circuit_to=circuit1,
+                copy=copy,
+                )
+        return circuit1
+
+    @staticmethod
+    def join_in_qubits(
+        circuits,
+        copy=True,
+        ):
+
+        # OK
+
+        circuit1 = Circuit()
+        for circuit in circuits:
+            circuit.slice(
+                qubits=list(range(circuit.min_qubit, circuit.max_qubit+1)),
+                qubits_to=list(range(circuit1.nqubit,circuit1.nqubit+circuit.nqubit)),
+                circuit_to=circuit1,
+                copy=copy,
+                )
+        return circuit1
+
+    def reverse(
+        self,
+        copy=True,
+        ):
+
+        # OK
+
+        return self.slice(
+            times=list(reversed(self.times)),
+            times_to=self.times,
+            copy=copy,
+            )
+
+    def adjoint(
+        self,
+        ):
+
+        # OK
+
+        circuit1 = self.reverse()
+        circuit2 = Circuit()
+        for key, gate in circuit1.gates.items():
+            times, qubits = key
+            circuit2.add_gate(
+                gate=gate.adjoint(),
+                times=times,
+                qubits=qubits,
+                )
+    
+        return circuit2
+
+    def sparse(
+        self,
+        sparse_in_qubits=True,
+        sparse_in_time=True,
+        copy=True,
+        ):
+
+        # OK
+
+        return self.slice(
+            qubits=self.qubits if sparse_in_qubits else None,
+            times=self.times if sparse_in_time else None,
+            copy=copy,
+            )
+
+    def center(
+        self,
+        center_in_qubits=True,
+        center_in_times=True,
+        origin_in_qubits=0,
+        origin_in_time=0,
+        copy=True,
+        ):
+
+        # OK
+
+        return self.slice(
+            qubits=self.qubits if center_in_qubits else None,
+            qubits_to=[qubit - self.min_qubit + origin_in_qubits for qubit in self.qubits] if center_in_qubits else None,
+            times=self.times if center_in_times else None,
+            times_to=[time - self.min_time + origin_in_time for time in self.times] if center_in_times else None,
+            copy=copy,
+            )
+
+    def explode(
+        self,
+        copy=True,
+        ):
+
+        circuit = Circuit()
+        for key, gate in self.gates.items():
+            times, qubits = key
+            for key2, subgate in gate.exploded_gates().items():
+                time2, qubits2 = key2
+                qubits3 = tuple(qubits[_] for _ in qubits2)
+                circuit.add_gate(gate=subgate, qubits=qubits3, copy=copy)
+        return circuit
+
+    def serialize_in_time(
+        self,
+        origin_in_time=0,
+        copy=True,
+        ):
+
+        circuit = Circuit()
+        for key, gate in self.gates.items():
+            times, qubits = key
+            circuit.add_gate(gate=gate, qubits=qubits, time_placement='next')
+        return circuit
+            
+    # => Parameter Access/Manipulation <= #
+
+    @property
+    def nparameter(self):
+        return len(self.parameter_keys)
+    
+    @property
+    def parameters(self):
+        parameters = collections.OrderedDict() 
+        for key, gate in self.gates.items():
+            times, qubits = key
+            for key2, value in gate.parameters.items():
+                parameters[(times, qubits, key2)] = value
+        return parameters
+    
+    @property
+    def parameter_keys(self):
+        return list(self.parameters.keys())
+        
+    @property
+    def parameter_values(self):
+        return list(self.parameters.values())
+
+    @property
+    def parameter_gate_keys(self):
+        return [(key[0], key[1]) for key in self.parameter_keys]
+
+    @property
+    def parameter_indices(self):
+        """ A map from all circuit Gate keys to parameter indices. 
+
+        Useful as a utility to determine the absolute parameter indices of a
+        Gate, given knowledge of its Gate key.
+        
+        Returns:
+            (OrderedDict of Gate key : tuple of int) - map from all circuit
+                Gate keys to absolute parameter indices. For each Gate key, a
+                tuple of absolute parameter indices is supplied - there may be
+                no parameter indices, one parameter index, or multiple
+                parameter indices in each value, depending on the number of
+                parameters of the underlying Gate.
+        """
+        index_map = collections.OrderedDict()
+        index = 0
+        for key, gate in self.gates.items():
+            index_map[key] = tuple(range(index, index + gate.nparameter))
+            index += gate.nparameter
+        return index_map
+
+    @property
+    def parameter_str(self):
+        """ A human-readable string describing the circuit coordinates,
+            parameter names, gate names, and values of all mutable parameters in
+            this circuit.
+        
+        Returns:
+            (str) - human-readable string describing parameters in order
+                specified by param_keys.
+        """ 
+        s = ''
+        s += '%-5s %-10s %-10s %-10s %-10s: %9s\n' % ('Index', 'Time', 'Qubits', 'Name', 'Gate', 'Value')
+        I = 0
+        for k, v in self.parameters.items():
+            times, qubits, key2 = k
+            gate = self.gates[(times, qubits)]
+            if isinstance(key2, str):
+                s += '%-5d %-10s %-10s %-10s %-10s: %9.6f\n' % (I, times, qubits, key2, gate.name, v)
+            else:
+                s += '%-5d %-10s %-10s %-10s %-10s:\n' % (I, times, qubits, '', gate.name)
+                while True:
+                    times, qubits, key2 = key2
+                    if isinstance(key2, str):
+                        s += '%-5s %-10s %-10s %-10s %-10s: %9.6f\n' % ('->', times, qubits, key2, gate.name, v)
+                        break
+                    else:
+                        s += '%-5s %-10s %-10s %-10s %-10s:\n' % ('->', times, qubits, '', gate.name)
+            I += 1
+        return s
+
+    def set_parameter(
+        self,
+        key,
+        value,
+        ):
+
+        times, qubits, key2 = key
+        self.gates[(times, qubits)].set_parameter(key=key2, value=value)
+        return self
+
+    def set_parameters(
+        self, 
+        parameters,
+        ):
+    
+        for key, value in parameters.items():
+            times, qubits, key2 = key
+            self.gates[(times, qubits)].set_parameter(key=key2, value=value)
+        return self
+
+    def set_parameter_values(
+        self,
+        parameter_values,
+        parameter_indices=None,
+        ):
+
+        parameter_keys = self.parameter_keys
+        
+        if parameter_indices is None:
+            parameter_indices = list(range(len(parameter_keys)))
+
+        for index, value in zip(parameter_indices, parameter_values):
+            times, qubits, key2 = parameter_keys[index]
+            self.gates[(times, qubits)].set_parameter(key=key2, value=value)
         
         return self
-             
-    # > Gate Addition Sugar < #
+
+    # => ASCII Circuit Diagrams <= #
+
+    def __str__(
+        self,
+        ):
+
+        """ String representation of this Circuit (an ASCII circuit diagram). """
+        # return self.ascii_diagram(time_lines='both')
+        return self.ascii_diagram2()
+
+    ascii_diagram_max_width = 80
+        
+    def ascii_diagram2(
+        self,
+        max_width=None,
+        ):
+
+        max_width = Circuit.ascii_diagram_max_width if max_width is None else max_width
+
+        # => Utility Class <= #
+
+        class GatePrintingLayout(object):
+            
+            def __init__(
+                self,
+                min_qubit=0,
+                max_qubit=-1,
+                ascii_symbols=[], # None to indicate vertical connector
+                ):
+            
+                self.min_qubit = min_qubit
+                self.max_qubit = max_qubit
+                self.ascii_symbols = ascii_symbols
+                
+            @property
+            def ascii_symbol_enumeration(self):
+                return [(qubit, symbol) for qubit, symbol in zip(range(self.min_qubit, self.max_qubit+1), self.ascii_symbols)]
+                
+            @property
+            def max_ascii_width(self):
+                return max(len(_) for _ in self.ascii_symbols if _ is not None)
+            
+            @staticmethod
+            def interferes(layout1, layout2):
+                if layout1.min_qubit > layout2.max_qubit: return False
+                if layout1.max_qubit < layout2.min_qubit: return False
+                return True
+                
+            @staticmethod
+            def build(qubits, ascii_symbols):
+                min_qubit = min(qubits)
+                max_qubit = max(qubits)
+                nqubit = max_qubit - min_qubit + 1
+                ascii_symbols2 = [None] * nqubit
+                for qubit, ascii_symbol in zip(qubits, ascii_symbols):
+                    ascii_symbols2[qubit - min_qubit] = ascii_symbol
+                return GatePrintingLayout(
+                    min_qubit=min_qubit,
+                    max_qubit=max_qubit,
+                    ascii_symbols=ascii_symbols2,
+                    )
+
+        # => Logical Layout <= #
+            
+        # Map of time : list of [list of GatePrintingLayout]
+        # Portion in [] represents a relative second within the time index
+        layouts = { time : [[]] for time in range(self.min_time, self.max_time+1) }
+        # List of (starting second, ending second) for all multi-time gates
+        time_connector_keys = []
+        # GatePrintingLayouts for all multi-time gates
+        time_connector_layouts = []
+        for key, gate in self.gates.items():
+            times, qubits = key
+            layout = GatePrintingLayout.build(qubits, gate.ascii_symbols)
+            time_connector_key = []
+            for time in times:
+                found = False
+                for second, layouts2 in enumerate(layouts[time]):
+                    if any(GatePrintingLayout.interferes(layout, _) for _ in layouts2): 
+                        continue
+                    layouts2.append(layout)
+                    found = True
+                    break
+                if not found:
+                    second += 1
+                    layouts[time].append([layout])
+                time_connector_key.append((time, second))
+            if len(times) > 1:
+                time_connector_keys.append((time_connector_key[0], time_connector_key[-1]))
+                time_connector_layouts.append(layout)
+                    
+        # List of tuple of (time, relative_second) for all absolute seconds
+        seconds = []
+        for time, second_layouts in layouts.items():
+            seconds += [(time, _) for _ in range(len(second_layouts))]
+            
+        # Reverse map of (time, relative_second) : absolute second
+        seconds_map = { v : k for k, v in enumerate(seconds) }
+        
+        # => ASCII Sizes <= #
+        
+        # Determine ASCII widths of each second
+        seconds_ascii_widths = [max([_.max_ascii_width for _ in layouts[time][second]] + [0]) for time, second in seconds]
+        
+        # Adjust ASCII widths for time width
+        time_widths_header = { time : len(str(time)) for time in range(self.min_time, self.max_time+1)}
+        time_widths = { time : 0 for time in range(self.min_time, self.max_time+1)}
+        for second_index, key in enumerate(seconds):
+            time, second = key
+            time_widths[time] += seconds_ascii_widths[second_index]
+        for time, second_layouts in layouts.items():
+            if len(second_layouts) > 0: time_widths[time] += len(second_layouts) - 1
+        time_adjustments = { time : max(time_widths_header[time] - time_widths[time], 0) 
+            for time in time_widths.keys()}
+        for time, second_layouts in layouts.items():
+            if len(second_layouts) == 0: continue
+            second = len(second_layouts)-1 # Last second in moment gets adjusted
+            second_index = seconds_map[(time, second)]
+            seconds_ascii_widths[second_index] += time_adjustments[time]
+        
+        # Adjust ASCII widths for separation characters
+        seconds_ascii_widths = [_ + 1 for _ in seconds_ascii_widths]
+        
+        # Determine ASCII starts of each second
+        seconds_ascii_starts = [0]
+        for index, width in enumerate(seconds_ascii_widths):
+            seconds_ascii_starts.append(seconds_ascii_starts[index] + width)
+        ascii_width = seconds_ascii_starts[-1] # Total width
+        seconds_ascii_starts = seconds_ascii_starts[:-1]
+        
+        # => ASCII Art <= #
+        
+        nqubit = self.nqubit
+        min_qubit = self.min_qubit
+        
+        wire_lines = [['-'] * ascii_width for _ in range(nqubit)]
+        join_lines = [[' '] * ascii_width for _ in range(nqubit)]
+        
+        for time_connector_key, time_connector_layout in zip(time_connector_keys, time_connector_layouts):
+            second1 = time_connector_key[0]
+            second2 = time_connector_key[1]
+            second1_index = seconds_map[second1]
+            second2_index = seconds_map[second2]
+            second1_start = seconds_ascii_starts[second1_index]
+            second2_start = seconds_ascii_starts[second2_index]
+            for qubit, symbol in time_connector_layout.ascii_symbol_enumeration[:-1]:
+                join_lines[qubit - min_qubit][second1_start:second2_start] = '*' * (second2_start - second1_start)
+            for qubit, symbol in time_connector_layout.ascii_symbol_enumeration:
+                if symbol is None: continue
+                wire_lines[qubit - min_qubit][second1_start:second2_start] = '=' * (second2_start - second1_start)
+        
+        for time, second_layouts in layouts.items():
+            for second, layouts2 in enumerate(second_layouts):
+                second_index = seconds_map[(time, second)]
+                second_start = seconds_ascii_starts[second_index]
+                for layout in layouts2:
+                    for qubit in range(layout.min_qubit, layout.max_qubit+1):
+                        wire_lines[qubit - min_qubit][second_start] = '|'
+                    for qubit in range(layout.min_qubit, layout.max_qubit):
+                        join_lines[qubit - min_qubit][second_start] = '|'
+                    for qubit, symbol in layout.ascii_symbol_enumeration:
+                        if symbol is None: continue
+                        for index, char in enumerate(symbol):
+                            wire_lines[qubit - min_qubit][second_start + index] = char      
+        
+        # => Assembly <= #
+
+        wire_strs = [''.join(_) for _ in wire_lines]
+        join_strs = [''.join(_) for _ in join_lines]
+        time_str = ''.join(['%-*d|' % (v, k) for k, v in time_widths.items()])
+        
+        qwidth = max(len(str(index - min_qubit)) for index in range(nqubit)) if nqubit else 0
+        
+        # Pagination
+        fwidth = qwidth + 6 # Width of first column
+        effective_width = max_width - (qwidth + 6)
+        page_starts = [0]
+        for time in range(self.min_time, self.max_time+1):
+            second_index = seconds_map[(time, 0)]
+            second_ascii_start = seconds_ascii_starts[second_index]
+            if second_ascii_start - page_starts[-1] > effective_width:
+                second_index2 = seconds_map[(time - 1, 0)]
+                second_ascii_start2 = seconds_ascii_starts[second_index2]
+                if second_ascii_start2 == page_starts[-1]:
+                    raise RuntimeError('time index %d is too large to fit' % time)
+                page_starts.append(second_ascii_start2)
+        page_starts.append(ascii_width)
+
+        ascii_str = ''
+        for page_index in range(len(page_starts) - 1):
+            page_start = page_starts[page_index]
+            page_stop = page_starts[page_index+1]
+
+            ascii_str += 'T%*s : %s%s\n' % (
+                qwidth,
+                ' ',
+                '|' if page_index == 0 else ' ',
+                time_str[page_start:page_stop],
+                )
+
+            ascii_str += '\n'
+    
+            for index, wire_str in enumerate(wire_strs): 
+                join_str = join_strs[index]
+                ascii_str += 'q%-*d : %s%s\n' % (
+                    qwidth,
+                    index + min_qubit,
+                    '-' if page_index == 0 else ' ',
+                    wire_str[page_start:page_stop],
+                    )
+                ascii_str += ' %-*s   %s%s\n' % (
+                    qwidth,
+                    ' ',
+                    ' ',
+                    join_str[page_start:page_stop],
+                    )
+
+            ascii_str += 'T%*s : %s%s\n' % (
+                qwidth,
+                ' ',
+                '|' if page_index == 0 else ' ',
+                time_str[page_start:page_stop],
+                )
+
+            if page_index < len(page_starts) - 2:
+                ascii_str += '\n'
+        
+        return ascii_str
+
+    def ascii_diagram(
+        self,
+        time_lines='both',
+        ):
+
+        """ Return a simple ASCII string diagram of the circuit.
+
+        Params:
+            time_lines (str) - specification of time lines:
+                "both" - time lines on top and bottom (default)
+                "top" - time lines on top 
+                "bottom" - time lines on bottom
+                "neither" - no time lines
+        Returns:
+            (str) - the ASCII string diagram
+        """
+
+        # Left side states
+        Wd = max(len(str(_)) for _ in range(self.min_qubit, self.max_qubit+1)) if self.nqubit else 0
+        lstick = '%-*s : |\n' % (1+Wd, 'T')
+        for qubit in range(self.min_qubit, self.max_qubit+1): 
+            lstick += '%*s\n' % (5+Wd, ' ')
+            lstick += 'q%-*d : -\n' % (Wd, qubit)
+
+        # Build moment strings
+        moments = []
+        for time in range(self.min_time, self.max_time+1):
+            moments.append(self.ascii_diagram_time(
+                time=time,
+                adjust_for_time=False if time_lines=='neither' else True,
+                ))
+
+        # Unite strings
+        lines = lstick.split('\n')
+        for moment in moments:
+            for i, tok in enumerate(moment.split('\n')):
+                lines[i] += tok
+        # Time on top and bottom
+        lines.append(lines[0])
+
+        # Adjust for time lines
+        if time_lines == 'both':
+            pass
+        elif time_lines == 'top':
+            lines = lines[:-2]
+        elif time_lines == 'bottom':
+            lines = lines[2:]
+        elif time_lines == 'neither':
+            lines = lines[2:-2]
+        else:
+            raise RuntimeError('Invalid time_lines argument: %s' % time_lines)
+        
+        strval = '\n'.join(lines)
+
+        return strval
+
+    def ascii_diagram_time(
+        self,
+        time,
+        adjust_for_time=True,
+        ):
+
+        """ Return an ASCII string diagram for a given time moment time.
+
+        Users should not generally call this utility routine - see
+        ascii_diagram instead.
+
+        Params:
+            time (int) - time moment to diagram
+            adjust_for_time (bool) - add space adjustments for the length of
+                time lines.
+        Returns:
+            (str) - ASCII diagram for the given time moment.
+        """
+
+        # Subset for time, including multi-time gates
+        gates = { key[1] : gate for key, gate in self.gates.items() if time in key[0] }
+
+        # list (total seconds) of dict of A -> gate symbol
+        seconds = [{}]
+        # list (total seconds) of dict of A -> interstitial symbol
+        seconds2 = [{}]
+        for qubits, gate in gates.items():
+            # Find the first second this gate fits within (or add a new one)
+            for idx, second in enumerate(seconds):
+                fit = not any(A in second for A in range(min(qubits), max(qubits)+1))
+                if fit:
+                    break
+            if not fit:
+                seconds.append({})
+                seconds2.append({})
+                idx += 1
+            # Put the gate into that second
+            for A in range(min(qubits), max(qubits)+1):
+                # Gate symbol
+                if A in qubits:
+                    Aind = [Aind for Aind, B in enumerate(qubits) if A == B][0]
+                    seconds[idx][A] = gate.ascii_symbols[Aind] 
+                else:
+                    seconds[idx][A] = '|'
+                # Gate connector
+                if A != min(qubits):
+                    seconds2[idx][A] = '|'
+
+        # + [1] for the - null character
+        wseconds = [max([len(v) for k, v in second.items()] + [1]) for second in seconds]
+        wtot = sum(wseconds)    
+
+        # Adjust widths for T field
+        Tsymb = '%d' % time
+        if adjust_for_time:
+            if wtot < len(Tsymb): wseconds[0] += len(Tsymb) - wtot
+            wtot = sum(wseconds)    
+
+        # TODO: Print CompositeGate like
+        # 
+        # T   : |-1|0|1|2|3|4|5  |6  |7  |
+        #                                 
+        # q-1 : -H------------------------
+        #                                 
+        # q0  : ------@---@-O-A---A---A---
+        #             |   | | |===|===|   
+        # q1  : ------X-@-X-@-|-B-|-B-|-B-
+        #               |   | |=|=|=|=|=| 
+        # q2  : --------X---X-A-|-A-|-A-|-
+        #                       |===|===| 
+        # q3  : ----------------B---B---B-
+        # 
+        # T   : |-1|0|1|2|3|4|5  |6  |7  |
+        
+        Is = ['' for A in range(self.nqubit)]
+        Qs = ['' for A in range(self.nqubit)]
+        for second, second2, wsecond in zip(seconds, seconds2, wseconds):
+            for Aind, A in enumerate(range(self.min_qubit, self.max_qubit+1)):
+                Isymb = second2.get(A, ' ')
+                IwR = wsecond - len(Isymb)
+                Is[Aind] += Isymb + ' ' * IwR + ' '
+                Qsymb = second.get(A, '-')
+                QwR = wsecond - len(Qsymb)
+                Qs[Aind] += Qsymb + '-' * QwR + '-'
+
+        strval = Tsymb + ' ' * (wtot + len(wseconds) - len(Tsymb) - 1) + '|\n' 
+        for I, Q in zip(Is, Qs):
+            strval += I + '\n'
+            strval += Q + '\n'
+
+        return strval
+
+        
+    # => Gate Addition Sugar <= #
+
+    # TODO: Fix docs in sugar
 
     def I(
         self,
@@ -1831,12 +2648,12 @@ class Circuit(object):
             qubits=(qubit,),
             **kwargs)
 
-    def T(
+    def ST(
         self,
         qubit,
         **kwargs):
         
-        """ Add a T gate to self at specified qubits and time, updating self.
+        """ Add an S^+ gate to self at specified qubits and time, updating self.
             The qubits to add gate to are always explicitly specified. The time
             to add gate to may be explicitly specified in the time argumet (1st
             priority), or a recipe for determining the time placement can be
@@ -1863,7 +2680,7 @@ class Circuit(object):
         """
 
         return self.add_gate(
-            gate=Gate.T,
+            gate=Gate.ST,
             qubits=(qubit,),
             **kwargs)
 
@@ -1900,6 +2717,42 @@ class Circuit(object):
 
         return self.add_gate(
             gate=Gate.T,
+            qubits=(qubit,),
+            **kwargs)
+
+    def TT(
+        self,
+        qubit,
+        **kwargs):
+        
+        """ Add a T^+ gate to self at specified qubits and time, updating self.
+            The qubits to add gate to are always explicitly specified. The time
+            to add gate to may be explicitly specified in the time argumet (1st
+            priority), or a recipe for determining the time placement can be
+            specified using the time_placement argument (2nd priority).
+
+        Params:
+            qubit (int) - qubit index in self to add the gate into.
+            time (int) - time moment in self to add the gate into. If None, the
+                time_placement argument will be considered next.
+            time_placement (str - 'early', 'late', or 'next') - recipe to
+                determine time moment in self to add the gate into. The rules
+                are:
+                    'early' -  add the gate as early as possible, just after
+                        any existing gates on self's qubit wires.
+                    'late' - add the gate in the last open time moment in self,
+                        unless a conflict arises, in which case, add the gate
+                        in the next (new) time moment.
+                    'next' - add the gate in the next (new) time moment.
+        Result:
+            self is updated with the added gate. Checks are
+                performed to ensure that the addition is valid.
+        Returns:
+            self - for chaining
+        """
+
+        return self.add_gate(
+            gate=Gate.TT,
             qubits=(qubit,),
             **kwargs)
 
@@ -2122,6 +2975,43 @@ class Circuit(object):
         """
         return self.add_gate(
             gate=Gate.CS,
+            qubits=(qubitA, qubitB),
+            **kwargs)
+
+    def CST(
+        self,
+        qubitA,
+        qubitB,
+        **kwargs):
+
+        """ Add a CS^+ gate to self at specified qubits and time, updating self.
+            The qubits to add gate to are always explicitly specified. The time
+            to add gate to may be explicitly specified in the time argumet (1st
+            priority), or a recipe for determining the time placement can be
+            specified using the time_placement argument (2nd priority).
+
+        Params:
+            qubitA (int) - control qubit index in self to add the gate into.
+            qubitB (int) - target qubit index in self to add the gate into.
+            time (int) - time moment in self to add the gate into. If None, the
+                time_placement argument will be considered next.
+            time_placement (str - 'early', 'late', or 'next') - recipe to
+                determine time moment in self to add the gate into. The rules
+                are:
+                    'early' -  add the gate as early as possible, just after
+                        any existing gates on self's qubit wires.
+                    'late' - add the gate in the last open time moment in self,
+                        unless a conflict arises, in which case, add the gate
+                        in the next (new) time moment.
+                    'next' - add the gate in the next (new) time moment.
+        Result:
+            self is updated with the added gate. Checks are
+                performed to ensure that the addition is valid.
+        Returns:
+            self - for chaining
+        """
+        return self.add_gate(
+            gate=Gate.CST,
             qubits=(qubitA, qubitB),
             **kwargs)
 
@@ -2886,1250 +3776,28 @@ class Circuit(object):
             qubits=(qubitA, qubitB),
             **kwargs)
 
-    # > Parameter Access/Manipulation < #
+    # => Simulation Utility <= #
 
-    @property
-    def nparam(self):
-        """ The total number of mutable parameters in the circuit. """
-        return len(self.param_keys)
-
-    @property
-    def param_keys(self):
-        """ A list of (time, qubits, param_name) for all mutable parameters in the circuit.
-
-        A global order of (time, qubits, param_name within gate) is used to guarantee
-        a stable, lexical ordering of circuit parameters for a given circuit.
-
-        Returns:
-            list of (int, tuple of int, str)) - ordered time moments, qubit
-                indices, and gate parameter names for all mutable parameters in
-                the circuit.
-        """
-        keys = []
-        for key, gate in self.gates.items():
-            time, qubits = key
-            for name, v in gate.params.items():
-                keys.append((time, qubits, name))
-        keys.sort(key = lambda x : (x[0], x[1]))
-        return keys
-        
-    @property
-    def param_values(self):
-        """ A list of param values corresponding to param_keys for all mutable parameters in the circuit. 
-
-        Returns:
-            (list of float) - ordered parameter values with order corresponding
-                to param_keys for all mutable parameters in the circuit.
-        """
-        return [self.gates[(time, qubits)].params[name] for time, qubits, name in self.param_keys]
-
-    def set_param_values(
+    def apply_to_statevector(
         self,
-        param_values,
-        param_indices=None,
+        statevector1,
+        statevector2,
+        qubits,
+        dtype=np.complex128,
         ):
 
-        """ Set the param values corresponding to param_keys for all mutable parameters in the circuit.
+        if self.nqubit != len(qubits): raise RuntimeError('self.nqubit != len(qubits)')
 
-        Params:
-            param_values (list of float) - ordered parameter values with order
-                corresponding to param_keys for all mutable parameters in the
-                circuit.
-            param_indices (list of int or None) - indices of parameter values
-                or None. If None, all parameter indices are set.
-        Result:
-            Parameters of self.gates are updated with new parameter values.
-        Returns:
-            self - for chaining
-        """
+        qubit_map = { qubit2 : qubit for qubit, qubit2 in zip(qubits, range(self.min_qubit, self.min_qubit + self.nqubit)) }
 
-        param_keys = self.param_keys
-
-        if param_indices is None:
-            param_indices = list(range(len(param_keys)))
-    
-        for param_index, param_value in zip(param_indices, param_values):
-            time, qubits, name = param_keys[param_index]
-            self.gates[(time, qubits)].set_param(key=name, param=param_value)
-
-        return self
-    
-    @property
-    def params(self):
-        """ An OrderedDict of (time, qubits, param_name) : param_value for all mutable parameters in the circuit. 
-            The order follows that of param_keys.
-
-        Returns:
-            (OrderedDict of (int, tuple of int, str) : float) - ordered key :
-                value pairs for all mutable parameters in the circuit.
-        """ 
-        return collections.OrderedDict([(k, v) for k, v in zip(self.param_keys, self.param_values)])
-
-    def set_params(
-        self,
-        params,
-        ):
-
-        """ Set an arbitrary number of circuit parameters values by key, value specification.
-    
-        Params:
-            params (OrderedDict of (int, tuple of int, str) : float) - key :
-                value pairs for mutable parameters to set.
-
-        Result:
-            Parameters of self.gates are updated with new parameter values.
-        Returns:
-            self - for chaining
-        """
-    
-        for k, v in params.items():
-            time, qubits, name = k
-            self.gates[(time, qubits)].set_param(key=name, param=v)
-
-        return self
-
-    @property
-    def param_str(self):
-        """ A human-readable string describing the circuit coordinates,
-            parameter names, gate names, and values of all mutable parameters in
-            this circuit.
-        
-        Returns:
-            (str) - human-readable string describing parameters in order
-                specified by param_keys.
-        """ 
-        s = ''
-        s += '%-5s %-5s %-10s %-10s %-10s: %9s\n' % ('Index', 'Time', 'Qubits', 'Name', 'Gate', 'Value')
-        I = 0
-        for k, v in self.params.items():
-            time, qubits, name = k
-            gate = self.gates[(time, qubits)]
-            s += '%-5d %-5d %-10s %-10s %-10s: %9.6f\n' % (I, time, qubits, name, gate.name, v)
-            I += 1
-        return s
-
-    # > ASCII Circuit Diagrams < #
-
-    def __str__(
-        self,
-        ):
-
-        """ String representation of this Circuit (an ASCII circuit diagram). """
-        return self.ascii_diagram(time_lines='both')
-
-    def ascii_diagram(
-        self,
-        time_lines='both',
-        ):
-
-        """ Return a simple ASCII string diagram of the circuit.
-
-        Params:
-            time_lines (str) - specification of time lines:
-                "both" - time lines on top and bottom (default)
-                "top" - time lines on top 
-                "bottom" - time lines on bottom
-                "neither" - no time lines
-        Returns:
-            (str) - the ASCII string diagram
-        """
-
-        # Left side states
-        Wd = max(len(str(_)) for _ in range(self.N))
-        lstick = '%-*s : |\n' % (1+Wd, 'T')
-        for x in range(self.N): 
-            lstick += '%*s\n' % (5+Wd, ' ')
-            lstick += 'q%*d : -\n' % (Wd, x)
-
-        # Build moment strings
-        moments = []
-        for T in range(self.ntime):
-            moments.append(self.ascii_diagram_moment(
-                T=T,
-                adjust_for_T=False if time_lines=='neither' else True,
-                ))
-
-        # Unite strings
-        lines = lstick.split('\n')
-        for moment in moments:
-            for i, tok in enumerate(moment.split('\n')):
-                lines[i] += tok
-        # Time on top and bottom
-        lines.append(lines[0])
-
-        # Adjust for time lines
-        if time_lines == 'both':
-            pass
-        elif time_lines == 'top':
-            lines = lines[:-2]
-        elif time_lines == 'bottom':
-            lines = lines[2:]
-        elif time_lines == 'neither':
-            lines = lines[2:-2]
-        else:
-            raise RuntimeError('Invalid time_lines argument: %s' % time_lines)
-        
-        strval = '\n'.join(lines)
-
-        return strval
-
-    def ascii_diagram_moment(
-        self,
-        T,
-        adjust_for_T=True,
-        ):
-
-        """ Return an ASCII string diagram for a given time moment T.
-
-        Users should not generally call this utility routine - see
-        ascii_diagram instead.
-
-        Params:
-            T (int) - time moment to diagram
-            adjust_for_T (bool) - add space adjustments for the length of time
-                lines.
-        Returns:
-            (str) - ASCII diagram for the given time moment.
-        """
-
-        circuit = self.subset([T])
-
-        # list (total seconds) of dict of A -> gate symbol
-        seconds = [{}]
-        # list (total seconds) of dict of A -> interstitial symbol
-        seconds2 = [{}]
-        for key, gate in circuit.gates.items():
-            T2, qubits = key
-            # Find the first second this gate fits within (or add a new one)
-            for idx, second in enumerate(seconds):
-                fit = not any(A in second for A in range(min(qubits), max(qubits)+1))
-                if fit:
-                    break
-            if not fit:
-                seconds.append({})
-                seconds2.append({})
-                idx += 1
-            # Put the gate into that second
-            for A in range(min(qubits), max(qubits)+1):
-                # Gate symbol
-                if A in qubits:
-                    Aind = [Aind for Aind, B in enumerate(qubits) if A == B][0]
-                    seconds[idx][A] = gate.ascii_symbols[Aind]
-                else:
-                    seconds[idx][A] = '|'
-                # Gate connector
-                if A != min(qubits):
-                    seconds2[idx][A] = '|'
-
-        # + [1] for the - null character
-        wseconds = [max([len(v) for k, v in second.items()] + [1]) for second in seconds]
-        wtot = sum(wseconds)    
-
-        # Adjust widths for T field
-        Tsymb = '%d' % T
-        if adjust_for_T:
-            if wtot < len(Tsymb): wseconds[0] += len(Tsymb) - wtot
-            wtot = sum(wseconds)    
-        
-        Is = ['' for A in range(self.N)]
-        Qs = ['' for A in range(self.N)]
-        for second, second2, wsecond in zip(seconds, seconds2, wseconds):
-            for A in range(self.N):
-                Isymb = second2.get(A, ' ')
-                IwR = wsecond - len(Isymb)
-                Is[A] += Isymb + ' ' * IwR + ' '
-                Qsymb = second.get(A, '-')
-                QwR = wsecond - len(Qsymb)
-                Qs[A] += Qsymb + '-' * QwR + '-'
-
-        strval = Tsymb + ' ' * (wtot + len(wseconds) - len(Tsymb) - 1) + '|\n' 
-        for I, Q in zip(Is, Qs):
-            strval += I + '\n'
-            strval += Q + '\n'
-
-        return strval
-
-    def latex_diagram(
-        self,
-        row_params='@R=1.0em',
-        col_params='@C=1.0em',
-        size_params='',
-        use_lstick=True,
-        ):
-
-        """ Returns a LaTeX Qcircuit diagram specification as an ASCII string. 
-
-        Params:
-            row_params (str) - Qcircuit row layout specification
-            col_params (str) - Qcircuit col layout specification
-            size_params (str) - Qcircuit size layout specification
-            use_lstick (bool) - put lstick kets in (True) or not (False)
-        Returns:    
-            (str) - LaTeX Qcircuit diagram specification as an ASCII string.
-        """
-
-        strval = ''
-
-        # Header
-        strval += '\\Qcircuit %s %s %s {\n' % (
-            row_params,
-            col_params,
-            size_params,
-            )
-
-        # Qubit lines
-        lines = ['' for _ in range(self.N)]
-
-        # Lstick  
-        if use_lstick:
-            for A in range(self.N):
-                lines[A] += '\\lstick{|%d\\rangle}\n' % A
-
-        # Moment contents
-        for T in range(self.ntime):
-            lines2 = self.latex_diagram_moment(
-                T=T,    
+        for key, gate in self.gates.items(): 
+            times, qubits2 = key
+            gate.apply_to_statevector(
+                statevector1=statevector1,
+                statevector2=statevector2,
+                qubits=tuple(qubit_map[qubit2] for qubit2 in qubits2),
+                dtype=dtype,
                 )
-            for A in range(self.N):
-                lines[A] += lines2[A]
+            statevector1, statevector2 = statevector2, statevector1
         
-        # Trailing wires
-        for A in range(self.N):
-            lines[A] += ' & \\qw \\\\\n'
-
-        # Concatenation
-        strval += ''.join(lines)
-
-        # Footer
-        strval += '}\n'
-
-        return strval
-
-    def latex_diagram_moment(
-        self,
-        T,
-        ):
-
-        """ Return a LaTeX Qcircuit diagram for a given time moment T.
-
-        Users should not generally call this utility routine - see
-        latex_diagram instead.
-
-        Params:
-            T (int) - time moment to diagram
-        Returns:
-            (str) - LaTeX Qcircuit diagram for the given time moment.
-        """
-
-        circuit = self.subset([T])
-
-        # list (total seconds) of dict of A -> gate symbol
-        seconds = [{}]
-        for key, gate in circuit.gates.items():
-            T2, qubits = key
-            # Find the first second this gate fits within (or add a new one)
-            for idx, second in enumerate(seconds):
-                fit = not any(A in second for A in range(min(qubits), max(qubits)+1))
-                if fit:
-                    break
-            if not fit:
-                seconds.append({})
-                idx += 1
-            # Place gate lines in circuit
-            if gate.N == 1:
-                A, = qubits
-                seconds[idx][A] = ' & \\gate{%s}\n' % gate.ascii_symbols[0]
-            elif gate.N == 2:
-                A, B = qubits
-                # Special cases
-                if gate.name == 'CNOT' or gate.name == 'CX':
-                    seconds[idx][A] = ' & \\ctrl{%d}\n' % (B-A) 
-                    seconds[idx][B] = ' & \\targ\n'
-                elif gate.name == 'CZ':
-                    seconds[idx][A] = ' & \\ctrl{%d}\n' % (B-A) 
-                    seconds[idx][B] = ' & \\gate{Z}\n'
-                elif gate.name == 'SWAP':
-                    seconds[idx][A] = ' & \\qswap \\qwx[%d]\n' % (B-A) 
-                    seconds[idx][B] = ' & \\qswap\n'
-                # General case
-                else:
-                    seconds[idx][A] = ' & \\gate{%s} \\qwx[%d]\n' % (gate.ascii_symbols[0], (B-A))
-                    seconds[idx][B] = ' & \\gate{%s}\n' % gate.ascii_symbols[1]
-            else:
-                raise RuntimeError('Unknown N>2 body gate: %s' % gate)
-
-        Qs = ['' for A in range(self.N)]
-        for second in seconds:
-            for A in range(self.N):
-                Qs[A] += second.get(A, ' & \\qw \n')
-
-        return Qs
-
-    # > Simulation! < #
-
-    def simulate(
-        self,
-        wfn=None,
-        dtype=np.complex128,
-        ):
-
-        """ Propagate wavefunction wfn through this circuit. 
-
-        Params:
-            wfn (np.ndarray of shape (2**self.N,) or None)
-                - the initial wavefunction. If None, the reference state
-                  \prod_{A} |0_A> will be used.
-            dtype (real or complex dtype) - the dtype to perform the
-                computation at. The input wfn and all gate unitary operators
-                will be cast to this type and the returned wfn will be of this
-                dtype. Note that using real dtypes (float64 or float32) can
-                reduce storage and runtime, but the imaginary parts of the
-                input wfn and all gate unitary operators will be discarded
-                without checking. In these cases, the user is responsible for
-                ensuring that the circuit works on O(2^N) rather than U(2^N)
-                and that the output is valid.
-        Returns:
-            (np.ndarray of shape (2**self.N,) and dtype=dtype) - the
-                propagated wavefunction. Note that the input wfn is not
-                changed by this operation.
-        """
-
-        for time, wfn in self.simulate_steps(wfn, dtype=dtype):
-            pass
-
-        return wfn
-
-    def simulate_steps(
-        self,
-        wfn=None,
-        dtype=np.complex128,
-        ):
-
-        """ Generator to propagate wavefunction wfn through the circuit one
-            moment at a time.
-
-        This is often used as:
-        
-        for time, wfn1 in simulate_steps(wfn=wfn0):
-            print wfn1
-
-        Note that to prevent repeated allocations of (2**N) arrays, this
-        operation allocates two (2**N) working copies, and swaps between them
-        as gates are applied. References to one of these arrays are returned at
-        each moment. Therefore, if you want to save a history of the
-        wavefunction, you will need to copy the wavefunction returned at each
-        moment by this generator. Note that the input wfn is not changed by
-        this operation.
-
-        Params:
-            wfn (np.ndarray of shape (2**self.N,) or None)
-                - the initial wavefunction. If None, the reference state
-                  \prod_{A} |0_A> will be used.
-            dtype (real or complex dtype) - the dtype to perform the
-                computation at. The input wfn and all gate unitary operators
-                will be cast to this type and the returned wfn will be of this
-                dtype. Note that using real dtypes (float64 or float32) can
-                reduce storage and runtime, but the imaginary parts of the
-                input wfn and all gate unitary operators will be discarded
-                without checking. In these cases, the user is responsible for
-                ensuring that the circuit works on O(2^N) rather than U(2^N)
-                and that the output is valid.
-        Returns (at each yield):
-            (int, np.ndarray of shape (2**self.N,) and dtype=dtype) - the
-                time moment and current state of the wavefunction at each step
-                along the propagation. Note that the input wfn is not
-                changed by this operation.
-        """
-
-        # Reference state \prod_A |0_A>
-        if wfn is None:
-            wfn = np.zeros((2**self.N,), dtype=dtype)
-            wfn[0] = 1.0
-        else:
-            wfn = np.array(wfn, dtype=dtype)
-
-        # Don't modify user data, but don't copy all the time
-        wfn1 = np.copy(wfn)
-        wfn2 = np.zeros_like(wfn1)
-
-        for time in range(self.ntime):
-            circuit = self.subset([time])
-            for key, gate in circuit.gates.items():
-                time2, qubits = key
-                if gate.N == 1:
-                    wfn2 = Circuit.apply_gate_1(
-                        wfn1=wfn1,
-                        wfn2=wfn2,
-                        U=np.array(gate.U, dtype=dtype),
-                        A=qubits[0],
-                        )
-                elif gate.N == 2:
-                    wfn2 = Circuit.apply_gate_2(
-                        wfn1=wfn1,
-                        wfn2=wfn2,
-                        U=np.array(gate.U, dtype=dtype),
-                        A=qubits[0],
-                        B=qubits[1],
-                        )
-                elif gate.N == 3:
-                    wfn2 = Circuit.apply_gate_3(
-                        wfn1=wfn1,
-                        wfn2=wfn2,
-                        U=np.array(gate.U, dtype=dtype),
-                        A=qubits[0],
-                        B=qubits[1],
-                        C=qubits[2],
-                        )
-                else:
-                    wfn2 = Circuit.apply_gate_n(
-                        wfn1=wfn1,
-                        wfn2=wfn2,
-                        U=np.array(gate.U, dtype=dtype),
-                        qubits=qubits
-                        )
-                    
-                wfn1, wfn2 = wfn2, wfn1
-            yield time, wfn1
-
-    @staticmethod
-    def apply_gate_1(
-        wfn1,
-        wfn2,
-        U,
-        A,
-        ):
-
-        """ Apply a 1-body gate unitary U to wfn1 at qubit A, yielding wfn2.
-
-        The formal operation performed is,
-
-            wfn1_LiR = \sum_{j} U_ij wfn2_LjR
-
-        Here L are the indices of all of the qubits to the left of A (<A), and
-        R are the indices of all of the qubits to the right of A (>A).
-
-        This function requires the user to supply both the initial state in
-        wfn1 and an array wfn2 to place the result into. This allows this
-        function to apply the gate without any new allocations or scratch arrays.
-
-        Params:
-            wfn1 (np.ndarray of shape (2**self.N,) and a complex dtype)
-                - the initial wavefunction. Unaffected by the operation
-            wfn2 (np.ndarray of shape (2**self.N,) and a complex dtype)
-                - an array to write the new wavefunction into. Overwritten by
-                the operation.
-            U (np.ndarray of shape (2,2) and a complex dtype) - the matrix
-                representation of the 1-body gate.
-            A (int) - the qubit index to apply the gate at.
-        Result:
-            the data of wfn2 is overwritten with the result of the operation.
-        Returns:
-            reference to wfn2, for chaining
-        """
-
-        N = (wfn1.shape[0]&-wfn1.shape[0]).bit_length()-1
-        if A >= N: raise RuntimeError('A >= N')
-        if U.shape != (2,2): raise RuntimeError('1-body gate must be (2,2)')
-        if wfn1.shape != (2**N,): raise RuntimeError('wfn1 should be (%d,) shape, is %r shape' % (2**N, wfn1.shape))
-        if wfn2.shape != (2**N,): raise RuntimeError('wfn2 should be (%d,) shape, is %r shape' % (2**N, wfn2.shape))
-
-        L = 2**(A)     # Left hangover
-        R = 2**(N-A-1) # Right hangover
-        wfn1v = wfn1.view() 
-        wfn2v = wfn2.view()
-        wfn1v.shape = (L,2,R)
-        wfn2v.shape = (L,2,R)
-        np.einsum('LjR,ij->LiR', wfn1v, U, out=wfn2v)
-
-        return wfn2
-
-    @staticmethod
-    def apply_gate_2(
-        wfn1,
-        wfn2,
-        U,
-        A,
-        B,
-        ):
-
-        """ Apply a 2-body gate unitary U to wfn1 at qubits A and B, yielding wfn2.
-
-        The formal operation performed is (for the case that A < B),
-
-            wfn1_LiMjR = \sum_{lk} U_ijkl wfn2_LiMjR
-
-        Here L are the indices of all of the qubits to the left of A (<A), M M
-        are the indices of all of the qubits to the right of A (>A) and left of
-        B (<B), and R are the indices of all of the qubits to the right of B
-        (>B). If A > B, permutations of A and B and the gate matrix U are
-        performed to ensure that the gate is applied correctly.
-
-        This function requires the user to supply both the initial state in
-        wfn1 and an array wfn2 to place the result into. This allows this
-        function to apply the gate without any new allocations or scratch arrays.
-
-        Params:
-            wfn1 (np.ndarray of shape (2**self.N,) and a complex dtype)
-                - the initial wavefunction. Unaffected by the operation
-            wfn2 (np.ndarray of shape (2**self.N,) and a complex dtype)
-                - an array to write the new wavefunction into. Overwritten by
-                the operation.
-            U (np.ndarray of shape (4,4) and a complex dtype) - the matrix
-                representation of the 2-body gate. This should be packed to
-                operate on the product state |A> otimes |B>, as usual.
-            A (int) - the first qubit index to apply the gate at.
-            B (int) - the second qubit index to apply the gate at.
-        Result:
-            the data of wfn2 is overwritten with the result of the operation.
-        Returns:
-            reference to wfn2, for chaining
-        """
-
-        N = (wfn1.shape[0]&-wfn1.shape[0]).bit_length()-1
-        if A >= N: raise RuntimeError('A >= N')
-        if B >= N: raise RuntimeError('B >= N')
-        if A == B: raise RuntimeError('A == B')
-        if U.shape != (4,4): raise RuntimeError('2-body gate must be (4,4)')
-        if wfn1.shape != (2**N,): raise RuntimeError('wfn1 should be (%d,) shape, is %r shape' % (2**N, wfn1.shape))
-        if wfn2.shape != (2**N,): raise RuntimeError('wfn2 should be (%d,) shape, is %r shape' % (2**N, wfn2.shape))
-
-        U2 = np.reshape(U, (2,2,2,2))
-        if A > B:
-            A2, B2 = B, A
-            U2 = np.einsum('ijkl->jilk', U2)
-        else:
-            A2, B2 = A, B
-
-        L = 2**(A2)      # Left hangover
-        M = 2**(B2-A2-1) # Middle hangover
-        R = 2**(N-B2-1)  # Right hangover
-        wfn1v = wfn1.view() 
-        wfn2v = wfn2.view()
-        wfn1v.shape = (L,2,M,2,R)
-        wfn2v.shape = (L,2,M,2,R)
-        np.einsum('LkMlR,ijkl->LiMjR', wfn1v, U2, out=wfn2v)
-
-        return wfn2
-
-    @staticmethod
-    def apply_gate_3(
-        wfn1,
-        wfn2,
-        U,
-        A,
-        B,
-        C,
-        ):
-
-        """ Apply a 3-body gate unitary U to wfn1 at qubits A, B, and C, yielding wfn2.
-
-        This function requires the user to supply both the initial state in
-        wfn1 and an array wfn2 to place the result into. This allows this
-        function to apply the gate without any new allocations or scratch arrays.
-
-        Params:
-            wfn1 (np.ndarray of shape (2**self.N,) and a complex dtype)
-                - the initial wavefunction. Unaffected by the operation
-            wfn2 (np.ndarray of shape (2**self.N,) and a complex dtype)
-                - an array to write the new wavefunction into. Overwritten by
-                the operation.
-            U (np.ndarray of shape (8,8) and a complex dtype) - the matrix
-                representation of the 3-body gate. This should be packed to
-                operate on the product state |A> otimes |B> otimes |C>, as
-                usual.
-            A (int) - the first qubit index to apply the gate at.
-            B (int) - the second qubit index to apply the gate at.
-            C (int) - the third qubit index to apply the gate at.
-        Result:
-            the data of wfn2 is overwritten with the result of the operation.
-        Returns:
-            reference to wfn2, for chaining
-        """
-
-        N = (wfn1.shape[0]&-wfn1.shape[0]).bit_length()-1
-        if A >= N: raise RuntimeError('A >= N')
-        if B >= N: raise RuntimeError('B >= N')
-        if C >= N: raise RuntimeError('C >= N')
-        if A == B: raise RuntimeError('A == B')
-        if A == C: raise RuntimeError('A == C')
-        if B == C: raise RuntimeError('B == C')
-        if U.shape != (8,8): raise RuntimeError('3-body gate must be (8,8)')
-        if wfn1.shape != (2**N,): raise RuntimeError('wfn1 should be (%d,) shape, is %r shape' % (2**N, wfn1.shape))
-        if wfn2.shape != (2**N,): raise RuntimeError('wfn2 should be (%d,) shape, is %r shape' % (2**N, wfn2.shape))
-
-        A2, B2, C2 = sorted((A, B, C))
-
-        U2 = np.reshape(U, (2,2,2,2,2,2))
-
-        bra_indices = 'ijk'
-        ket_indices = 'lmn'
-        bra_indices2 = ''.join([bra_indices[(A, B, C).index(_)] for _ in (A2, B2, C2)])
-        ket_indices2 = ''.join([ket_indices[(A, B, C).index(_)] for _ in (A2, B2, C2)])
-        
-        U2 = np.einsum('%s%s->%s%s' % (bra_indices, ket_indices, bra_indices2, ket_indices2), U2)
-
-        L = 2**(A2)      # Left hangover
-        M = 2**(B2-A2-1) # Middle1 hangover
-        P = 2**(C2-B2-1) # Middle2 hangover
-        R = 2**(N-C2-1)  # Right hangover
-        wfn1v = wfn1.view() 
-        wfn2v = wfn2.view()
-        wfn1v.shape = (L,2,M,2,P,2,R)
-        wfn2v.shape = (L,2,M,2,P,2,R)
-        np.einsum('LlMmPnR,ijklmn->LiMjPkR', wfn1v, U2, out=wfn2v)
-
-        return wfn2
-    
-    
-    @staticmethod
-    def apply_gate_n(
-        wfn1,
-        wfn2,
-        U,
-        qubits,
-        ):
-
-        N = (wfn1.shape[0]&-wfn1.shape[0]).bit_length()-1
-        if any(_ >= N for _ in qubits): raise RuntimeError('qubits >= N')
-        if len(set(qubits)) != len(qubits): raise RuntimeError('duplicate entry in qubits')
-        if wfn1.shape != (2**N,): raise RuntimeError('wfn1 should be (%d,) shape, is %r shape' % (2**N, wfn1.shape))
-        if wfn2.shape != (2**N,): raise RuntimeError('wfn2 should be (%d,) shape, is %r shape' % (2**N, wfn2.shape))
-           
-        # hangover
-        qubits2 = tuple(sorted(qubits))
-        hangovers = (2**qubits2[0],) + tuple(2**(qubits2[A+1]-qubits2[A]-1) for A in range(len(qubits2)-1)) + (2**(N-qubits2[-1]-1),)
-        shape = []
-        for hangover in hangovers[:-1]:
-            shape.append(hangover)
-            shape.append(2)
-        shape.append(hangovers[-1])
-        shape = tuple(shape)
-        
-        wfn1v = wfn1.view() 
-        wfn2v = wfn2.view()
-        wfn1v.shape = shape
-        wfn2v.shape = shape
-        
-        # symbol stock 
-        hangover_stock = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-        bra_stock = 'abcdefghijklm'
-        ket_stock = 'nopqrstuvwxyz'
-    
-        M = len(qubits)
-        if M > 13: raise RuntimeError('Technical limit: cannot run N > 13')
-        
-        # einsum form for ordering gate
-        bra_str = bra_stock[:M]
-        ket_str = ket_stock[:M]
-        bra_str2 = ''.join([bra_str[qubits.index(_)] for _ in qubits2])
-        ket_str2 = ''.join([ket_str[qubits.index(_)] for _ in qubits2])
-        U_str = ket_stock[:M] + bra_stock[:M]
-        
-        shape_U = tuple(2 for _ in range(2*M))
-        U2 = np.reshape(U, shape_U)
-        U2 = np.einsum('%s%s->%s%s' % (bra_str, ket_str, bra_str2, ket_str2), U2)
-        
-        # einsum form for applying gate
-        wfn1_str = ''
-        wfn2_str = ''
-        for A in range(M):
-            wfn1_str += hangover_stock[A]
-            wfn1_str += bra_stock[A]
-            wfn2_str += hangover_stock[A]
-            wfn2_str += ket_stock[A]
-        wfn1_str += hangover_stock[M]
-        wfn2_str += hangover_stock[M]
-        
-        np.einsum('%s,%s->%s' % (wfn1_str, U_str, wfn2_str), wfn1v, U2, out=wfn2v)
-        wfn2v = np.reshape(wfn2v, (-1,))
-        
-        return wfn2v
-    
-    
-    @staticmethod
-    def compute_1pdm(
-        wfn1,
-        wfn2,
-        A,
-        ):
-
-        """ Compute the 1pdm (one-particle density matrix) at qubit A. 
-
-        The 1pdm is formally defined as,
-
-            D_ij = \sum_{L,R} wfn1_LiR^* wfn2_LjR
-        
-        Here L are the indices of all of the qubits to the left of A (<A), and
-        R are the indices of all of the qubits to the right of A (>A).
-
-        If wfn1 is equivalent to wfn2, a Hermitian density matrix will be
-        returned. If wfn1 is not equivalent to wfn2, a non-Hermitian transition
-        density matrix will be returned (the latter cannot be directly observed
-        in a quantum computer, but is a very useful conceptual quantity).
-
-        Params:
-            wfn1 (np.ndarray of shape (self.N**2,) and a complex dtype) - the bra wavefunction.
-            wfn2 (np.ndarray of shape (self.N**2,) and a complex dtype) - the ket wavefunction.
-            A (int) - the index of the qubit to evaluate the 1pdm at
-        Returns:
-            (np.ndarray of shape (2,2) and complex dtype) - the 1pdm
-        """
-
-        N = (wfn1.shape[0]&-wfn1.shape[0]).bit_length()-1
-        if A >= N: raise RuntimeError('A >= N')
-        if wfn1.shape != (2**N,): raise RuntimeError('wfn1 should be (%d,) shape, is %r shape' % (2**N, wfn1.shape))
-        if wfn2.shape != (2**N,): raise RuntimeError('wfn2 should be (%d,) shape, is %r shape' % (2**N, wfn2.shape))
-
-        L = 2**(A)     # Left hangover
-        R = 2**(N-A-1) # Right hangover
-        wfn1v = wfn1.view() 
-        wfn2v = wfn2.view()
-        wfn1v.shape = (L,2,R)
-        wfn2v.shape = (L,2,R)
-        D = np.einsum('LiR,LjR->ij', wfn1v.conj(), wfn2v)
-        return D
-
-    @staticmethod
-    def compute_2pdm(
-        wfn1,
-        wfn2,
-        A,
-        B,
-        ):
-
-        """ Compute the 2pdm (two-particle density matrix) at qubits A and B. 
-
-        The formal operation performed is (for the case that A < B),
-
-            D_ijkl = \sum_{LMR} wfn1_LiMjR^* wfn2_LkMlR
-
-        Here L are the indices of all of the qubits to the left of A (<A), M M
-        are the indices of all of the qubits to the right of A (>A) and left of
-        B (<B), and R are the indices of all of the qubits to the right of B
-        (>B). If A > B, permutations of A and B and the resultant 2pdm are
-        performed to ensure that the 2pdm is computed correctly.
-
-        If wfn1 is equivalent to wfn2, a Hermitian density matrix will be
-        returned. If wfn1 is not equivalent to wfn2, a non-Hermitian transition
-        density matrix will be returned (the latter cannot be directly observed
-        in a quantum computer, but is a very useful conceptual quantity).
-
-        Params:
-            wfn1 (np.ndarray of shape (self.N**2,) and a complex dtype) - the bra wavefunction.
-            wfn2 (np.ndarray of shape (self.N**2,) and a complex dtype) - the ket wavefunction.
-            A (int) - the index of the first qubit to evaluate the 2pdm at
-            B (int) - the index of the second qubit to evaluate the 2pdm at
-        Returns:
-            (np.ndarray of shape (4,4) and complex dtype) - the 2pdm in the 
-                |A> otimes |B> basis.
-        """
-
-        N = (wfn1.shape[0]&-wfn1.shape[0]).bit_length()-1
-        if A >= N: raise RuntimeError('A >= N')
-        if B >= N: raise RuntimeError('B >= N')
-        if A == B: raise RuntimeError('A == B')
-        if wfn1.shape != (2**N,): raise RuntimeError('wfn1 should be (%d,) shape, is %r shape' % (2**N, wfn1.shape))
-        if wfn2.shape != (2**N,): raise RuntimeError('wfn2 should be (%d,) shape, is %r shape' % (2**N, wfn2.shape))
-
-        if A > B:
-            A2, B2 = B, A
-        else:
-            A2, B2 = A, B
-
-        L = 2**(A2)      # Left hangover
-        M = 2**(B2-A2-1) # Middle hangover
-        R = 2**(N-B2-1)  # Right hangover
-        wfn1v = wfn1.view() 
-        wfn2v = wfn2.view()
-        wfn1v.shape = (L,2,M,2,R)
-        wfn2v.shape = (L,2,M,2,R)
-        D = np.einsum('LiMjR,LkMlR->ijkl', wfn1v.conj(), wfn2v)
-    
-        if A > B:
-            D = np.einsum('ijkl->jilk', D)
-
-        return np.reshape(D, (4,4))
-
-    @staticmethod
-    def compute_3pdm(
-        wfn1,
-        wfn2,
-        A,
-        B,
-        C,
-        ):
-
-        N = (wfn1.shape[0]&-wfn1.shape[0]).bit_length()-1
-        if A >= N: raise RuntimeError('A >= N')
-        if B >= N: raise RuntimeError('B >= N')
-        if C >= N: raise RuntimeError('C >= N')
-        if A == B: raise RuntimeError('A == B')
-        if A == C: raise RuntimeError('A == C')
-        if B == C: raise RuntimeError('B == C')
-        if wfn1.shape != (2**N,): raise RuntimeError('wfn1 should be (%d,) shape, is %r shape' % (2**N, wfn1.shape))
-        if wfn2.shape != (2**N,): raise RuntimeError('wfn2 should be (%d,) shape, is %r shape' % (2**N, wfn2.shape))
-    
-        A2, B2, C2 = sorted((A, B, C))
-
-        L = 2**(A2)      # Left hangover
-        M = 2**(B2-A2-1) # Middle1 hangover
-        P = 2**(C2-B2-1) # Middle2 hangover
-        R = 2**(N-C2-1)  # Right hangover
-        
-        wfn1v = wfn1.view() 
-        wfn2v = wfn2.view()
-        wfn1v.shape = (L,2,M,2,P,2,R)
-        wfn2v.shape = (L,2,M,2,P,2,R)
-
-        D = np.einsum('LiMjPkR,LlMmPnR->ijklmn', wfn1v.conj(), wfn2v)
-
-        bra_indices = 'ijk'
-        ket_indices = 'lmn'
-        bra_indices2 = ''.join([bra_indices[(A, B, C).index(_)] for _ in (A2, B2, C2)])
-        ket_indices2 = ''.join([ket_indices[(A, B, C).index(_)] for _ in (A2, B2, C2)])
-
-        D = np.einsum('%s%s->%s%s' % (bra_indices, ket_indices, bra_indices2, ket_indices2), D)
-
-        return np.reshape(D, (8, 8))
-
-    @staticmethod
-    def compute_4pdm(
-        wfn1,
-        wfn2,
-        A,
-        B,
-        C,
-        D,
-        ):
-
-        N = (wfn1.shape[0]&-wfn1.shape[0]).bit_length()-1
-        if A >= N: raise RuntimeError('A >= N')
-        if B >= N: raise RuntimeError('B >= N')
-        if C >= N: raise RuntimeError('C >= N')
-        if D >= N: raise RuntimeError('D >= N')
-        if A == B: raise RuntimeError('A == B')
-        if A == C: raise RuntimeError('A == C')
-        if A == D: raise RuntimeError('A == D')
-        if B == C: raise RuntimeError('B == C')
-        if B == D: raise RuntimeError('B == D')
-        if C == D: raise RuntimeError('C == D')
-        if wfn1.shape != (2**N,): raise RuntimeError('wfn1 should be (%d,) shape, is %r shape' % (2**N, wfn1.shape))
-        if wfn2.shape != (2**N,): raise RuntimeError('wfn2 should be (%d,) shape, is %r shape' % (2**N, wfn2.shape))
-    
-        A2, B2, C2, D2 = sorted((A, B, C, D))
-
-        L = 2**(A2)      # Left hangover
-        M = 2**(B2-A2-1) # Middle1 hangover
-        P = 2**(C2-B2-1) # Middle2 hangover
-        Q = 2**(D2-C2-1) # Middle3 hangover
-        R = 2**(N-D2-1)  # Right hangover
-        
-        wfn1v = wfn1.view() 
-        wfn2v = wfn2.view()
-        wfn1v.shape = (L,2,M,2,P,2,Q,2,R)
-        wfn2v.shape = (L,2,M,2,P,2,Q,2,R)
-
-        Dm = np.einsum('LiMjPkQlR,LmMnPoQpR->ijklmnop', wfn1v.conj(), wfn2v)
-
-        bra_indices = 'ijkl'
-        ket_indices = 'mnop'
-        bra_indices2 = ''.join([bra_indices[(A, B, C, D).index(_)] for _ in (A2, B2, C2, D2)])
-        ket_indices2 = ''.join([ket_indices[(A, B, C, D).index(_)] for _ in (A2, B2, C2, D2)])
-
-        Dm = np.einsum('%s%s->%s%s' % (bra_indices, ket_indices, bra_indices2, ket_indices2), Dm)
-
-        return np.reshape(Dm, (16, 16))
-        
-    @staticmethod
-    def compute_npdm(
-        wfn1,
-        wfn2,
-        qubits,
-        ):
-
-        N = (wfn1.shape[0]&-wfn1.shape[0]).bit_length()-1
-        if any(_ >= N for _ in qubits): raise RuntimeError('qubits >= N')
-        if len(set(qubits)) != len(qubits): raise RuntimeError('duplicate entry in qubits')
-        if wfn1.shape != (2**N,): raise RuntimeError('wfn1 should be (%d,) shape, is %r shape' % (2**N, wfn1.shape))
-        if wfn2.shape != (2**N,): raise RuntimeError('wfn2 should be (%d,) shape, is %r shape' % (2**N, wfn2.shape))
-    
-        qubits2 = tuple(sorted(qubits))
-        hangovers = (2**qubits2[0],) + tuple(2**(qubits2[A+1]-qubits2[A]-1) for A in range(len(qubits2)-1)) + (2**(N-qubits2[-1]-1),)
-        shape = []
-        for hangover in hangovers[:-1]:
-            shape.append(hangover)
-            shape.append(2)
-        shape.append(hangovers[-1])
-        shape = tuple(shape)
-        
-        wfn1v = wfn1.view() 
-        wfn2v = wfn2.view()
-        wfn1v.shape = shape
-        wfn2v.shape = shape
-
-        hangover_stock = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-        bra_stock = 'abcdefghijklm'
-        ket_stock = 'nopqrstuvwxyz'
-    
-        M = len(qubits)
-        if M > 13: raise RuntimeError('Technical limit: cannot run N > 13')
-    
-        bra_str = ''
-        ket_str = ''
-        for A in range(M):
-            bra_str += hangover_stock[A]
-            bra_str += bra_stock[A]
-            ket_str += hangover_stock[A]
-            ket_str += ket_stock[A]
-        bra_str += hangover_stock[M]
-        ket_str += hangover_stock[M]
-
-        den_str = bra_stock[:M] + ket_stock[:M]
-
-        D = np.einsum('%s,%s->%s' % (bra_str, ket_str, den_str), wfn1v.conj(), wfn2v)
-
-        bra_str2 = ''.join([bra_stock[qubits.index(_)] for _ in qubits2])
-        ket_str2 = ''.join([ket_stock[qubits.index(_)] for _ in qubits2])
-        den_str2 = bra_str2 + ket_str2
-
-        D = np.einsum('%s->%s' % (den_str, den_str2), D)
-
-        return np.reshape(D, (2**M, 2**M))
-
-    @staticmethod
-    def compute_pauli_1(
-        wfn,
-        A,
-        ):
-
-        """ Compute the expectation values of the 1-body Pauli operators at qubit A.
-
-        E.g., the expectation value of the Z operator at qubit A is,
-
-            <Z_A> = <wfn|\hat Z_A|wfn>
-
-        These can be efficiently computed from the 1pdm (they are just an
-            alternate representation of the 1pdm).
-
-        Params:
-            wfn (np.ndarray of shape (self.N**2,) and a complex dtype) - the wavefunction.
-            A (int) - the index of the qubit to evaluate the Pauli measurements at.
-        Returns:
-            (np.ndarray of shape (4,) and real dtype corresponding to precision
-                of wfn dtype) - the Pauli expectation values packed as [I,X,Y,Z].
-        """
-
-        D = Circuit.compute_1pdm(
-            wfn1=wfn,
-            wfn2=wfn,
-            A=A,
-            )
-
-        I = (D[0,0] + D[1,1]).real
-        Z = (D[0,0] - D[1,1]).real
-        X = (D[1,0] + D[0,1]).real
-        Y = (D[1,0] - D[0,1]).imag
-        return np.array([I,X,Y,Z])
-
-    @staticmethod
-    def compute_pauli_2(
-        wfn,
-        A,
-        B,
-        ):
-
-        """ Compute the expectation values of the 2-qubit Pauli operators at
-            qubits A and B.
-
-        E.g., the expectation value of the Z operator at qubit A and the X
-        operator at qubit B is,
-
-            <Z_A X_B> = <wfn|\hat Z_A \hat X_B|wfn>
-
-        These can be efficiently computed from the 2pdm (they are just an
-            alternate representation of the 2pdm).
-
-        Params:
-            wfn (np.ndarray of shape (self.N**2,) and a complex dtype) - the wavefunction.
-            A (int) - the index of the first qubit to evaluate the Pauli measurements at.
-            B (int) - the index of the second qubit to evaluate the Pauli measurements at.
-        Returns:
-            (np.ndarray of shape (4,4) and real dtype corresponding to precision
-                of wfn dtype) - the Pauli expectation values packed as [I,X,Y,Z].
-        """
-
-        D = Circuit.compute_2pdm(
-            wfn1=wfn,
-            wfn2=wfn,
-            A=A,
-            B=B,
-            )
-
-        Pmats = [Matrix.I, Matrix.X, Matrix.Y, Matrix.Z]
-        G = np.zeros((4,4))
-        for A, PA in enumerate(Pmats):
-            for B, PB in enumerate(Pmats):
-                G[A,B] = np.sum(np.kron(PA, PB).conj() * D).real
-
-        return G
-
-    @staticmethod
-    def compute_pauli_3(
-        wfn,
-        A,
-        B,
-        C,
-        ):
-
-        """ Compute the expectation values of the 3-qubit Pauli operators at
-            qubits A, B, C
-
-        Params:
-            wfn (np.ndarray of shape (self.N**2,) and a complex dtype) - the wavefunction.
-            A (int) - the index of the first qubit to evaluate the Pauli measurements at.
-            B (int) - the index of the second qubit to evaluate the Pauli measurements at.
-            C (int) - the index of the third qubit to evaluate the Pauli measurements at.
-        Returns:
-            (np.ndarray of shape (4,4,4) and real dtype corresponding to precision
-                of wfn dtype) - the Pauli expectation values packed as [I,X,Y,Z].
-        """
-
-        D = Circuit.compute_3pdm(
-            wfn1=wfn,
-            wfn2=wfn,
-            A=A,
-            B=B,
-            C=C,
-            )
-
-        Pmats = [Matrix.I, Matrix.X, Matrix.Y, Matrix.Z]
-        G = np.zeros((4,4,4))
-        for A, PA in enumerate(Pmats):
-            for B, PB in enumerate(Pmats):
-                for C, PC in enumerate(Pmats):
-                    G[A,B,C] = np.sum(np.kron(np.kron(PA, PB), PC).conj() * D).real
-
-        return G
-
-    @staticmethod
-    def compute_pauli_4(
-        wfn,
-        A,
-        B,
-        C,
-        D,
-        ):
-
-        """ Compute the expectation values of the 4-qubit Pauli operators at
-            qubits A, B, C, D
-
-        Params:
-            wfn (np.ndarray of shape (self.N**2,) and a complex dtype) - the wavefunction.
-            A (int) - the index of the first qubit to evaluate the Pauli measurements at.
-            B (int) - the index of the second qubit to evaluate the Pauli measurements at.
-            C (int) - the index of the third qubit to evaluate the Pauli measurements at.
-            D (int) - the index of the fourth qubit to evaluate the Pauli measurements at.
-        Returns:
-            (np.ndarray of shape (4,4,4,4) and real dtype corresponding to precision
-                of wfn dtype) - the Pauli expectation values packed as [I,X,Y,Z].
-        """
-
-        Dm = Circuit.compute_4pdm(
-            wfn1=wfn,
-            wfn2=wfn,
-            A=A,
-            B=B,
-            C=C,
-            D=D,
-            )
-
-        Pmats = [Matrix.I, Matrix.X, Matrix.Y, Matrix.Z]
-        G = np.zeros((4,4,4,4))
-        for A, PA in enumerate(Pmats):
-            for B, PB in enumerate(Pmats):
-                for C, PC in enumerate(Pmats):
-                    for D, PD in enumerate(Pmats):
-                        G[A,B,C,D] = np.sum(np.kron(np.kron(np.kron(PA, PB), PC), PD).conj() * Dm).real
-
-        return G
-
-    @staticmethod
-    def compute_pauli_n(
-        wfn,
-        qubits,
-        ):
-
-        D = Circuit.compute_npdm(
-            wfn1=wfn,
-            wfn2=wfn,
-            qubits=qubits,
-            )
-
-        Pmats = [Matrix.I, Matrix.X, Matrix.Y, Matrix.Z]
-        G = np.zeros((4,)*len(qubits))
-        for index in itertools.product(range(4), repeat=len(qubits)):
-            P = Pmats[index[0]]
-            for B in range(1, len(qubits)):
-                P = np.kron(P, Pmats[index[B]])
-            G[index] = np.sum(P.conj() * D).real
-
-        return G
-
-    def measure(
-        self, 
-        nmeasurement=1000,
-        wfn=None,
-        dtype=np.complex128,
-        ):
-
-        """ Randomly sample the measurement outputs of the quantum circuit.
-            First calls self.simulate to generate the final statevector, then
-            calls compute_measurements_from_statevector to perform the random
-            sampling. 
-
-        Params:
-            nmeasurement (int) - number of measurements to sample.
-            wfn (np.ndarray of shape (2**self.N,) or None)
-                - the initial wavefunction. If None, the reference state
-                  \prod_{A} |0_A> will be used.
-            dtype (real or complex dtype) - the dtype to perform the
-                computation at. The input wfn and all gate unitary operators
-                will be cast to this type and the returned wfn will be of this
-                dtype. Note that using real dtypes (float64 or float32) can
-                reduce storage and runtime, but the imaginary parts of the
-                input wfn and all gate unitary operators will be discarded
-                without checking. In these cases, the user is responsible for
-                ensuring that the circuit works on O(2^N) rather than U(2^N)
-                and that the output is valid.
-        Returns:
-            (MeasurementResult) - a MeasurementResult object containing the results of
-                randomly sampled projective measurements .
-        """
-    
-        return Circuit.compute_measurements_from_statevector(
-            self.simulate(wfn=wfn, dtype=dtype), 
-            nmeasurement=nmeasurement,
-            )
-
-    @staticmethod
-    def compute_measurements_from_statevector(
-        statevector,
-        nmeasurement,
-        ):
-
-        """ Randomly sample the measurement outputs obtained by projectively
-            measuring the statevector in the computational basis.
-
-        Params:
-            statevector (np.ndarray of shape (2**N,)) - the statevector to
-                sample.
-            nmeasurement (int) - number of measurements to sample.
-        Returns:
-            (MeasurementResult) - a MeasurementResult object containing the results of
-                randomly sampled projective measurements .
-        """
-
-        N = (statevector.shape[0]&-statevector.shape[0]).bit_length()-1
-        P = (np.conj(statevector) * statevector).real
-        I = list(np.searchsorted(np.cumsum(P), np.random.rand(nmeasurement)))
-        return MeasurementResult({ Ket.from_int(int(k), N) : I.count(k) for k in list(sorted(set(I))) }) 
+        return statevector1, statevector2

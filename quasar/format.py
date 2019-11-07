@@ -16,7 +16,7 @@ def format_statevector(
         cutoff (float) - amplitudes with abs less than cutoff will not be
             printed (set to 0.0 to print all amplitudes).
     Returns:
-        (str) - a mutliline string with the amplitudes and ket strings
+        (str) - a multiline string with the amplitudes and ket strings
             formatted nicely
     """
 
