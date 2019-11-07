@@ -146,7 +146,7 @@ std::complex<double> py_run_pauli_expectation_value_complex128(
 }
 
 template <typename T, typename U> 
-std::vector<U> py_run_pauli_expectation_value_gradient(
+py::array_t<U> py_run_pauli_expectation_value_gradient(
     const Circuit<T>& circuit,
     const Pauli<T>& pauli)
 {
@@ -154,35 +154,37 @@ std::vector<U> py_run_pauli_expectation_value_gradient(
 
     std::vector<T> val = vulcan::run_pauli_expectation_value_gradient<T>(circuit, pauli, nullptr);
 
-    std::vector<U> val2(val.size());
+    py::array_t<U> result = py::array_t<U>(val.size());
+    py::buffer_info buffer2 = result.request();
+    U* ptr2 = (U*) buffer2.ptr;
 
-    ::memcpy(val2.data(), val.data(), val.size() * sizeof(T));
+    ::memcpy(ptr2, val.data(), val.size() * sizeof(T));
 
-    return val2;
+    return result;
 }
 
-std::vector<float> py_run_pauli_expectation_value_gradient_float32(
+np_float32 py_run_pauli_expectation_value_gradient_float32(
     const Circuit<float32>& circuit,
     const Pauli<float32>& pauli)
 {
     return py_run_pauli_expectation_value_gradient<float32, float>(circuit, pauli);
 }
 
-std::vector<double> py_run_pauli_expectation_value_gradient_float64(
+np_float64 py_run_pauli_expectation_value_gradient_float64(
     const Circuit<float64>& circuit,
     const Pauli<float64>& pauli)
 {
     return py_run_pauli_expectation_value_gradient<float64, double>(circuit, pauli);
 }
 
-std::vector<std::complex<float>> py_run_pauli_expectation_value_gradient_complex64(
+np_complex64 py_run_pauli_expectation_value_gradient_complex64(
     const Circuit<complex64>& circuit,
     const Pauli<complex64>& pauli)
 {
     return py_run_pauli_expectation_value_gradient<complex64, std::complex<float>>(circuit, pauli);
 }
 
-std::vector<std::complex<double>> py_run_pauli_expectation_value_gradient_complex128(
+np_complex128 py_run_pauli_expectation_value_gradient_complex128(
     const Circuit<complex128>& circuit,
     const Pauli<complex128>& pauli)
 {

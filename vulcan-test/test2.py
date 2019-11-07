@@ -10,11 +10,11 @@ gadget = quasar.Circuit().Ry(1).CZ(0,1).Ry(1).CX(1,0)
 print(gadget)    
 
 circuit = quasar.Circuit().X(0)
-circuit.T(0)
+# circuit.T(0)
 for I in range(N):
     circuit.add_gates(circuit=gadget, qubits=(I, I+1))
-for I in range(N+1):
-    circuit.T(I)
+# for I in range(N+1):
+#     circuit.T(I)
 # circuit.T(N)
 # circuit.TT(N)
 circuit = circuit.slice(qubits=list(reversed(range(N+1))))
@@ -38,42 +38,45 @@ print(pauli)
 backend1 = quasar.QuasarSimulatorBackend()
 backend2 = vulcan.VulcanSimulatorBackend()
 
+# dtype = np.complex64
+dtype = np.float64
+
 start = time.time()
-statevector1 = backend1.run_statevector(circuit)
+statevector1 = backend1.run_statevector(circuit, dtype=dtype)
 print('%11.3E' % (time.time() - start))
 
 start = time.time()
-statevector2 = backend2.run_statevector(circuit)
+statevector2 = backend2.run_statevector(circuit, dtype=dtype)
 print('%11.3E' % (time.time() - start))
 
 print(np.sum(statevector1.conj() * statevector2))
 
 start = time.time()
-sigma1 = backend1.run_pauli_sigma(pauli, statevector1)
+sigma1 = backend1.run_pauli_sigma(pauli, statevector1, dtype=dtype)
 print('%11.3E' % (time.time() - start))
 print(np.sum(sigma1.conj() * statevector1))
 
 start = time.time()
-sigma2 = backend2.run_pauli_sigma(pauli, statevector2)
+sigma2 = backend2.run_pauli_sigma(pauli, statevector2, dtype=dtype)
 print('%11.3E' % (time.time() - start))
 print(np.sum(sigma2.conj() * statevector2))
 
 start = time.time()
-energy = backend1.run_pauli_expectation_value(circuit, pauli)
+energy = backend1.run_pauli_expectation_value(circuit, pauli, dtype=dtype)
 print('%11.3E' % (time.time() - start))
 print(energy)
 
 start = time.time()
-energy = backend2.run_pauli_expectation_value(circuit, pauli)
+energy = backend2.run_pauli_expectation_value(circuit, pauli, dtype=dtype)
 print('%11.3E' % (time.time() - start))
 print(energy)
 
 start = time.time()
-gradient = backend1.run_pauli_expectation_value_gradient(circuit, pauli)
+gradient1 = backend1.run_pauli_expectation_value_gradient(circuit, pauli, dtype=dtype)
 print('%11.3E' % (time.time() - start))
-print(gradient)
 
 start = time.time()
-gradient = backend2.run_pauli_expectation_value_gradient(circuit, pauli)
+gradient2 = backend2.run_pauli_expectation_value_gradient(circuit, pauli, dtype=dtype)
 print('%11.3E' % (time.time() - start))
-print(gradient)
+
+print(np.max(np.abs(gradient1 - gradient2)))
