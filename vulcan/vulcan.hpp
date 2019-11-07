@@ -415,25 +415,25 @@ void run_pauli_sigma(
     vulcan::free_statevector(statevector3_d);
 }
 
-// template <typename T>
-// Pauli<T> run_pauli_expectation(
-//     const Circuit<T>& circuit,
-//     const Pauli<T>& pauli,
-//     const std::vector<T>& statevector={})
-// {
-//     if (circuit.nqubit() != pauli.nqubit()) {
-//         throw std::runtime_error("circuit and pauli do not have same nqubit");
-//     }
-//     
-//     T* statevector1_d = vulcan::malloc_and_initialize_statevector(circuit.nqubit(), statevector.data());
-//     T* statevector2_d = vulcan::malloc_statevector<T>(pauli.nqubit());
-//     vulcan::run_statevector(circuit, statevector1_d);
-//     Pauli<T> expectation = vulcan::util_pauli_expectation(pauli, statevector1_d, statevector2_d);
-//     vulcan::free_statevector(statevector1_d);
-//     vulcan::free_statevector(statevector2_d);
-//     return expectation; 
-// }
-// 
+template <typename T>
+Pauli<T> run_pauli_expectation(
+    const Circuit<T>& circuit,
+    const Pauli<T>& pauli,
+    const T* statevector_h)
+{
+    if (circuit.nqubit() != pauli.nqubit()) {
+        throw std::runtime_error("circuit and pauli do not have same nqubit");
+    }
+    
+    T* statevector1_d = vulcan::malloc_and_initialize_statevector(pauli.nqubit(), statevector_h);
+    T* statevector2_d = vulcan::malloc_statevector<T>(pauli.nqubit());
+    vulcan::util_run_statevector(circuit, statevector1_d);
+    Pauli<T> expectation = vulcan::util_pauli_expectation(pauli, statevector1_d, statevector2_d);
+    vulcan::free_statevector(statevector1_d);
+    vulcan::free_statevector(statevector2_d);
+    return expectation; 
+}
+
 template <typename T>
 T run_pauli_expectation_value(
     const Circuit<T>& circuit,
@@ -443,6 +443,7 @@ T run_pauli_expectation_value(
     if (pauli.nqubit() != circuit.nqubit()) {
 	throw std::runtime_error("pauli and circuit must have same nqubit");
     }
+
     T* statevector1_d = vulcan::malloc_and_initialize_statevector(pauli.nqubit(), statevector_h);
     T* statevector2_d = vulcan::malloc_statevector<T>(pauli.nqubit());
     T* statevector3_d = vulcan::malloc_statevector<T>(pauli.nqubit());
@@ -464,6 +465,7 @@ std::vector<T> run_pauli_expectation_value_gradient(
     if (pauli.nqubit() != circuit.nqubit()) {
 	throw std::runtime_error("pauli and circuit must have same nqubit");
     }
+
     T* statevector1_d = vulcan::malloc_and_initialize_statevector(pauli.nqubit(), statevector_h);
     T* statevector2_d = vulcan::malloc_statevector<T>(pauli.nqubit());
     T* statevector3_d = vulcan::malloc_statevector<T>(pauli.nqubit());
@@ -509,8 +511,5 @@ std::vector<T> run_pauli_expectation_value_gradient(
     vulcan::free_statevector(statevector3_d);
     return gradient;
 }
-
     
 } // namespace vulcan
-    
-    

@@ -4,6 +4,13 @@ from . import vulcan_plugin as vulcan
 
 class VulcanSimulatorBackend(quasar.Backend):
 
+    vulcan_null_array = {
+        np.float32 : np.array([], dtype=np.float32),
+        np.float64 : np.array([], dtype=np.float64),
+        np.complex64 : np.array([], dtype=np.complex64),
+        np.complex128 : np.array([], dtype=np.complex128),
+    }
+
     vulcan_dtype_class = {
         np.float32 : vulcan.float32,
         np.float64 : vulcan.float64,
@@ -44,6 +51,13 @@ class VulcanSimulatorBackend(quasar.Backend):
         np.float64 : vulcan.run_pauli_sigma_float64,
         np.complex64 : vulcan.run_pauli_sigma_complex64,
         np.complex128 : vulcan.run_pauli_sigma_complex128,
+    }
+
+    vulcan_run_pauli_expectation_method = {
+        np.float32 : vulcan.run_pauli_expectation_float32,
+        np.float64 : vulcan.run_pauli_expectation_float64,
+        np.complex64 : vulcan.run_pauli_expectation_complex64,
+        np.complex128 : vulcan.run_pauli_expectation_complex128,
     }
 
     vulcan_run_pauli_expectation_value_method = {
@@ -162,7 +176,7 @@ class VulcanSimulatorBackend(quasar.Backend):
     def run_statevector(
         self,
         circuit,
-        statevector=None, # TODO 
+        statevector=None,
         min_qubit=None,
         nqubit=None,
         dtype=np.complex128,
@@ -174,9 +188,12 @@ class VulcanSimulatorBackend(quasar.Backend):
             nqubit=nqubit,
             dtype=dtype,
             )
+
+        statevector = VulcanSimulatorBackend.vulcan_null_array[dtype] if statevector is None else statevector
     
         return VulcanSimulatorBackend.vulcan_run_statevector_method[dtype](
             circuit2,
+            statevector,
             )
     
     def run_pauli_sigma(
@@ -200,12 +217,48 @@ class VulcanSimulatorBackend(quasar.Backend):
             statevector,
             )
             
+    def run_pauli_expectation(
+        self,
+        circuit,
+        pauli,
+        nmeasurement=None,
+        statevector=None, 
+        min_qubit=None,
+        nqubit=None,
+        dtype=np.complex128,
+        ): 
+
+        if nmeasurement is not None: 
+            raise NotImplementedError
+             
+        circuit2 = VulcanSimulatorBackend.vulcan_circuit(
+            circuit=circuit, 
+            min_qubit=min_qubit,
+            nqubit=nqubit,
+            dtype=dtype,
+            )
+        pauli2 = VulcanSimulatorBackend.vulcan_pauli(
+            pauli=pauli,
+            min_qubit=min_qubit,
+            nqubit=nqubit,
+            dtype=dtype,
+            )
+
+        statevector = VulcanSimulatorBackend.vulcan_null_array[dtype] if statevector is None else statevector
+    
+        # TODO: return type conversion
+        return VulcanSimulatorBackend.vulcan_run_pauli_expectation_method[dtype](
+            circuit2,
+            pauli2,
+            statevector,
+            )
+            
     def run_pauli_expectation_value(
         self,
         circuit,
         pauli,
         nmeasurement=None,
-        statevector=None, # TODO
+        statevector=None,
         min_qubit=None,
         nqubit=None,
         dtype=np.complex128,
@@ -227,9 +280,12 @@ class VulcanSimulatorBackend(quasar.Backend):
             dtype=dtype,
             )
     
+        statevector = VulcanSimulatorBackend.vulcan_null_array[dtype] if statevector is None else statevector
+    
         return VulcanSimulatorBackend.vulcan_run_pauli_expectation_value_method[dtype](
             circuit2,
             pauli2,
+            statevector,
             )
             
     def run_pauli_expectation_value_gradient(
@@ -237,7 +293,7 @@ class VulcanSimulatorBackend(quasar.Backend):
         circuit,
         pauli,
         nmeasurement=None,
-        statevector=None, # TODO
+        statevector=None,
         min_qubit=None,
         nqubit=None,
         dtype=np.complex128,
@@ -273,7 +329,10 @@ class VulcanSimulatorBackend(quasar.Backend):
             dtype=dtype,
             )
     
+        statevector = VulcanSimulatorBackend.vulcan_null_array[dtype] if statevector is None else statevector
+
         return VulcanSimulatorBackend.vulcan_run_pauli_expectation_value_gradient_method[dtype](
             circuit2,
             pauli2,
+            statevector,
             )[parameter_indices]
