@@ -23,6 +23,10 @@ class QuasarSimulatorBackend(Backend):
         return True
 
     @property
+    def has_run_pauli_sigma(self):
+        return True
+
+    @property
     def has_statevector_input(self):
         return True
 
@@ -53,3 +57,23 @@ class QuasarSimulatorBackend(Backend):
             qubits=qubits,
             dtype=dtype,
             )[0]
+
+    def run_pauli_sigma(
+        self,
+        pauli,
+        statevector,   
+        min_qubit=None,
+        nqubit=None,
+        dtype=np.complex128,
+        ):
+
+        # min_qubit = pauli.min_qubit if min_qubit is None else min_qubit
+        # nqubit = pauli.nqubit if nqubit is None else nqubit
+
+        return pauli.matrix_vector_product(
+            statevector=statevector,
+            min_qubit=min_qubit,
+            nqubit=nqubit,
+            dtype=dtype,
+            )
+

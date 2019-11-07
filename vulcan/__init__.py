@@ -1,2 +1,2 @@
 from .vulcan_plugin import ndevice, device_property_string
-from .quasar_util import run_statevector, run_pauli_sigma, run_pauli_expectation_value, run_pauli_expectation_value_gradient
+from .vulcan_backend import VulcanSimulatorBackend

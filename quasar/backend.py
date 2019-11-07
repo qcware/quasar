@@ -50,7 +50,7 @@ class Backend(object):
         """ 
         raise NotImplementedError
 
-
+    @property
     def has_run_statevector(
         self,
         ):
@@ -64,6 +64,21 @@ class Backend(object):
         """ 
         return NotImplementedError
 
+    @property
+    def has_run_pauli_sigma(
+        self,
+        ):
+
+        """ Does this Backend support run_pauli_sigma? 
+
+        Returns:
+            (bool) - True if run_pauli_sigma is supported else False.
+
+        Backend subclasses should OVERLOAD this method.
+        """ 
+        return NotImplementedError
+
+    @property
     def has_statevector_input(
         self,
         ):
@@ -84,6 +99,17 @@ class Backend(object):
         self,
         circuit,
         statevector=None,   
+        min_qubit=None,
+        nqubit=None,
+        dtype=np.complex128,
+        **kwargs):
+
+        return NotImplementedError
+
+    def run_pauli_sigma(
+        self,
+        pauli,
+        statevector,
         min_qubit=None,
         nqubit=None,
         dtype=np.complex128,

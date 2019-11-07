@@ -419,9 +419,9 @@ class Pauli(sortedcontainers.SortedDict):
 
     def to_matrix(
         self,
-        dtype=np.complex128,
         min_qubit=None,
         nqubit=None,
+        dtype=np.complex128,
         ):
 
         min_qubit = self.min_qubit if min_qubit is None else min_qubit
@@ -507,9 +507,9 @@ class Pauli(sortedcontainers.SortedDict):
     def matrix_vector_product(
         self,
         statevector,
-        dtype=np.complex128,
         min_qubit=None,
         nqubit=None,
+        dtype=np.complex128,
         ):
 
         min_qubit = self.min_qubit if min_qubit is None else min_qubit

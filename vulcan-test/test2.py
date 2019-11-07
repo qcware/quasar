@@ -35,40 +35,45 @@ for k in range(N+1):
     pauli += (k + 1) / 10.0 * Z[k]
 print(pauli)
 
-# backend = quasar.QuasarSimulatorBackend()
-
-# start = time.time()
-# statevector1 = backend.run_statevector(circuit)
-# print('%11.3E' % (time.time() - start))
+backend1 = quasar.QuasarSimulatorBackend()
+backend2 = vulcan.VulcanSimulatorBackend()
 
 start = time.time()
-statevector2 = vulcan.run_statevector(circuit)
+statevector1 = backend1.run_statevector(circuit)
 print('%11.3E' % (time.time() - start))
 
-# print(np.sum(statevector1.conj() * statevector2))
-
-sigma = vulcan.run_pauli_sigma(pauli, statevector2)
-print('Vulcan + CPU:')
-print(np.sum(sigma.conj() * statevector2))
-
-# print('CPU:')
-# start = time.time()
-# energy = backend.run_pauli_expectation_value(circuit, pauli)
-# print('%11.3E' % (time.time() - start))
-# print(energy)
-
-print('Vulcan:')
 start = time.time()
-energy = vulcan.run_pauli_expectation_value(circuit, pauli)
+statevector2 = backend2.run_statevector(circuit)
+print('%11.3E' % (time.time() - start))
+
+print(np.sum(statevector1.conj() * statevector2))
+
+start = time.time()
+sigma1 = backend1.run_pauli_sigma(pauli, statevector1)
+print('%11.3E' % (time.time() - start))
+print(np.sum(sigma1.conj() * statevector1))
+
+start = time.time()
+sigma2 = backend2.run_pauli_sigma(pauli, statevector2)
+print('%11.3E' % (time.time() - start))
+print(np.sum(sigma2.conj() * statevector2))
+
+start = time.time()
+energy = backend1.run_pauli_expectation_value(circuit, pauli)
 print('%11.3E' % (time.time() - start))
 print(energy)
 
-# start = time.time()
-# gradient = backend.run_pauli_expectation_value_gradient(circuit, pauli)
-# print('%11.3E' % (time.time() - start))
-# print(gradient)
+start = time.time()
+energy = backend2.run_pauli_expectation_value(circuit, pauli)
+print('%11.3E' % (time.time() - start))
+print(energy)
 
 start = time.time()
-gradient = vulcan.run_pauli_expectation_value_gradient(circuit, pauli)
+gradient = backend1.run_pauli_expectation_value_gradient(circuit, pauli)
+print('%11.3E' % (time.time() - start))
+print(gradient)
+
+start = time.time()
+gradient = backend2.run_pauli_expectation_value_gradient(circuit, pauli)
 print('%11.3E' % (time.time() - start))
 print(gradient)
