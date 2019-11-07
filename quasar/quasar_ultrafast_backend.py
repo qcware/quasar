@@ -1,5 +1,6 @@
 import numpy as np
 from .quasar_backend import QuasarSimulatorBackend
+from .circuit import Gate
 from .circuit import Circuit
 
 class QuasarUltrafastBackend(QuasarSimulatorBackend):
@@ -23,6 +24,12 @@ class QuasarUltrafastBackend(QuasarSimulatorBackend):
         dtype=np.complex128,
         parameter_indices=None,
         **kwargs):
+
+        ipauli_gates = {
+            'Rx' : Gate.U1(np.array([[0.0+0.0j, 0.0+1.0j], [0.0+1.0j, 0.0+0.0j]], dtype=np.complex128)),
+            'Ry' : Gate.U1(np.array([[0.0+0.0j, 1.0+0.0j], [-1.0+0.0j, 0.0+0.0j]], dtype=np.complex128)),
+            'Rz' : Gate.U1(np.array([[0.0+1.0j, 0.0+0.0j], [0.0+0.0j, 0.0-1.0j]], dtype=np.complex128)),
+        }
 
         # Default to parameter shift rule
         if nmeasurement is not None:
@@ -102,15 +109,7 @@ class QuasarUltrafastBackend(QuasarSimulatorBackend):
             RT = R.adjoint()
             WT = W.adjoint()
             RTWT = Circuit.join_in_time([WT, RT])
-            G = Circuit()
-            if gate_name == 'Rx':    
-                G.X(gate_qubit)
-            elif gate_name == 'Ry':    
-                G.Y(gate_qubit)
-            elif gate_name == 'Rz':    
-                G.Z(gate_qubit)
-            else:
-                raise RuntimeError('Unknown gate_name: %s' % gate_name)
+            G = Circuit().add_gate(ipauli_gates[gate_name], gate_qubit)
 
             # Timestep
             gamma = self.run_statevector(
@@ -129,15 +128,15 @@ class QuasarUltrafastBackend(QuasarSimulatorBackend):
                 **kwargs)
 
             # Gradient Evaluation
-            gamma2 = self.run_statevector(
+            lamda2 = self.run_statevector(
                 circuit=G,
-                statevector=gamma,
+                statevector=lamda,
                 min_qubit=min_qubit,
                 nqubit=nqubit,
                 dtype=dtype,
                 **kwargs)
-            V = np.sum(lamda.conj() * gamma2)
-            gradient[index] = + 2.0 * np.imag(V) 
+            V = np.sum(lamda2.conj() * gamma)
+            gradient[index] = + 2.0 * np.real(V) 
              
         return gradient
 
