@@ -308,6 +308,6 @@ class Algebra(object):
         ):
 
         N = (statevector_native.shape[0]&-statevector_native.shape[0]).bit_length()-1
-        statevector = statevector_native[Backend.bit_reversal_permutation(N=N)]
+        statevector = statevector_native[Algebra.bit_reversal_permutation(N=N)]
         return statevector
 

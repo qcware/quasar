@@ -219,6 +219,7 @@ if __name__ == '__main__':
     backends = {
         'quasar_slow' : quasar.QuasarSimulatorBackend(),
         'quasar' : quasar.QuasarUltrafastBackend(),
+        'qiskit' : quasar.QiskitSimulatorBackend(),
         'vulcan' : vulcan.VulcanSimulatorBackend(),
     }
 
