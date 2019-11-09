@@ -6,8 +6,8 @@ import numpy as np
 
 backend1 = vulcan.VulcanSimulatorBackend()
 # backend1 = quasar.QuasarSimulatorBackend()
-backend2 = quasar.PyquilSimulatorBackend()
-# backend2 = quasar.QiskitSimulatorBackend()
+# backend2 = quasar.PyquilSimulatorBackend()
+backend2 = quasar.QiskitSimulatorBackend()
 # backend2 = quasar.CirqSimulatorBackend()
 
 N = int(sys.argv[1]) 

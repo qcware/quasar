@@ -191,8 +191,10 @@ std::vector<T> values_;
 
 // => Internal C++ API <= //
 
+namespace util {
+
 template <typename T>
-void util_run_statevector(
+void run_statevector(
     const Circuit<T>& circuit,
     T* statevector_d)
 {
@@ -240,7 +242,6 @@ void util_run_statevector(
             throw std::runtime_error("Gate nqubit is invalid.");
         }
     }
-
 }
 
 template <typename T> 
@@ -384,6 +385,24 @@ void apply_ipauli_1(
         b);
 }
 
+/**
+ * (-i)**n. Returns correct result if T is a scalar quantity and n is even.
+ *
+ * Params:
+ *  n (int) - desired integral power of (-i)
+ * Returns:
+ *  (T) - (-i)**n. 0.0 (incorrect) if T is scalar and n is odd.
+ **/
+template <typename T>
+T mi_pow_n(int n)
+{
+    if (n % 2 == 0) {
+        return T(((n / 2) % 2) == 0 ? 1.0 : -1.0, 0.0);
+    } else {
+        return T(0.0, (((n + 1) / 2) % 2) == 0 ? 1.0 : -1.0);
+    }
+}
+
 template <typename T>
 void apply_pauli(
     const Pauli<T>& pauli,
@@ -402,21 +421,16 @@ void apply_pauli(
             int type = types[index2];
             int qubit = qubits[index2];          
             if (type == 1) ny += 1;
-            vulcan::apply_pauli_1_mody(pauli.nqubit(), statevector3_d, statevector3_d, qubit, type);
+            vulcan::util::apply_pauli_1_mody(pauli.nqubit(), statevector3_d, statevector3_d, qubit, type);
         }  
         // (-i)**ny
-        T scal;
-        if (ny % 2 == 0) {
-            scal = T(((ny / 2) % 2) == 0 ? 1.0 : -1.0, 0.0);
-        } else {
-            scal = T(0.0, (((ny + 1) / 2) % 2) == 0 ? 1.0 : -1.0);
-        }
+        T scal = mi_pow_n<T>(ny);
         vulcan::axpby(pauli.nqubit(), statevector3_d, statevector2_d, scal*val, T(1.0));
     }
 }
 
 template <typename T>
-Pauli<T> util_pauli_expectation(
+Pauli<T> pauli_expectation(
     const Pauli<T>& pauli,
     T* statevector1_d,
     T* statevector2_d)
@@ -431,15 +445,10 @@ Pauli<T> util_pauli_expectation(
             int type = types[index2];
             int qubit = qubits[index2];          
             if (type == 1) ny += 1;
-            vulcan::apply_pauli_1_mody(pauli.nqubit(), statevector2_d, statevector2_d, qubit, type);
+            vulcan::util::apply_pauli_1_mody(pauli.nqubit(), statevector2_d, statevector2_d, qubit, type);
         }  
         // (-i)**ny
-        T scal;
-        if (ny % 2 == 0) {
-            scal = T(((ny / 2) % 2) == 0 ? 1.0 : -1.0, 0.0);
-        } else {
-            scal = T(0.0, (((ny + 1) / 2) % 2) == 0 ? 1.0 : -1.0);
-        }
+        T scal = mi_pow_n<T>(ny);
         values[index] = scal*vulcan::dot(pauli.nqubit(), statevector1_d, statevector2_d); 
     }
     
@@ -450,6 +459,8 @@ Pauli<T> util_pauli_expectation(
         values);
 }
 
+} // namespace vulcan::util
+
 // => External C++ API <= //
 
 template <typename T>
@@ -459,7 +470,7 @@ void run_statevector(
     T* result_h)
 {
     T* statevector_d = vulcan::malloc_and_initialize_statevector(circuit.nqubit(), statevector_h);
-    vulcan::util_run_statevector(circuit, statevector_d);
+    vulcan::util::run_statevector(circuit, statevector_d);
     vulcan::copy_statevector_to_host(circuit.nqubit(), statevector_d, result_h);
     vulcan::free_statevector(statevector_d);
 }
@@ -473,7 +484,7 @@ void run_pauli_sigma(
     T* statevector1_d = vulcan::malloc_and_initialize_statevector(pauli.nqubit(), statevector_h);
     T* statevector2_d = vulcan::malloc_statevector<T>(pauli.nqubit());
     T* statevector3_d = vulcan::malloc_statevector<T>(pauli.nqubit());
-    vulcan::apply_pauli(pauli, statevector1_d, statevector2_d, statevector3_d);
+    vulcan::util::apply_pauli(pauli, statevector1_d, statevector2_d, statevector3_d);
     vulcan::copy_statevector_to_host(pauli.nqubit(), statevector2_d, result_h);
     vulcan::free_statevector(statevector1_d);
     vulcan::free_statevector(statevector2_d);
@@ -492,8 +503,8 @@ Pauli<T> run_pauli_expectation(
     
     T* statevector1_d = vulcan::malloc_and_initialize_statevector(pauli.nqubit(), statevector_h);
     T* statevector2_d = vulcan::malloc_statevector<T>(pauli.nqubit());
-    vulcan::util_run_statevector(circuit, statevector1_d);
-    Pauli<T> expectation = vulcan::util_pauli_expectation(pauli, statevector1_d, statevector2_d);
+    vulcan::util::run_statevector(circuit, statevector1_d);
+    Pauli<T> expectation = vulcan::util::pauli_expectation(pauli, statevector1_d, statevector2_d);
     vulcan::free_statevector(statevector1_d);
     vulcan::free_statevector(statevector2_d);
     return expectation; 
@@ -512,8 +523,8 @@ T run_pauli_expectation_value(
     T* statevector1_d = vulcan::malloc_and_initialize_statevector(pauli.nqubit(), statevector_h);
     T* statevector2_d = vulcan::malloc_statevector<T>(pauli.nqubit());
     T* statevector3_d = vulcan::malloc_statevector<T>(pauli.nqubit());
-    vulcan::util_run_statevector(circuit, statevector1_d);
-    vulcan::apply_pauli(pauli, statevector1_d, statevector2_d, statevector3_d);
+    vulcan::util::run_statevector(circuit, statevector1_d);
+    vulcan::util::apply_pauli(pauli, statevector1_d, statevector2_d, statevector3_d);
     T val = vulcan::dot(circuit.nqubit(), statevector1_d, statevector2_d);
     vulcan::free_statevector(statevector1_d);
     vulcan::free_statevector(statevector2_d);
@@ -534,8 +545,8 @@ std::vector<T> run_pauli_expectation_value_gradient(
     T* statevector1_d = vulcan::malloc_and_initialize_statevector(pauli.nqubit(), statevector_h);
     T* statevector2_d = vulcan::malloc_statevector<T>(pauli.nqubit());
     T* statevector3_d = vulcan::malloc_statevector<T>(pauli.nqubit());
-    vulcan::util_run_statevector(circuit, statevector1_d);
-    vulcan::apply_pauli(pauli, statevector1_d, statevector2_d, statevector3_d);
+    vulcan::util::run_statevector(circuit, statevector1_d);
+    vulcan::util::apply_pauli(pauli, statevector1_d, statevector2_d, statevector3_d);
 
     Circuit<T> circuit2 = circuit.adjoint();
      
@@ -557,9 +568,9 @@ std::vector<T> run_pauli_expectation_value_gradient(
                 qubits);
 	    gates.clear();
 	    qubits.clear();
-            vulcan::util_run_statevector(circuit3, statevector1_d);
-            vulcan::util_run_statevector(circuit3, statevector2_d);
-            vulcan::apply_ipauli_1(
+            vulcan::util::run_statevector(circuit3, statevector1_d);
+            vulcan::util::run_statevector(circuit3, statevector2_d);
+            vulcan::util::apply_ipauli_1(
                 circuit2.nqubit(),
                 statevector2_d,
                 statevector3_d,
