@@ -1,11 +1,18 @@
 #include "device_properties.hpp"
 #include <cuda_runtime.h>
+#include <stdexcept>
 #include "sprintf2.hpp"
 
 namespace vulcan {
 
 std::string device_property_string(int device)
 {
+    int count;
+    cudaGetDeviceCount(&count);
+    if (device < 0 || device >= count) {
+        throw std::runtime_error("Invalid device id");
+    }
+    
     cudaDeviceProp devProp;
     cudaGetDeviceProperties(&devProp, device);
 

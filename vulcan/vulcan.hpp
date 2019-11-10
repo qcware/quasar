@@ -403,6 +403,29 @@ T mi_pow_n(int n)
     }
 }
 
+/**
+ * Apply a Pauli operator to statevector1_d, placing the result in
+ * statevector2_d, using statevector3_d as a temporary buffer array:
+ *
+ *  statevector2_d = Pauli (statevector1_d)
+ *
+ * NOTE: we use apply_pauli_1_mody with adjusted coefficients to apply the
+ * individual 1-body Pauli operators. This yields correct results with scalar
+ * types if the Pauli operator is real symmetric (has real coefficients and
+ * only even powers of Y).
+ *
+ * Params:
+ *  pauli (Pauli<T>) - Pauli operator to apply
+ *  statevector1_d (T*) - device pointer to allocated input statevector (not
+ *    modified)
+ *  statevector2_d (T*) - device pointer to allocated input statevector
+ *    (overwritten)
+ *  statevector3_d (T*) - device pointer to allocated input statevector
+ *    (overwritten)
+ *  Result:
+ *    statevector2_d is overwritten with the result
+ *    statevector3_d is overwritten with temporary working data
+ **/
 template <typename T>
 void apply_pauli(
     const Pauli<T>& pauli,

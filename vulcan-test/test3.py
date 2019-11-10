@@ -26,6 +26,10 @@ def test_circuit(
     times['run_pauli_sigma'] = time.time() - start
 
     start = time.time()
+    values['run_pauli_expectation'] = np.array(backend.run_pauli_expectation(circuit, pauli, dtype=dtype).values(), dtype=dtype)
+    times['run_pauli_expectation'] = time.time() - start
+
+    start = time.time()
     values['run_pauli_expectation_value'] = backend.run_pauli_expectation_value(circuit, pauli, dtype=dtype)
     times['run_pauli_expectation_value'] = time.time() - start
 

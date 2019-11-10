@@ -1,6 +1,6 @@
 from .circuit import Matrix, Gate, Circuit
 from .circuit import ControlledGate, CompositeGate
-from .pauli import PauliStarter, PauliOperator, PauliString, Pauli
+from .pauli import PauliStarter, PauliOperator, PauliString, Pauli, PauliExpectation
 from .pauli import PauliOperator
 from .index_allocator import IndexAllocator, NegativeIndexAllocator
 from .transpiler import Transpiler

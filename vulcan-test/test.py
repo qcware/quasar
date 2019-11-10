@@ -7,8 +7,8 @@ import numpy as np
 backend1 = vulcan.VulcanSimulatorBackend()
 # backend1 = quasar.QuasarSimulatorBackend()
 # backend2 = quasar.PyquilSimulatorBackend()
-backend2 = quasar.QiskitSimulatorBackend()
-# backend2 = quasar.CirqSimulatorBackend()
+# backend2 = quasar.QiskitSimulatorBackend()
+backend2 = quasar.CirqSimulatorBackend()
 
 N = int(sys.argv[1]) 
 
@@ -33,9 +33,9 @@ for I in range(N):
 circuit.set_parameter_values(parameter_values)
 print(circuit.parameter_str)
 
-statevector1 = backend1.run_statevector(circuit)
+statevector1 = backend1.run_statevector(circuit, dtype=np.complex64)
 start = time.time()
-statevector1 = backend1.run_statevector(circuit)
+statevector1 = backend1.run_statevector(circuit, dtype=np.complex64)
 print('%11.3E\n' % (time.time() - start))
 
 statevector2 = backend2.run_statevector(circuit)

@@ -146,6 +146,35 @@ class VulcanSimulatorBackend(quasar.Backend):
     
         return pauli2
     
+    @staticmethod
+    def quasar_number(
+        vulcan_number,
+        dtype=np.complex128,
+        ): 
+
+        if dtype == np.float32 or dtype == np.float64:
+            return dtype(vulcan_number.real())
+        elif dtype == np.complex64 or dtype == np.complex128:
+            return dtype(vulcan_number.real() + vulcan_number.imag() * 1.0j)
+        else:
+            raise RuntimeError('Unknown dtype: %s' % dtype)
+
+    @staticmethod
+    def quasar_pauli_expectation(
+        vulcan_pauli,
+        pauli,
+        dtype=np.complex128,
+        ):
+
+        pauli_expectation = quasar.PauliExpectation.zeros_like(pauli)
+        values = vulcan_pauli.values()
+        for index, key in enumerate(pauli_expectation.keys()):
+            pauli_expectation[key] = VulcanSimulatorBackend.quasar_number(
+                values[index],
+                dtype=dtype,
+                )
+        return pauli_expectation
+    
     def __init__(
         self,
         ):
@@ -246,12 +275,16 @@ class VulcanSimulatorBackend(quasar.Backend):
 
         statevector = VulcanSimulatorBackend.vulcan_null_array[dtype] if statevector is None else statevector
     
-        # TODO: return type conversion
-        return VulcanSimulatorBackend.vulcan_run_pauli_expectation_method[dtype](
+        pauli3 = VulcanSimulatorBackend.vulcan_run_pauli_expectation_method[dtype](
             circuit2,
             pauli2,
             statevector,
             )
+
+        return VulcanSimulatorBackend.quasar_pauli_expectation(
+            pauli3,
+            pauli,
+            dtype=dtype)
             
     def run_pauli_expectation_value(
         self,
