@@ -1,6 +1,7 @@
 import numpy as np
 from .pauli import Pauli, PauliExpectation
 from .algebra import Algebra
+from .circuit import Gate, Circuit
 
 class Backend(object):
 
@@ -115,7 +116,30 @@ class Backend(object):
         dtype=np.complex128,
         **kwargs):
 
-        return NotImplementedError
+        min_qubit = pauli.min_qubit if min_qubit is None else min_qubit
+        nqubit = pauli.nqubit if nqubit is None else nqubit
+
+        pauli_gates = {
+            'X' : Gate.X,
+            'Y' : Gate.Y,
+            'Z' : Gate.Z,
+        }
+
+        statevector2 = np.zeros_like(statevector)
+        for string, value in pauli.items():
+            circuit2 = Circuit()
+            for qubit, char in string:
+                circuit2.add_gate(pauli_gates[char], qubit)
+            statevector3 = self.run_statevector(
+                circuit=circuit2,
+                statevector=statevector,
+                dtype=dtype,
+                min_qubit=min_qubit,
+                nqubit=nqubit,
+                )
+            statevector2 += value * statevector3
+
+        return statevector2
 
     def run_unitary(
         self,
@@ -489,8 +513,8 @@ class Backend(object):
         dtype=np.complex128,
         **kwargs):
 
-        min_qubit = circuit.min_qubit if min_qubit is None else min_qubit
-        nqubit = circuit.nqubit if nqubit is None else nqubit
+        min_qubit = pauli.min_qubit if min_qubit is None else min_qubit
+        nqubit = pauli.nqubit if nqubit is None else nqubit
 
         statevector = self.run_statevector(
             circuit=circuit,
@@ -502,15 +526,18 @@ class Backend(object):
 
         pauli_expectation = PauliExpectation.zero()
         for string in pauli.keys():
+
             pauli2 = Pauli.zero()
-            pauli2[string] = 1.0
-            statevector2 = pauli2.matrix_vector_product(
+            pauli2[string] = 1.0 
+            statevector2 = self.run_pauli_sigma(
+                pauli=pauli2,
                 statevector=statevector,
                 dtype=dtype,
                 min_qubit=min_qubit,
                 nqubit=nqubit,
                 )
-            pauli_expectation[string] = np.sum(statevector.conj() * statevector2)
+            scal = np.sum(statevector.conj() * statevector2)
+            pauli_expectation[string] = scal
 
         return pauli_expectation
 
@@ -524,9 +551,6 @@ class Backend(object):
         dtype=np.complex128,
         **kwargs):
 
-        min_qubit = circuit.min_qubit if min_qubit is None else min_qubit
-        nqubit = circuit.nqubit if nqubit is None else nqubit
-
         statevector = self.run_statevector(
             circuit=circuit,
             statevector=statevector,
@@ -535,11 +559,12 @@ class Backend(object):
             dtype=dtype,
             **kwargs)
 
-        statevector2 = pauli.matrix_vector_product(
+        statevector2 = self.run_pauli_sigma(
+            pauli=pauli,
             statevector=statevector,
-            dtype=dtype,
             min_qubit=min_qubit,
             nqubit=nqubit,
-            )
+            dtype=dtype,
+            **kwargs)
 
         return np.sum(statevector.conj() * statevector2)

@@ -1,5 +1,6 @@
 import numpy as np
 from .backend import Backend
+from .circuit import Gate, Circuit
 
 class QuasarSimulatorBackend(Backend):
 
@@ -61,19 +62,42 @@ class QuasarSimulatorBackend(Backend):
     def run_pauli_sigma(
         self,
         pauli,
-        statevector,   
+        statevector,
         min_qubit=None,
         nqubit=None,
         dtype=np.complex128,
-        ):
+        **kwargs):
 
-        # min_qubit = pauli.min_qubit if min_qubit is None else min_qubit
-        # nqubit = pauli.nqubit if nqubit is None else nqubit
+        min_qubit = pauli.min_qubit if min_qubit is None else min_qubit
+        nqubit = pauli.nqubit if nqubit is None else nqubit
 
-        return pauli.matrix_vector_product(
-            statevector=statevector,
-            min_qubit=min_qubit,
-            nqubit=nqubit,
-            dtype=dtype,
-            )
+        pauli_gates_mody = {
+            'X' : Gate.X,
+            'Y' : Gate.U1(np.array([[0.0, 1.0], [-1.0, 0.0]], dtype=np.complex128)),
+            'Z' : Gate.Z,
+        }
+
+        statevector2 = np.zeros_like(statevector)
+        for string, value in pauli.items():
+            circuit2 = Circuit()
+            ny = 0
+            for qubit, char in string:
+                circuit2.add_gate(pauli_gates_mody[char], qubit)
+                if char == 'Y':
+                    ny += 1
+            statevector3 = self.run_statevector(
+                circuit=circuit2,
+                statevector=statevector,
+                dtype=dtype,
+                min_qubit=min_qubit,
+                nqubit=nqubit,
+                )
+            scal = (-1.j)**ny * value
+            if dtype in (np.float32, np.float64):
+                scal = dtype(scal.real)
+            else:
+                scal = dtype(scal)
+            statevector2 += scal * statevector3
+
+        return statevector2
 

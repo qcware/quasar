@@ -91,12 +91,13 @@ class QuasarUltrafastBackend(QuasarSimulatorBackend):
             min_qubit=min_qubit,
             nqubit=nqubit,
             **kwargs)
-        lamda = pauli.matrix_vector_product(
+        lamda = self.run_pauli_sigma(
+            pauli=pauli,
             statevector=gamma,
             dtype=dtype,
             min_qubit=min_qubit,
             nqubit=nqubit,
-            )
+            **kwargs)
 
         # Evaluate the gradient by the ultrafast rule
         gradient = np.zeros((len(parameter_indices),), dtype=dtype)

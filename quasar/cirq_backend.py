@@ -82,6 +82,9 @@ class CirqBackend(Backend):
                     raise RuntimeError('Gate translation to cirq not known: %s' % gate)
             else:
                 raise RuntimeError('Cannot translate cirq for N > 2')
+
+        for qubit in range(nqubit):
+            qc.append(cirq.I(q[qubit]))
                 
         return qc
 
@@ -119,16 +122,24 @@ class CirqSimulatorBackend(CirqBackend):
     def run_statevector(
         self,
         circuit,
+        statevector=None,
         min_qubit=None,
         nqubit=None,
         dtype=np.complex128,
         **kwargs):
 
-        # TODO: Input statevector
-
         import cirq
-        circuit_native = self.build_native_circuit(circuit)
-        result = self.simulator.simulate(circuit_native, **kwargs)
+        circuit_native = self.build_native_circuit(
+            circuit, 
+            bit_reversal=False, 
+            min_qubit=min_qubit, 
+            nqubit=nqubit,
+            )
+        statevector = np.array(statevector, dtype=np.complex64) if statevector is not None else statevector
+        result = self.simulator.simulate(
+            circuit_native, 
+            initial_state=statevector,
+            **kwargs)
         statevector = result.state_vector()
         statevector = np.array(statevector, dtype=dtype)
         return statevector

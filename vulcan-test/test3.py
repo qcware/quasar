@@ -221,14 +221,15 @@ if __name__ == '__main__':
     }[sys.argv[3]]
 
     backends = {
-        'quasar_slow' : quasar.QuasarSimulatorBackend(),
-        'quasar' : quasar.QuasarUltrafastBackend(),
-        'qiskit' : quasar.QiskitSimulatorBackend(),
-        'vulcan' : vulcan.VulcanSimulatorBackend(),
+        'quasar_slow' : quasar.QuasarSimulatorBackend,
+        'vulcan' : vulcan.VulcanSimulatorBackend,
+        'quasar' : quasar.QuasarUltrafastBackend,
+        'qiskit' : quasar.QiskitSimulatorBackend,
+        'cirq' : quasar.CirqSimulatorBackend,
     }
 
-    backend1 = backends[sys.argv[4]]
-    backend2 = backends[sys.argv[5]]
+    backend1 = backends[sys.argv[4]]()
+    backend2 = backends[sys.argv[5]]()
 
     threshold = float(sys.argv[6])
 

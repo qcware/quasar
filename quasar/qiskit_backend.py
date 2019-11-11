@@ -122,12 +122,11 @@ class QiskitSimulatorBackend(QiskitBackend):
     def run_statevector(
         self,
         circuit,
+        statevector=None,
         min_qubit=None,
         nqubit=None,
         dtype=np.complex128,
         **kwargs):
-
-        # TODO: Input statevector
 
         import qiskit
         circuit_native = self.build_native_circuit(
@@ -136,7 +135,14 @@ class QiskitSimulatorBackend(QiskitBackend):
             min_qubit=min_qubit, 
             nqubit=nqubit,
             )
-        statevector = qiskit.execute(circuit_native, self.backend).result().get_statevector()
+        backend_options = {}
+        if statevector is not None:
+            backend_options['initial_statevector'] = statevector
+        statevector = qiskit.execute(
+            circuit_native, 
+            self.backend,
+            backend_options=backend_options,
+            ).result().get_statevector()
         # NOTE: Incredible hack: Qiskit does not apply Rz(theta), instead
         # applies u1(theta):
         # 
