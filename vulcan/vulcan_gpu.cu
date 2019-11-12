@@ -3,6 +3,26 @@
 
 namespace vulcan {
 
+// => Utility Functions <= //
+
+void validate_nqubit(int nqubit)
+{
+    if (nqubit > MAX_NQUBIT) {
+        throw std::runtime_error("nqubit too large");
+    }
+}
+std::pair<int, int> cuda_grid_size(int nqubit, int block_size)
+{
+    int size = (1ULL << nqubit);
+    if (size < block_size) {
+        return std::pair<int, int>(1, size);
+    } else {
+        return std::pair<int, int>(size / block_size, block_size);
+    }
+}
+
+// => Dot Kernel <= //
+
 // > Warp and Block Binary Summation Functions < //
 
 template <typename T>
@@ -196,7 +216,7 @@ template<typename T>
 int axpby_block_size();
 
 template<>
-int axpby_block_size<float32>() { return 128; }
+int axpby_block_size<float32>() { return 256; }
 
 template<>
 int axpby_block_size<float64>() { return 128; }
@@ -610,22 +630,4 @@ template void apply_gate_2<complex64>(
    complex64, 
    complex64);
     
-// => Utility Functions <= //
-
-void validate_nqubit(int nqubit)
-{
-    if (nqubit > MAX_NQUBIT) {
-        throw std::runtime_error("nqubit too large");
-    }
-}
-std::pair<int, int> cuda_grid_size(int nqubit, int block_size)
-{
-    int size = (1ULL << nqubit);
-    if (size < block_size) {
-        return std::pair<int, int>(1, size);
-    } else {
-        return std::pair<int, int>(size / block_size, block_size);
-    }
-}
-
 } // namespace vulcan

@@ -38,13 +38,10 @@ namespace vulcan {
 
 // Maximum number of qubits the library can handle
 #define MAX_NQUBIT 31
-// Standard CUDA block size for the library
-#define BLOCK_SIZE 128 // AXPBY really likes 128
 
 // => Utility Functions <= //
 
 void validate_nqubit(int nqubit);
-std::pair<int, int> cuda_grid_size(int nqubit, int block_size = BLOCK_SIZE);
 
 // => Main Library Functions <= //
 
