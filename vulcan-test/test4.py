@@ -226,9 +226,9 @@ def test_cis_z1(
 
     dtypes = {
         'float32' : np.float32,
-    #     'float64' : np.float64,
+        'float64' : np.float64,
         'complex64' : np.complex64,
-    #     'complex128' : np.complex128,
+        'complex128' : np.complex128,
     }
 
     configurations = {}
@@ -246,6 +246,8 @@ def test_cis_z1(
 
     configurations = {
         'vulcan_float32' : Configuration(backend=backends['vulcan'], dtype=dtypes['float32'], threshold=1.0E-5),
+        'vulcan_complex64' : Configuration(backend=backends['vulcan'], dtype=dtypes['complex64'], threshold=1.0E-5),
+        'vulcan_complex128' : Configuration(backend=backends['vulcan'], dtype=dtypes['complex128'], threshold=1.0E-5),
         'cirq_complex64' : Configuration(backend=backends['cirq'], dtype=dtypes['complex64'], threshold=1.0E-5),
     }
 

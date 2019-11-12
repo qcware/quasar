@@ -280,7 +280,7 @@ PYBIND11_MODULE(vulcan_plugin, m) {
     m.def("ndevice", &vulcan::ndevice);
     m.def("device_property_string", &vulcan::device_property_string);
 
-    m.def("run_timings_1", &vulcan::run_timings_1);
+    m.def("run_timings_blas_1", &vulcan::run_timings_blas_1);
     m.def("run_timings_gate_1", &vulcan::run_timings_gate_1);
     m.def("run_timings_gate_2", &vulcan::run_timings_gate_2);
 

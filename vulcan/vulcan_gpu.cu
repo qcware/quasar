@@ -192,6 +192,21 @@ __global__ void axpby_kernel(
     statevector2[index] = val;
 }
 
+template<typename T>
+int axpby_block_size();
+
+template<>
+int axpby_block_size<float32>() { return 128; }
+
+template<>
+int axpby_block_size<float64>() { return 128; }
+
+template<>
+int axpby_block_size<complex64>() { return 64; }
+
+template<>
+int axpby_block_size<complex128>() { return 64; }
+
 template <typename T>
 void axpby(
     int nqubit,
@@ -200,7 +215,7 @@ void axpby(
     T a,
     T b)
 {
-    std::pair<int, int> grid_size = cuda_grid_size(nqubit);
+    std::pair<int, int> grid_size = cuda_grid_size(nqubit, axpby_block_size<T>());
 
     axpby_kernel<<<std::get<0>(grid_size), std::get<1>(grid_size)>>>(
         statevector1_d,
@@ -252,6 +267,21 @@ __global__ void gate_1_kernel(
     statevector2[index1] = res1;
 }
 
+template<typename T>
+int apply_gate_1_block_size();
+
+template<>
+int apply_gate_1_block_size<float32>() { return 128; }
+
+template<>
+int apply_gate_1_block_size<float64>() { return 64; }
+
+template<>
+int apply_gate_1_block_size<complex64>() { return 32; }
+
+template<>
+int apply_gate_1_block_size<complex128>() { return 16; }
+
 template <typename T>
 void apply_gate_1(
     int nqubit,
@@ -269,7 +299,7 @@ void apply_gate_1(
         throw std::runtime_error("qubitA is out of bounds");
     }
 
-    std::pair<int, int> grid_size = cuda_grid_size(nqubit - 1);
+    std::pair<int, int> grid_size = cuda_grid_size(nqubit - 1, apply_gate_1_block_size<T>());
 
     gate_1_kernel<<<std::get<0>(grid_size), std::get<1>(grid_size)>>>(
         statevector1_d,
@@ -402,6 +432,21 @@ __global__ void gate_2_kernel(
     statevector2[index3] = res3;
 }
 
+template<typename T>
+int apply_gate_2_block_size();
+
+template<>
+int apply_gate_2_block_size<float32>() { return 128; }
+
+template<>
+int apply_gate_2_block_size<float64>() { return 64; }
+
+template<>
+int apply_gate_2_block_size<complex64>() { return 32; }
+
+template<>
+int apply_gate_2_block_size<complex128>() { return 16; }
+
 template <typename T>
 void apply_gate_2(
     int nqubit,
@@ -438,7 +483,7 @@ void apply_gate_2(
         throw std::runtime_error("qubitA == qubitB");
     }
 
-    std::pair<int, int> grid_size = cuda_grid_size(nqubit - 2);
+    std::pair<int, int> grid_size = cuda_grid_size(nqubit - 2, apply_gate_2_block_size<T>());
 
     gate_2_kernel<<<std::get<0>(grid_size), std::get<1>(grid_size)>>>(
         statevector1_d,
@@ -573,13 +618,13 @@ void validate_nqubit(int nqubit)
         throw std::runtime_error("nqubit too large");
     }
 }
-std::pair<int, int> cuda_grid_size(int nqubit)
+std::pair<int, int> cuda_grid_size(int nqubit, int block_size)
 {
     int size = (1ULL << nqubit);
-    if (size < BLOCK_SIZE) {
+    if (size < block_size) {
         return std::pair<int, int>(1, size);
     } else {
-        return std::pair<int, int>(size / BLOCK_SIZE, BLOCK_SIZE);
+        return std::pair<int, int>(size / block_size, block_size);
     }
 }
 

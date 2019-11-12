@@ -52,3 +52,9 @@ See Makefile for needed compile options and include/link paths.
 => Authors <=
 
 Rob Parrish (rob.parrish@qcware.com)
+
+=> Performance Notes (V100) <=
+
+gate_1/gate_2 - 32 or 64 threads per block is not efficient for float32 and
+    other small types - presumably not enough threads to fill the memory
+    transaction buffer (block-level noncoalescence). 

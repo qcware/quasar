@@ -2,7 +2,6 @@
 
 #include "vulcan_gpu.hpp"
 #include "vulcan_types.hpp"
-#include "cuerr.h"
 #include <cuda_runtime.h>
 #include <cstring>
 
@@ -201,11 +200,11 @@ double time_axpby(
     return 1.0E-3 * time_ms;
 }
 
-void run_timings_1(
+void run_timings_blas_1(
     int min_nqubit,
     int max_nqubit)
 {
-    printf("==> 1D Timings <==\n\n");
+    printf("==> BLAS 1 Timings <==\n\n");
     
     printf("T in [s]\n");
     printf("B in [GiB / s]\n");
