@@ -205,7 +205,7 @@ def test_cis_z1(
     nqubit,
     ):
 
-    circuit = cis_t_circuit(nqubit)
+    circuit = cis_circuit(nqubit)
     pauli = z1_pauli(nqubit)
 
     tasks = [
@@ -225,7 +225,7 @@ def test_cis_z1(
     }
 
     dtypes = {
-    #     'float32' : np.float32,
+        'float32' : np.float32,
     #     'float64' : np.float64,
         'complex64' : np.complex64,
     #     'complex128' : np.complex128,
@@ -244,12 +244,17 @@ def test_cis_z1(
     # del configurations['qiskit_float64']
     # del configurations['qiskit_complex128']
 
+    configurations = {
+        'vulcan_float32' : Configuration(backend=backends['vulcan'], dtype=dtypes['float32'], threshold=1.0E-5),
+        'cirq_complex64' : Configuration(backend=backends['cirq'], dtype=dtypes['complex64'], threshold=1.0E-5),
+    }
+
     test_array(
         circuit=circuit,
         pauli=pauli,
         tasks=tasks,
         configurations=configurations,
-        reference='vulcan_complex64',
+        reference='vulcan_float32',
         )
 
 

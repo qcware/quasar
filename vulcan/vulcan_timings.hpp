@@ -2,6 +2,7 @@
 
 #include "vulcan_gpu.hpp"
 #include "vulcan_types.hpp"
+#include "cuerr.h"
 #include <cuda_runtime.h>
 #include <cstring>
 
@@ -602,5 +603,219 @@ void run_timings_1(
     }
     printf("\n");
 }
+
+template <typename T>
+std::vector<double> time_apply_gate_1(
+    int nqubit,
+    T a,
+    T b)
+{
+    T* statevector = vulcan::malloc_statevector<T>(nqubit);
+    vulcan::zero_statevector<T>(nqubit, statevector);
+
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+
+    std::vector<double> timings;
+    for (int qubit = 0; qubit < nqubit; qubit++) {
+        cudaEventRecord(start);
+        vulcan::apply_gate_1<T>(
+            nqubit,
+            statevector,
+            statevector,
+            qubit,
+            T(0.0),
+            T(0.0),
+            T(0.0),
+            T(0.0),
+            a,
+            b);
+        cudaEventRecord(stop);
+        cudaEventSynchronize(stop);
+        float time_ms;
+        cudaEventElapsedTime(&time_ms, start, stop);
+        timings.push_back(1.0E-3 * time_ms);
+    }   
+
+    vulcan::free_statevector(statevector);
+    return timings;
+}
+
+void run_timings_gate_1(
+    int nqubit)
+{
+    printf("==> Apply Gate 1 Timings <==\n\n");
+    
+    printf("nqubit = %d\n\n", nqubit);
+
+    printf("T in [s]\n");
+    printf("B in [GiB / s]\n");
+    printf("\n");
+
+    size_t multiplier = 0;
+
+    printf("=> x = G(x) <=\n\n");
+    multiplier = 2;
+    printf("Multiplier = %zu\n", multiplier);
+    printf("\n");
+    printf("%2s: %12s %12s %12s %12s %12s %12s %12s %12s\n",
+        "A",
+        "T float32",
+        "T float64",
+        "T complex64",
+        "T complex128",
+        "B float32",
+        "B float64",
+        "B complex64",
+        "B complex128"
+        );
+    std::vector<double> Ts_float32 = time_apply_gate_1<float32>(nqubit, float32(1.0), float32(0.0));
+    std::vector<double> Ts_float64 = time_apply_gate_1<float64>(nqubit, float64(1.0), float64(0.0));
+    std::vector<double> Ts_complex64 = time_apply_gate_1<complex64>(nqubit, complex64(1.0), complex64(0.0));
+    std::vector<double> Ts_complex128 = time_apply_gate_1<complex128>(nqubit, complex128(1.0), complex128(0.0));
+    for (int qubit = 0; qubit < nqubit; qubit++) {
+        double T_float32 = Ts_float32[qubit];
+        double T_float64 = Ts_float64[qubit];
+        double T_complex64 = Ts_complex64[qubit];
+        double T_complex128 = Ts_complex128[qubit];
+        size_t ndata = (1ULL << nqubit) * multiplier;
+        double B_float32 = ndata * sizeof(float32) / T_float32 / 1E9;
+        double B_float64 = ndata * sizeof(float64) / T_float64 / 1E9;
+        double B_complex64 = ndata * sizeof(complex64) / T_complex64 / 1E9;
+        double B_complex128 = ndata * sizeof(complex128) / T_complex128 / 1E9;
+        printf("%2d: %12.3E %12.3E %12.3E %12.3E %12.3E %12.3E %12.3E %12.3E\n",
+            qubit,
+            T_float32,
+            T_float64,
+            T_complex64,
+            T_complex128,
+            B_float32,
+            B_float64,
+            B_complex64,
+            B_complex128
+            );
+    }
+    printf("\n");
+}
+
+template <typename T>
+std::vector<double> time_apply_gate_2(
+    int nqubit,
+    T a,
+    T b)
+{
+    T* statevector = vulcan::malloc_statevector<T>(nqubit);
+    vulcan::zero_statevector<T>(nqubit, statevector);
+
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+
+    std::vector<double> timings;
+    for (int qubitA = 0; qubitA < nqubit; qubitA++) {
+        for (int qubitB = 0; qubitB < nqubit; qubitB++) {
+            if (qubitA == qubitB) continue;
+
+            cudaEventRecord(start);
+            vulcan::apply_gate_2<T>(
+                nqubit,
+                statevector,
+                statevector,
+                qubitA,
+                qubitB,
+                T(0.0),
+                T(0.0),
+                T(0.0),
+                T(0.0),
+                T(0.0),
+                T(0.0),
+                T(0.0),
+                T(0.0),
+                T(0.0),
+                T(0.0),
+                T(0.0),
+                T(0.0),
+                T(0.0),
+                T(0.0),
+                T(0.0),
+                T(0.0),
+                a,
+                b);
+            cudaEventRecord(stop);
+            cudaEventSynchronize(stop);
+            float time_ms;
+            cudaEventElapsedTime(&time_ms, start, stop);
+            timings.push_back(1.0E-3 * time_ms);
+        }
+    }   
+
+    vulcan::free_statevector(statevector);
+    return timings;
+}
+
+void run_timings_gate_2(
+    int nqubit)
+{
+    printf("==> Apply Gate 2 Timings <==\n\n");
+    
+    printf("nqubit = %d\n\n", nqubit);
+
+    printf("T in [s]\n");
+    printf("B in [GiB / s]\n");
+    printf("\n");
+
+    size_t multiplier = 0;
+
+    printf("=> x = G(x) <=\n\n");
+    multiplier = 2;
+    printf("Multiplier = %zu\n", multiplier);
+    printf("\n");
+    printf("%2s %2s: %12s %12s %12s %12s %12s %12s %12s %12s\n",
+        "A",
+        "B",
+        "T float32",
+        "T float64",
+        "T complex64",
+        "T complex128",
+        "B float32",
+        "B float64",
+        "B complex64",
+        "B complex128"
+        );
+    std::vector<double> Ts_float32 = time_apply_gate_2<float32>(nqubit, float32(1.0), float32(0.0));
+    std::vector<double> Ts_float64 = time_apply_gate_2<float64>(nqubit, float64(1.0), float64(0.0));
+    std::vector<double> Ts_complex64 = time_apply_gate_2<complex64>(nqubit, complex64(1.0), complex64(0.0));
+    std::vector<double> Ts_complex128 = time_apply_gate_2<complex128>(nqubit, complex128(1.0), complex128(0.0));
+    for (int qubitA = 0, index = 0; qubitA < nqubit; qubitA++) {
+        for (int qubitB = 0; qubitB < nqubit; qubitB++) {
+            if (qubitA == qubitB) continue;
+            double T_float32 = Ts_float32[index];
+            double T_float64 = Ts_float64[index];
+            double T_complex64 = Ts_complex64[index];
+            double T_complex128 = Ts_complex128[index];
+            size_t ndata = (1ULL << nqubit) * multiplier;
+            double B_float32 = ndata * sizeof(float32) / T_float32 / 1E9;
+            double B_float64 = ndata * sizeof(float64) / T_float64 / 1E9;
+            double B_complex64 = ndata * sizeof(complex64) / T_complex64 / 1E9;
+            double B_complex128 = ndata * sizeof(complex128) / T_complex128 / 1E9;
+            printf("%2d %2d: %12.3E %12.3E %12.3E %12.3E %12.3E %12.3E %12.3E %12.3E\n",
+                qubitA,
+                qubitB,
+                T_float32,
+                T_float64,
+                T_complex64,
+                T_complex128,
+                B_float32,
+                B_float64,
+                B_complex64,
+                B_complex128
+                );
+            index++;
+        }
+    }
+    printf("\n");
+}
+
 
 } // namespace vulcan
