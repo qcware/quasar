@@ -1,5 +1,6 @@
 #include "vulcan.hpp"
 #include "vulcan_types.hpp"
+#include "vulcan_timings.hpp"
 #include "device_properties.hpp"
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -278,6 +279,8 @@ PYBIND11_MODULE(vulcan_plugin, m) {
 
     m.def("ndevice", &vulcan::ndevice);
     m.def("device_property_string", &vulcan::device_property_string);
+
+    m.def("run_timings_1", &vulcan::run_timings_1);
 
     // => float32 <= //
 

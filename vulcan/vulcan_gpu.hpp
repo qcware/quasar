@@ -39,7 +39,7 @@ namespace vulcan {
 // Maximum number of qubits the library can handle
 #define MAX_NQUBIT 31
 // Standard CUDA block size for the library
-#define BLOCK_SIZE 32
+#define BLOCK_SIZE 128 // AXPBY really likes 128
 
 // => Utility Functions <= //
 
