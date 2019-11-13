@@ -2219,7 +2219,7 @@ class Circuit(object):
         join_strs = [''.join(_) for _ in join_lines]
         time_str = ''.join(['%-*d|' % (v, k) for k, v in time_widths.items()])
         
-        qwidth = max(len(str(index - min_qubit)) for index in range(nqubit)) if nqubit else 0
+        qwidth = max(len(str(index + min_qubit)) for index in range(nqubit)) if nqubit else 0
         
         # Pagination
         fwidth = qwidth + 6 # Width of first column
