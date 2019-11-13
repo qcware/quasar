@@ -10,4 +10,4 @@ from .quasar_ultrafast_backend import QuasarUltrafastBackend
 from .ionq_backend import IonQBackend
 from .measurement import Ket, Histogram, ProbabilityHistogram, CountHistogram
 from .autocircuit import AutoCircuit
-from .autogate import AutoGate
+from .autogate import AutoGate, AutoControlledGate
