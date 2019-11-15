@@ -74,6 +74,13 @@ class VulcanSimulatorBackend(quasar.Backend):
         np.complex128 : vulcan.run_pauli_expectation_value_gradient_complex128,
     }
 
+    vulcan_run_measurement_method = {
+        np.float32 : vulcan.run_measurement_float32,
+        np.float64 : vulcan.run_measurement_float64,
+        np.complex64 : vulcan.run_measurement_complex64,
+        np.complex128 : vulcan.run_measurement_complex128,
+    }
+
     @staticmethod
     def vulcan_gate(
         gate,
@@ -369,3 +376,57 @@ class VulcanSimulatorBackend(quasar.Backend):
             pauli2,
             statevector,
             )[parameter_indices]
+
+    def run_measurement(
+        self,
+        circuit,
+        nmeasurement=None,
+        statevector=None,
+        min_qubit=None,
+        nqubit=None,
+        dtype=np.complex128,
+        ):
+
+        if nmeasurement is None:
+            return super().run_measurement(
+                circuit=circuit,
+                statevector=statevector,
+                min_qubit=min_qubit,
+                nqubit=nqubit,
+                dtype=dtype)
+
+        circuit2 = VulcanSimulatorBackend.vulcan_circuit(
+            circuit=circuit, 
+            min_qubit=min_qubit,
+            nqubit=nqubit,
+            dtype=dtype,
+            )
+
+        statevector = VulcanSimulatorBackend.vulcan_null_array[dtype] if statevector is None else statevector
+
+        sample_dtype = dtype
+        if dtype == np.complex64:
+            sample_dtype = np.float32
+        elif dtype == np.complex128:
+            sample_dtype = np.float64
+
+        randoms = np.array(np.random.rand(nmeasurement,), dtype=sample_dtype)
+
+        samples = VulcanSimulatorBackend.vulcan_run_measurement_method[dtype](
+            circuit2,
+            statevector,
+            randoms,
+            )
+
+        counts = {}
+        nqubit = circuit2.nqubit()
+        for sample in samples:
+            ket = quasar.Ket.from_int(int(sample), nqubit)
+            counts[ket] = counts.get(ket, 0) + 1
+
+        probabilities = { k : v / nmeasurement for k, v in counts.items() }
+
+        return quasar.ProbabilityHistogram(
+            histogram=probabilities,
+            nmeasurement=nmeasurement, 
+            )

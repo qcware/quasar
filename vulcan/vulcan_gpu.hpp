@@ -377,7 +377,9 @@ template <typename T>
 void measure(
     int nqubit,
     T* cumsum_d,
+    T sum,
     int nmeasurement,
+    T* randoms,
     int* measurements);
 
 } // namespace vulcan

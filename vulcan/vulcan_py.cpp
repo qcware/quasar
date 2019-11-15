@@ -16,6 +16,7 @@ typedef py::array_t<float, py::array::c_style | py::array::forcecast> np_float32
 typedef py::array_t<double, py::array::c_style | py::array::forcecast> np_float64;
 typedef py::array_t<std::complex<float>, py::array::c_style | py::array::forcecast> np_complex64;
 typedef py::array_t<std::complex<double>, py::array::c_style | py::array::forcecast> np_complex128;
+typedef py::array_t<int, py::array::c_style | py::array::forcecast> np_int32;
 
 template <typename U>
 U* np_pointer(
@@ -275,6 +276,65 @@ np_complex128 py_run_pauli_expectation_value_gradient_complex128(
     return py_run_pauli_expectation_value_gradient<complex128, std::complex<double>>(circuit, pauli, statevector);
 }
 
+template <typename T, typename U, typename V, typename W> 
+py::array_t<int> py_run_measurement(
+    const Circuit<T>& circuit,
+    const py::array_t<U>& statevector,
+    const py::array_t<W>& randoms)
+{
+    static_assert(sizeof(T) == sizeof(U), "T and U must be of equal size");
+    static_assert(sizeof(V) == sizeof(W), "V and W must be of equal size");
+
+    if (randoms.ndim() != 1) {
+        throw std::runtime_error("randoms must be (nmeasurement,) shape");
+    }
+
+    py::buffer_info randoms_buffer = randoms.request();
+    W* randoms_ptr = (W*) randoms_buffer.ptr;
+
+    py::array_t<int> result = py::array_t<int>(randoms.shape(0));
+    py::buffer_info result_buffer = result.request();
+    int* result_ptr = (int*) result_buffer.ptr;
+
+    U* statevector_ptr = np_pointer(circuit.nqubit(), statevector);
+
+    vulcan::run_measurement<T, V>(circuit, (T*) statevector_ptr, randoms.shape(0), (V*) randoms_ptr, result_ptr);
+
+    return result;
+}
+
+np_int32 py_run_measurement_float32(
+    const Circuit<float32>& circuit,
+    const np_float32& statevector,
+    const np_float32& randoms)
+{
+    return py_run_measurement<float32, float, float32, float>(circuit, statevector, randoms);
+}
+
+np_int32 py_run_measurement_float64(
+    const Circuit<float64>& circuit,
+    const np_float64& statevector,
+    const np_float64& randoms)
+{
+    return py_run_measurement<float64, double, float64, double>(circuit, statevector, randoms);
+}
+
+np_int32 py_run_measurement_complex64(
+    const Circuit<complex64>& circuit,
+    const np_complex64& statevector,
+    const np_float32& randoms)
+{
+    return py_run_measurement<complex64, std::complex<float>, float32, float>(circuit, statevector, randoms);
+}
+
+np_int32 py_run_measurement_complex128(
+    const Circuit<complex128>& circuit,
+    const np_complex128& statevector,
+    const np_float64& randoms)
+{
+    return py_run_measurement<complex128, std::complex<double>, float64, double>(circuit, statevector, randoms);
+}
+
 PYBIND11_MODULE(vulcan_plugin, m) {
 
     m.def("ndevice", &vulcan::ndevice);
@@ -324,6 +384,7 @@ PYBIND11_MODULE(vulcan_plugin, m) {
     m.def("run_pauli_expectation_float32", py_run_pauli_expectation_float32);
     m.def("run_pauli_expectation_value_float32", py_run_pauli_expectation_value_float32);
     m.def("run_pauli_expectation_value_gradient_float32", py_run_pauli_expectation_value_gradient_float32);
+    m.def("run_measurement_float32", py_run_measurement_float32);
 
     // => float64 <= //
 
@@ -364,6 +425,7 @@ PYBIND11_MODULE(vulcan_plugin, m) {
     m.def("run_pauli_expectation_float64", py_run_pauli_expectation_float64);
     m.def("run_pauli_expectation_value_float64", py_run_pauli_expectation_value_float64);
     m.def("run_pauli_expectation_value_gradient_float64", py_run_pauli_expectation_value_gradient_float64);
+    m.def("run_measurement_float64", py_run_measurement_float64);
 
     // => complex64 <= //
 
@@ -404,6 +466,7 @@ PYBIND11_MODULE(vulcan_plugin, m) {
     m.def("run_pauli_expectation_complex64", py_run_pauli_expectation_complex64);
     m.def("run_pauli_expectation_value_complex64", py_run_pauli_expectation_value_complex64);
     m.def("run_pauli_expectation_value_gradient_complex64", py_run_pauli_expectation_value_gradient_complex64);
+    m.def("run_measurement_complex64", py_run_measurement_complex64);
 
     // => complex128 <= //
 
@@ -444,6 +507,7 @@ PYBIND11_MODULE(vulcan_plugin, m) {
     m.def("run_pauli_expectation_complex128", py_run_pauli_expectation_complex128);
     m.def("run_pauli_expectation_value_complex128", py_run_pauli_expectation_value_complex128);
     m.def("run_pauli_expectation_value_gradient_complex128", py_run_pauli_expectation_value_gradient_complex128);
+    m.def("run_measurement_complex128", py_run_measurement_complex128);
 
 }
 

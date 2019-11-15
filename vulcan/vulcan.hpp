@@ -610,5 +610,48 @@ std::vector<T> run_pauli_expectation_value_gradient(
     vulcan::free_statevector(statevector3_d);
     return gradient;
 }
+
+template <typename T, typename U>
+void run_measurement(
+    const Circuit<T>& circuit,
+    const T* statevector_h,
+    int nmeasurement,
+    const U* randoms_h,
+    int* measurements_h)
+{
+    T* statevector_d = vulcan::malloc_and_initialize_statevector(circuit.nqubit(), statevector_h);
+    vulcan::util::run_statevector(circuit, statevector_d);
+
+    U* pvector_d;
+    if (sizeof(T) == sizeof(U)) {
+        pvector_d = (U*) statevector_d; // in-place with real types
+    } else if (sizeof(T) == 2*sizeof(U)) {
+        pvector_d = vulcan::malloc_statevector<U>(circuit.nqubit()); // Temporary with complex types
+    } else {
+        throw std::runtime_error("T/U sizes do not make sense");
+    }
+
+    vulcan::abs2<T, U>(circuit.nqubit(), statevector_d, pvector_d);
+
+    U sum = vulcan::cumsum<U>(circuit.nqubit(), pvector_d);
+
+    U* randoms_d;
+    cudaMalloc(&randoms_d, sizeof(U)*nmeasurement);
+    cudaMemcpy(randoms_d, randoms_h, sizeof(U)*nmeasurement, cudaMemcpyHostToDevice);
+
+    int* measurements_d;
+    cudaMalloc(&measurements_d, sizeof(int)*nmeasurement);
+
+    vulcan::measure(circuit.nqubit(), pvector_d, sum, nmeasurement, randoms_d, measurements_d); 
+
+    cudaMemcpy(measurements_h, measurements_d, sizeof(int)*nmeasurement, cudaMemcpyDeviceToHost);
+
+    vulcan::free_statevector(statevector_d);
+    if (sizeof(T) != sizeof(U)) {
+        vulcan::free_statevector(pvector_d);
+    }
+    cudaFree(randoms_d);
+    cudaFree(measurements_d);
+}
     
 } // namespace vulcan

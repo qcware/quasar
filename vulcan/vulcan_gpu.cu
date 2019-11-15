@@ -748,4 +748,57 @@ T cumsum(
 template float64 cumsum<float64>(int, float64*);
 template float32 cumsum<float32>(int, float32*);
 
+template <typename T>
+__global__ void measurement_kernel(
+    int nqubit,
+    T* cumsum,
+    T sum,
+    int nmeasurement,
+    T* randoms,
+    int* measurements)
+{
+    int index = threadIdx.x  + blockDim.x * blockIdx.x;
+    if (index >= nmeasurement) return;
+    T random = randoms[index];
+    random *= sum; // Now in the [0, sum) regime
+    
+    int ket = 0;
+    int interval = (1 << nqubit);
+    for (int d = 0; d < nqubit; d++) {
+        interval >>= 1;
+        int ket2 = ket + interval; 
+        T pval = cumsum[ket2];
+        if (pval.real() < random.real()) {
+            ket = ket2;
+        }
+    }
+     
+    measurements[index] = ket; 
+}
+
+template <typename T>
+void measure(
+    int nqubit,
+    T* cumsum,
+    T sum,
+    int nmeasurement,
+    T* randoms,
+    int* measurements)
+{
+    int block_size = 512;
+
+    int grid_size = (nmeasurement - 1) / block_size + 1;
+    
+    measurement_kernel<<<grid_size, block_size>>>(
+        nqubit,
+        cumsum,
+        sum,
+        nmeasurement,
+        randoms,
+        measurements);
+}
+
+template void measure<float64>(int, float64*, float64, int, float64*, int*);
+template void measure<float32>(int, float32*, float32, int, float32*, int*);
+
 } // namespace vulcan
