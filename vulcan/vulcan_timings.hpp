@@ -1,7 +1,5 @@
 #pragma once
 
-#include "cuerr.h"
-
 #include "vulcan_gpu.hpp"
 #include "vulcan_types.hpp"
 #include <cuda_runtime.h>
@@ -908,21 +906,12 @@ double time_cumsum(
 {
     T* statevector = vulcan::malloc_statevector<T>(nqubit);
 
-    T* statevector_h = new T[(1ULL << nqubit)];
-    for (size_t index = 0; index < (1ULL << nqubit); index++) {
-        statevector_h[index] = T(1.0);
-    }
-    vulcan::copy_statevector_to_device(nqubit, statevector, statevector_h);
-
     cudaEvent_t start, stop;
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
 
     cudaEventRecord(start);
-    CUERR;
-    T val = vulcan::cumsum<T>(nqubit, statevector);
-    CUERR;
-    printf("%24.16E %24.16E\n", val.real(), val.imag());
+    vulcan::cumsum<T>(nqubit, statevector);
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
 

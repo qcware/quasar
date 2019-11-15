@@ -738,12 +738,9 @@ T cumsum(
             statevector, 
             d);
     }
-    CUERR;
 
     T val = get_statevector_element(statevector, (1 << nqubit) - 1);
-    CUERR;
     set_statevector_element(statevector, (1 << nqubit) - 1, T(0.0));
-    CUERR;
 
     for (int d = nqubit - 1; d >= 0; d--) {
         std::pair<int, int> grid_size = cuda_grid_size(nqubit - 1 - d, sweep_block_size<T>());
@@ -751,7 +748,6 @@ T cumsum(
             statevector, 
             d);
     }
-    CUERR;
 
     return val;
 }
