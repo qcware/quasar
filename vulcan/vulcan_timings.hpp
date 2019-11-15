@@ -1,5 +1,7 @@
 #pragma once
 
+#include "cuerr.h"
+
 #include "vulcan_gpu.hpp"
 #include "vulcan_types.hpp"
 #include <cuda_runtime.h>
@@ -83,6 +85,28 @@ double time_set_statevector_element(
 
     cudaEventRecord(start);
     vulcan::set_statevector_element(statevector, 0, T(1.0));
+    cudaEventRecord(stop);
+    cudaEventSynchronize(stop);
+    float time_ms;
+    cudaEventElapsedTime(&time_ms, start, stop);
+
+    vulcan::free_statevector(statevector);
+
+    return 1.0E-3 * time_ms;
+}
+
+template <typename T>
+double time_get_statevector_element(
+    int nqubit)
+{
+    T* statevector = vulcan::malloc_statevector<T>(nqubit);
+
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+
+    cudaEventRecord(start);
+    vulcan::get_statevector_element(statevector, 0);
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
     float time_ms;
@@ -349,6 +373,45 @@ void run_timings_blas_1(
         double T_float64 = time_set_statevector_element<float64>(nqubit);
         double T_complex64 = time_set_statevector_element<complex64>(nqubit);
         double T_complex128 = time_set_statevector_element<complex128>(nqubit);
+        size_t ndata = (1ULL << nqubit) * multiplier;
+        double B_float32 = ndata * sizeof(float32) / T_float32 / 1E9;
+        double B_float64 = ndata * sizeof(float64) / T_float64 / 1E9;
+        double B_complex64 = ndata * sizeof(complex64) / T_complex64 / 1E9;
+        double B_complex128 = ndata * sizeof(complex128) / T_complex128 / 1E9;
+        printf("%2d: %12.3E %12.3E %12.3E %12.3E %12.3E %12.3E %12.3E %12.3E\n",
+            nqubit,
+            T_float32,
+            T_float64,
+            T_complex64,
+            T_complex128,
+            B_float32,
+            B_float64,
+            B_complex64,
+            B_complex128
+            );
+    }
+    printf("\n");
+
+    printf("=> Get Statevector Element <=\n\n");
+    multiplier = 1;
+    printf("Multiplier = %zu\n", multiplier);
+    printf("\n");
+    printf("%2s: %12s %12s %12s %12s %12s %12s %12s %12s\n",
+        "N",
+        "T float32",
+        "T float64",
+        "T complex64",
+        "T complex128",
+        "B float32",
+        "B float64",
+        "B complex64",
+        "B complex128"
+        );
+    for (int nqubit = min_nqubit; nqubit <= max_nqubit; nqubit++) {
+        double T_float32 = time_get_statevector_element<float32>(nqubit);
+        double T_float64 = time_get_statevector_element<float64>(nqubit);
+        double T_complex64 = time_get_statevector_element<complex64>(nqubit);
+        double T_complex128 = time_get_statevector_element<complex128>(nqubit);
         size_t ndata = (1ULL << nqubit) * multiplier;
         double B_float32 = ndata * sizeof(float32) / T_float32 / 1E9;
         double B_float64 = ndata * sizeof(float64) / T_float64 / 1E9;
@@ -812,6 +875,152 @@ void run_timings_gate_2(
                 );
             index++;
         }
+    }
+    printf("\n");
+}
+
+template <typename T>
+double time_abs2(
+    int nqubit)
+{
+    T* statevector = vulcan::malloc_statevector<T>(nqubit);
+
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+
+    cudaEventRecord(start);
+    vulcan::abs2<T>(nqubit, statevector);
+    cudaEventRecord(stop);
+    cudaEventSynchronize(stop);
+
+    float time_ms;
+    cudaEventElapsedTime(&time_ms, start, stop);
+
+    vulcan::free_statevector(statevector);
+    
+    return 1.0E-3 * time_ms;
+}
+
+template <typename T>
+double time_cumsum(
+    int nqubit)
+{
+    T* statevector = vulcan::malloc_statevector<T>(nqubit);
+
+    T* statevector_h = new T[(1ULL << nqubit)];
+    for (size_t index = 0; index < (1ULL << nqubit); index++) {
+        statevector_h[index] = T(1.0);
+    }
+    vulcan::copy_statevector_to_device(nqubit, statevector, statevector_h);
+
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+
+    cudaEventRecord(start);
+    CUERR;
+    T val = vulcan::cumsum<T>(nqubit, statevector);
+    CUERR;
+    printf("%24.16E %24.16E\n", val.real(), val.imag());
+    cudaEventRecord(stop);
+    cudaEventSynchronize(stop);
+
+    float time_ms;
+    cudaEventElapsedTime(&time_ms, start, stop);
+
+    vulcan::free_statevector(statevector);
+    
+    return 1.0E-3 * time_ms;
+}
+
+void run_timings_measurement(
+    int min_nqubit,
+    int max_nqubit)
+{
+    printf("==> Measurement Timings <==\n\n");
+    
+    printf("T in [s]\n");
+    printf("B in [GiB / s]\n");
+    printf("\n");
+
+    size_t multiplier = 0;
+
+    printf("=> Abs2 <=\n\n");
+    multiplier = 2;
+    printf("Multiplier = %zu\n", multiplier);
+    printf("\n");
+    printf("%2s: %12s %12s %12s %12s %12s %12s %12s %12s\n",
+        "N",
+        "T float32",
+        "T float64",
+        "T complex64",
+        "T complex128",
+        "B float32",
+        "B float64",
+        "B complex64",
+        "B complex128"
+        );
+    for (int nqubit = min_nqubit; nqubit <= max_nqubit; nqubit++) {
+        double T_float32 = time_abs2<float32>(nqubit);
+        double T_float64 = time_abs2<float64>(nqubit);
+        double T_complex64 = time_abs2<complex64>(nqubit);
+        double T_complex128 = time_abs2<complex128>(nqubit);
+        size_t ndata = (1ULL << nqubit) * multiplier;
+        double B_float32 = ndata * sizeof(float32) / T_float32 / 1E9;
+        double B_float64 = ndata * sizeof(float64) / T_float64 / 1E9;
+        double B_complex64 = ndata * sizeof(complex64) / T_complex64 / 1E9;
+        double B_complex128 = ndata * sizeof(complex128) / T_complex128 / 1E9;
+        printf("%2d: %12.3E %12.3E %12.3E %12.3E %12.3E %12.3E %12.3E %12.3E\n",
+            nqubit,
+            T_float32,
+            T_float64,
+            T_complex64,
+            T_complex128,
+            B_float32,
+            B_float64,
+            B_complex64,
+            B_complex128
+            );
+    }
+    printf("\n");
+
+    printf("=> Cumsum <=\n\n");
+    multiplier = 2;
+    printf("Multiplier = %zu\n", multiplier);
+    printf("\n");
+    printf("%2s: %12s %12s %12s %12s %12s %12s %12s %12s\n",
+        "N",
+        "T float32",
+        "T float64",
+        "T complex64",
+        "T complex128",
+        "B float32",
+        "B float64",
+        "B complex64",
+        "B complex128"
+        );
+    for (int nqubit = min_nqubit; nqubit <= max_nqubit; nqubit++) {
+        double T_float32 = time_cumsum<float32>(nqubit);
+        double T_float64 = time_cumsum<float64>(nqubit);
+        double T_complex64 = time_cumsum<complex64>(nqubit);
+        double T_complex128 = time_cumsum<complex128>(nqubit);
+        size_t ndata = (1ULL << nqubit) * multiplier;
+        double B_float32 = ndata * sizeof(float32) / T_float32 / 1E9;
+        double B_float64 = ndata * sizeof(float64) / T_float64 / 1E9;
+        double B_complex64 = ndata * sizeof(complex64) / T_complex64 / 1E9;
+        double B_complex128 = ndata * sizeof(complex128) / T_complex128 / 1E9;
+        printf("%2d: %12.3E %12.3E %12.3E %12.3E %12.3E %12.3E %12.3E %12.3E\n",
+            nqubit,
+            T_float32,
+            T_float64,
+            T_complex64,
+            T_complex128,
+            B_float32,
+            B_float64,
+            B_complex64,
+            B_complex128
+            );
     }
     printf("\n");
 }

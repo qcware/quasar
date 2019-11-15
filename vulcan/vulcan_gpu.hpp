@@ -36,14 +36,12 @@
     
 namespace vulcan {
 
+// => Utility Functions <= //
+
 // Maximum number of qubits the library can handle
 #define MAX_NQUBIT 31
 
-// => Utility Functions <= //
-
-void validate_nqubit(int nqubit);
-
-// => Main Library Functions <= //
+// => BLAS 1 Operations <= //
 
 /**
  * Malloc (but do not initialize) a device statevector of 2**nqubit T elements.
@@ -56,7 +54,9 @@ void validate_nqubit(int nqubit);
 template <typename T>
 T* malloc_statevector(int nqubit)
 {
-    validate_nqubit(nqubit);
+    if (nqubit > MAX_NQUBIT) {
+        throw std::runtime_error("nqubit too large");
+    }
     T* statevector_d;
     cudaError_t error = cudaMalloc(&statevector_d, (1ULL << nqubit) * sizeof(T));
     if (error != cudaSuccess) {
@@ -109,7 +109,7 @@ void zero_statevector(
  *  value (T) - value to set
  * Result:
  *  The statevector entry at the ket-th index is set to value.
- ***/
+ **/
 template <typename T>
 void set_statevector_element(
     T* statevector_d,
@@ -117,6 +117,26 @@ void set_statevector_element(
     T value)
 {
     cudaMemcpy(statevector_d + ket, &value, sizeof(T), cudaMemcpyHostToDevice);
+}
+
+/**
+ * Get the value of a given ket (a single configuration) in a statevector.
+ *
+ * Params:
+ *  statevector_d (T*) - device pointer to allocated statevector
+ *  ket (int) - index of ket to set value for
+ * Returns:
+ *  (T) - the value of the statevector at the ket index 
+ *
+ **/
+template <typename T>
+T get_statevector_element(
+    T* statevector_d,
+    int ket)
+{
+    T value;
+    cudaMemcpy(&value, statevector_d + ket, sizeof(T), cudaMemcpyDeviceToHost);
+    return value;
 }
 
 /**
@@ -246,6 +266,8 @@ void axpby(
     T a = T(1.0),
     T b = T(0.0));
 
+// => Gate Operations <= //
+
 /**
  * Apply a 1-qubit gate to statevector1, storing the result in statevector2:
  *
@@ -337,5 +359,24 @@ void apply_gate_2(
     T O33,
     T a = T(1.0),
     T b = T(0.0));
+
+// => Measurement Operations <= //
+
+template <typename T>
+void abs2(
+    int nqubit,
+    T* statevector_d);
+
+template <typename T>
+T cumsum(
+    int nqubit,
+    T* statevector_d);
+
+template <typename T>
+void measure(
+    int nqubit,
+    T* cumsum_d,
+    int nmeasurement,
+    int* measurements);
 
 } // namespace vulcan

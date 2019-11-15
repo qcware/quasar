@@ -283,6 +283,7 @@ PYBIND11_MODULE(vulcan_plugin, m) {
     m.def("run_timings_blas_1", &vulcan::run_timings_blas_1);
     m.def("run_timings_gate_1", &vulcan::run_timings_gate_1);
     m.def("run_timings_gate_2", &vulcan::run_timings_gate_2);
+    m.def("run_timings_measurement", &vulcan::run_timings_measurement);
 
     // => float32 <= //
 

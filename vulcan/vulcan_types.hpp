@@ -94,6 +94,13 @@ scalar<T> operator*(const scalar<T>& a, const scalar<T>& b) {
 }
 
 template <typename T>
+__host__ __device__ __forceinline__
+scalar<T> abs2(const scalar<T>& a) {
+    return scalar<T>(a.real() * a.real());
+}
+
+
+template <typename T>
 class complex {
 
 public:
@@ -193,6 +200,12 @@ complex<T> operator*(const complex<T>& a, const complex<T>& b) {
     return complex<T>(
         a.real() * b.real() - a.imag() * b.imag(),
         a.real() * b.imag() + a.imag() * b.real()); 
+}
+
+template <typename T>
+__host__ __device__ __forceinline__
+complex<T> abs2(const complex<T>& a) {
+    return complex<T>(a.real() * a.real() + a.imag() * a.imag());
 }
 
 typedef scalar<float> float32;

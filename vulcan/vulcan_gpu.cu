@@ -5,12 +5,6 @@ namespace vulcan {
 
 // => Utility Functions <= //
 
-void validate_nqubit(int nqubit)
-{
-    if (nqubit > MAX_NQUBIT) {
-        throw std::runtime_error("nqubit too large");
-    }
-}
 std::pair<int, int> cuda_grid_size(int nqubit, int block_size)
 {
     int size = (1ULL << nqubit);
@@ -629,5 +623,142 @@ template void apply_gate_2<complex64>(
    complex64, 
    complex64, 
    complex64);
+
+// => Measurement Operations <= //
+
+template <typename T>
+__global__ void abs2_kernel(
+    T* statevector)
+{
+    int index = threadIdx.x + blockDim.x * blockIdx.x;
+    T val = statevector[index];
+    T abs2 = vulcan::abs2(val);
+    statevector[index] = abs2;
+}
+
+
+template<typename T>
+int abs2_block_size();
+
+template<>
+int abs2_block_size<float32>() { return 256; }
+
+template<>
+int abs2_block_size<float64>() { return 128; }
+
+template<>
+int abs2_block_size<complex64>() { return 128; }
+
+template<>
+int abs2_block_size<complex128>() { return 64; }
+
+template <typename T>
+void abs2(
+    int nqubit,
+    T* statevector_d)
+{
+    std::pair<int, int> grid_size = cuda_grid_size(nqubit, abs2_block_size<T>());
+
+    abs2_kernel<<<std::get<0>(grid_size), std::get<1>(grid_size)>>>(
+        statevector_d);
+}
+
+template void abs2<float64>(int, float64*);
+template void abs2<float32>(int, float32*);
+template void abs2<complex128>(int, complex128*);
+template void abs2<complex64>(int, complex64*);
+
+template<typename T>
+int sweep_block_size();
+
+template<>
+int sweep_block_size<float32>() { return 256; }
+
+template<>
+int sweep_block_size<float64>() { return 128; }
+
+template<>
+int sweep_block_size<complex64>() { return 64; }
+
+template<>
+int sweep_block_size<complex128>() { return 64; }
+
+
+template <typename T>
+__global__ void upsweep_kernel(
+    T* statevector,
+    int d)
+{
+    int index = threadIdx.x + blockDim.x * blockIdx.x;
     
+    int k = index * (1 << (d+1));
+
+    int index0 = k + (1 << (d)) - 1;
+    int index1 = k + (1 << (d+1)) - 1;
+
+    T a = statevector[index0];
+    T b = statevector[index1];
+
+    T c = a + b;
+
+    statevector[index1] = c;
+}
+
+template <typename T>
+__global__ void downsweep_kernel(
+    T* statevector,
+    int d)
+{
+    int index = threadIdx.x + blockDim.x * blockIdx.x;
+    
+    int k = index * (1 << (d+1));
+
+    int index0 = k + (1 << (d)) - 1;
+    int index1 = k + (1 << (d+1)) - 1;
+
+    T a = statevector[index0];
+    T b = statevector[index1];
+
+    T c = a + b;
+
+    statevector[index0] = b;
+    statevector[index1] = c;
+}
+
+#include "cuerr.h"
+
+template <typename T>
+T cumsum(
+    int nqubit,
+    T* statevector)
+{
+    for (int d = 0; d < nqubit; d++) {
+        std::pair<int, int> grid_size = cuda_grid_size(nqubit - 1 - d, sweep_block_size<T>());
+        upsweep_kernel<<<std::get<0>(grid_size), std::get<1>(grid_size)>>>(
+            statevector, 
+            d);
+    }
+    CUERR;
+
+    T val = get_statevector_element(statevector, (1 << nqubit) - 1);
+    CUERR;
+    set_statevector_element(statevector, (1 << nqubit) - 1, T(0.0));
+    CUERR;
+
+    for (int d = nqubit - 1; d >= 0; d--) {
+        std::pair<int, int> grid_size = cuda_grid_size(nqubit - 1 - d, sweep_block_size<T>());
+        downsweep_kernel<<<std::get<0>(grid_size), std::get<1>(grid_size)>>>(
+            statevector, 
+            d);
+    }
+    CUERR;
+
+    return val;
+}
+
+template float64 cumsum<float64>(int, float64*);
+template float32 cumsum<float32>(int, float32*);
+template complex128 cumsum<complex128>(int, complex128*);
+template complex64 cumsum<complex64>(int, complex64*);
+
 } // namespace vulcan
