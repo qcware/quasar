@@ -1,0 +1,24 @@
+Task: run_statevector
+
+                vulcan_float32 :   1.317E-02   0.000E+00   1.000E+00
+              vulcan_complex64 :   2.363E-02   1.788E-07   1.795E+00
+             vulcan_complex128 :   4.322E-02   1.070E-07   3.282E+00
+                cirq_complex64 :   2.405E+00   1.788E-07   1.827E+02
+Task: run_pauli_sigma
+
+                vulcan_float32 :   1.428E-02   0.000E+00   1.000E+00
+              vulcan_complex64 :   2.773E-02   4.292E-06   1.943E+00
+             vulcan_complex128 :   5.355E-02   2.633E-06   3.751E+00
+                cirq_complex64 :   2.357E+00   4.768E-06   1.651E+02
+Task: run_pauli_expectation
+
+                vulcan_float32 :   1.515E-02   0.000E+00   1.000E+00
+              vulcan_complex64 :   2.717E-02   2.384E-07   1.793E+00
+             vulcan_complex128 :   3.698E-02   4.220E-07   2.441E+00
+                cirq_complex64 :   5.400E+00   3.576E-07   3.564E+02
+Task: run_pauli_expectation_value
+
+                vulcan_float32 :   1.200E-02   0.000E+00   1.000E+00
+              vulcan_complex64 :   2.173E-02   1.907E-06   1.811E+00
+             vulcan_complex128 :   3.813E-02   5.468E-06   3.178E+00
+                cirq_complex64 :   4.791E+00   1.907E-06   3.992E+02

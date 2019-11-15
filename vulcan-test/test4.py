@@ -81,14 +81,23 @@ def test_array(
     for task in tasks:
         print('Task: %s' % (task))
         print('')
-
+        print('%30s : %11s %11s %11s' % (
+            'Backend',
+            'Time [s]',
+            'Error [-]',
+            'Speedup [x]',
+            ))
         for key in configurations.keys():
-            print('%30s : %11.3E %11.3E %11.3E' % (
+            print('%30s : %11.3E %11.3E %11.3E%s' % (
                 key,
                 times[key][task],
                 deltas[key][task],
                 times[key][task] / times[reference][task],
+                '*' if key == reference else '',
                 ))
+        print('')
+
+    print('* Reference Backend. Speedup [X] is T[X] / T[reference].')
             
 
 def cis_circuit(
@@ -213,14 +222,14 @@ def test_cis_z1(
         'run_pauli_sigma',  
         'run_pauli_expectation',  
         'run_pauli_expectation_value',  
-    #     'run_pauli_expectation_value_gradient',  
+        'run_pauli_expectation_value_gradient',  
     ]
 
     backends = {
     #     'quasar_slow' : quasar.QuasarSimulatorBackend(),
     #     'quasar' : quasar.QuasarUltrafastBackend(),
         'vulcan' : vulcan.VulcanSimulatorBackend(),
-    #     'qiskit' : quasar.QiskitSimulatorBackend(),
+        'qiskit' : quasar.QiskitSimulatorBackend(),
         'cirq' : quasar.CirqSimulatorBackend(),
     }
 
@@ -249,6 +258,7 @@ def test_cis_z1(
         'vulcan_complex64' : Configuration(backend=backends['vulcan'], dtype=dtypes['complex64'], threshold=1.0E-5),
         'vulcan_complex128' : Configuration(backend=backends['vulcan'], dtype=dtypes['complex128'], threshold=1.0E-5),
         'cirq_complex64' : Configuration(backend=backends['cirq'], dtype=dtypes['complex64'], threshold=1.0E-5),
+        # 'qiskit_complex128' : Configuration(backend=backends['qiskit'], dtype=dtypes['complex128'], threshold=1.0E-5),
     }
 
     test_array(

@@ -1,0 +1,37 @@
+Task: run_statevector
+
+                       Backend :    Time [s]   Error [-] Speedup [x]
+                vulcan_float32 :   5.497E-03   0.000E+00   1.000E+00*
+              vulcan_complex64 :   5.547E-03   1.490E-07   1.009E+00
+             vulcan_complex128 :   8.237E-03   8.467E-08   1.498E+00
+                cirq_complex64 :   5.194E-01   1.192E-07   9.447E+01
+             qiskit_complex128 :   1.445E+01   8.467E-08   2.629E+03
+
+Task: run_pauli_sigma
+
+                       Backend :    Time [s]   Error [-] Speedup [x]
+                vulcan_float32 :   4.865E-03   0.000E+00   1.000E+00*
+              vulcan_complex64 :   8.356E-03   3.338E-06   1.718E+00
+             vulcan_complex128 :   1.478E-02   1.482E-06   3.038E+00
+                cirq_complex64 :   4.413E-01   1.907E-06   9.071E+01
+             qiskit_complex128 :   2.388E+02   1.482E-06   4.909E+04
+
+Task: run_pauli_expectation
+
+                       Backend :    Time [s]   Error [-] Speedup [x]
+                vulcan_float32 :   9.487E-03   0.000E+00   1.000E+00*
+              vulcan_complex64 :   1.155E-02   1.192E-07   1.217E+00
+             vulcan_complex128 :   1.410E-02   2.853E-07   1.486E+00
+                cirq_complex64 :   1.093E+00   1.192E-07   1.152E+02
+             qiskit_complex128 :   2.538E+02   2.853E-07   2.675E+04
+
+Task: run_pauli_expectation_value
+
+                       Backend :    Time [s]   Error [-] Speedup [x]
+                vulcan_float32 :   5.061E-03   0.000E+00   1.000E+00*
+              vulcan_complex64 :   8.189E-03   0.000E+00   1.618E+00
+             vulcan_complex128 :   1.229E-02   4.323E-06   2.428E+00
+                cirq_complex64 :   9.524E-01   1.907E-06   1.882E+02
+             qiskit_complex128 :   2.537E+02   4.323E-06   5.014E+04
+
+* Reference Backend. Speedup [X] is T[X] / T[reference].

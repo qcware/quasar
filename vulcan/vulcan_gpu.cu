@@ -626,16 +626,16 @@ template void apply_gate_2<complex64>(
 
 // => Measurement Operations <= //
 
-template <typename T>
+template <typename T, typename U>
 __global__ void abs2_kernel(
-    T* statevector)
+    T* statevector1_d,
+    U* statevector2_d)
 {
     int index = threadIdx.x + blockDim.x * blockIdx.x;
-    T val = statevector[index];
+    T val = statevector1_d[index];
     T abs2 = vulcan::abs2(val);
-    statevector[index] = abs2;
+    statevector2_d[index] = abs2.real();
 }
-
 
 template<typename T>
 int abs2_block_size();
@@ -652,21 +652,23 @@ int abs2_block_size<complex64>() { return 128; }
 template<>
 int abs2_block_size<complex128>() { return 64; }
 
-template <typename T>
+template <typename T, typename U>
 void abs2(
     int nqubit,
-    T* statevector_d)
+    T* statevector1_d,
+    U* statevector2_d)
 {
     std::pair<int, int> grid_size = cuda_grid_size(nqubit, abs2_block_size<T>());
 
     abs2_kernel<<<std::get<0>(grid_size), std::get<1>(grid_size)>>>(
-        statevector_d);
+        statevector1_d,
+        statevector2_d);
 }
 
-template void abs2<float64>(int, float64*);
-template void abs2<float32>(int, float32*);
-template void abs2<complex128>(int, complex128*);
-template void abs2<complex64>(int, complex64*);
+template void abs2<float64, float64>(int, float64*, float64*);
+template void abs2<float32, float32>(int, float32*, float32*);
+template void abs2<complex128, float64>(int, complex128*, float64*);
+template void abs2<complex64, float32>(int, complex64*, float32*);
 
 template<typename T>
 int sweep_block_size();
@@ -676,13 +678,6 @@ int sweep_block_size<float32>() { return 256; }
 
 template<>
 int sweep_block_size<float64>() { return 128; }
-
-template<>
-int sweep_block_size<complex64>() { return 64; }
-
-template<>
-int sweep_block_size<complex128>() { return 64; }
-
 
 template <typename T>
 __global__ void upsweep_kernel(
@@ -725,8 +720,6 @@ __global__ void downsweep_kernel(
     statevector[index1] = c;
 }
 
-#include "cuerr.h"
-
 template <typename T>
 T cumsum(
     int nqubit,
@@ -754,7 +747,5 @@ T cumsum(
 
 template float64 cumsum<float64>(int, float64*);
 template float32 cumsum<float32>(int, float32*);
-template complex128 cumsum<complex128>(int, complex128*);
-template complex64 cumsum<complex64>(int, complex64*);
 
 } // namespace vulcan

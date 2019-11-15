@@ -877,25 +877,34 @@ void run_timings_gate_2(
     printf("\n");
 }
 
-template <typename T>
+template <typename T, typename U>
 double time_abs2(
     int nqubit)
 {
-    T* statevector = vulcan::malloc_statevector<T>(nqubit);
+    T* statevector1 = vulcan::malloc_statevector<T>(nqubit);
+    U* statevector2;
+    if (sizeof(T) == sizeof(U)) {
+        statevector2 = (U*) statevector1;
+    } else {
+        statevector2 = vulcan::malloc_statevector<U>(nqubit);
+    }
 
     cudaEvent_t start, stop;
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
 
     cudaEventRecord(start);
-    vulcan::abs2<T>(nqubit, statevector);
+    vulcan::abs2<T, U>(nqubit, statevector1, statevector2);
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
 
     float time_ms;
     cudaEventElapsedTime(&time_ms, start, stop);
 
-    vulcan::free_statevector(statevector);
+    vulcan::free_statevector(statevector1);
+    if (sizeof(T) != sizeof(U)) {
+        vulcan::free_statevector(statevector2);
+    }
     
     return 1.0E-3 * time_ms;
 }
@@ -951,10 +960,10 @@ void run_timings_measurement(
         "B complex128"
         );
     for (int nqubit = min_nqubit; nqubit <= max_nqubit; nqubit++) {
-        double T_float32 = time_abs2<float32>(nqubit);
-        double T_float64 = time_abs2<float64>(nqubit);
-        double T_complex64 = time_abs2<complex64>(nqubit);
-        double T_complex128 = time_abs2<complex128>(nqubit);
+        double T_float32 = time_abs2<float32, float32>(nqubit);
+        double T_float64 = time_abs2<float64, float64>(nqubit);
+        double T_complex64 = time_abs2<complex64, float32>(nqubit);
+        double T_complex128 = time_abs2<complex128, float64>(nqubit);
         size_t ndata = (1ULL << nqubit) * multiplier;
         double B_float32 = ndata * sizeof(float32) / T_float32 / 1E9;
         double B_float64 = ndata * sizeof(float64) / T_float64 / 1E9;
@@ -978,38 +987,24 @@ void run_timings_measurement(
     multiplier = 2;
     printf("Multiplier = %zu\n", multiplier);
     printf("\n");
-    printf("%2s: %12s %12s %12s %12s %12s %12s %12s %12s\n",
+    printf("%2s: %12s %12s %12s %12s\n",
         "N",
         "T float32",
         "T float64",
-        "T complex64",
-        "T complex128",
         "B float32",
-        "B float64",
-        "B complex64",
-        "B complex128"
-        );
+        "B float64");
     for (int nqubit = min_nqubit; nqubit <= max_nqubit; nqubit++) {
         double T_float32 = time_cumsum<float32>(nqubit);
         double T_float64 = time_cumsum<float64>(nqubit);
-        double T_complex64 = time_cumsum<complex64>(nqubit);
-        double T_complex128 = time_cumsum<complex128>(nqubit);
         size_t ndata = (1ULL << nqubit) * multiplier;
         double B_float32 = ndata * sizeof(float32) / T_float32 / 1E9;
         double B_float64 = ndata * sizeof(float64) / T_float64 / 1E9;
-        double B_complex64 = ndata * sizeof(complex64) / T_complex64 / 1E9;
-        double B_complex128 = ndata * sizeof(complex128) / T_complex128 / 1E9;
-        printf("%2d: %12.3E %12.3E %12.3E %12.3E %12.3E %12.3E %12.3E %12.3E\n",
+        printf("%2d: %12.3E %12.3E %12.3E %12.3E\n",
             nqubit,
             T_float32,
             T_float64,
-            T_complex64,
-            T_complex128,
             B_float32,
-            B_float64,
-            B_complex64,
-            B_complex128
-            );
+            B_float64);
     }
     printf("\n");
 }

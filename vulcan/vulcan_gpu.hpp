@@ -362,10 +362,11 @@ void apply_gate_2(
 
 // => Measurement Operations <= //
 
-template <typename T>
+template <typename T, typename U>
 void abs2(
     int nqubit,
-    T* statevector_d);
+    T* statevector1_d,
+    U* statevector2_d);
 
 template <typename T>
 T cumsum(
