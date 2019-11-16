@@ -66,20 +66,6 @@ class Backend(object):
         return NotImplementedError
 
     @property
-    def has_run_pauli_sigma(
-        self,
-        ):
-
-        """ Does this Backend support run_pauli_sigma? 
-
-        Returns:
-            (bool) - True if run_pauli_sigma is supported else False.
-
-        Backend subclasses should OVERLOAD this method.
-        """ 
-        return NotImplementedError
-
-    @property
     def has_statevector_input(
         self,
         ):

@@ -30,10 +30,6 @@ class IonQBackend(Backend):
         return False
 
     @property
-    def has_run_pauli_sigma(self):
-        return False
-
-    @property
     def has_statevector_input(self):
         return False
 

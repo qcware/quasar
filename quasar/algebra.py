@@ -294,20 +294,3 @@ class Algebra(object):
             histogram={ Ket.from_int(int(k), N) : I.count(k) / nmeasurement for k in list(sorted(set(I))) },
             nmeasurement=nmeasurement,
             ) 
-
-    @staticmethod
-    def bit_reversal_permutation(N):
-        seq = [0]
-        for k in range(N):
-            seq = [2*_ for _ in seq] + [2*_+1 for _ in seq]
-        return seq
-
-    @staticmethod
-    def statevector_bit_reversal_permutation(
-        statevector_native,
-        ):
-
-        N = (statevector_native.shape[0]&-statevector_native.shape[0]).bit_length()-1
-        statevector = statevector_native[Algebra.bit_reversal_permutation(N=N)]
-        return statevector
-

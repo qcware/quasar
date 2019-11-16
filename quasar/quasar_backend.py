@@ -24,10 +24,6 @@ class QuasarSimulatorBackend(Backend):
         return True
 
     @property
-    def has_run_pauli_sigma(self):
-        return True
-
-    @property
     def has_statevector_input(self):
         return True
 

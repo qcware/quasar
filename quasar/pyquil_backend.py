@@ -116,12 +116,12 @@ class PyquilSimulatorBackend(PyquilBackend):
         return 'Pyquil Simulator Backend'
 
     @property
-    def has_statevector(self):
+    def has_run_statevector(self):
         return True
 
     @property
-    def has_measurement(self):
-        return True
+    def has_statevector_input(self):
+        return False
 
     def run_statevector(
         self,
@@ -130,8 +130,6 @@ class PyquilSimulatorBackend(PyquilBackend):
         nqubit=None,
         dtype=np.complex128,
         **kwargs):
-
-        # TODO: Input statevector
 
         import pyquil
         circuit_native = self.build_native_circuit(circuit, bit_reversal=True)

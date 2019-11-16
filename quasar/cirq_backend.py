@@ -116,7 +116,11 @@ class CirqSimulatorBackend(CirqBackend):
         return 'Cirq Simulator Backend'
 
     @property
-    def has_statevector(self):
+    def has_run_statevector(self):
+        return True
+
+    @property
+    def has_statevector_input(self):
         return True
 
     def run_statevector(
