@@ -5,10 +5,10 @@ import time
 
 # circuit = quasar.Circuit().H(0).CX(0,1)
 circuit = quasar.Circuit()
-circuit.Ry(0, theta=0.2).Ry(1, theta=-0.3)
-# circuit.H(0)
-# for k in range(29):
-#     circuit.CX(k, k+1)
+# circuit.Ry(0, theta=0.2).Ry(1, theta=-0.3)
+circuit.H(0)
+for k in range(25):
+    circuit.CX(k, k+1)
 # for k in range(30):
 #     circuit.H(k)
 
@@ -17,8 +17,10 @@ circuit.Ry(0, theta=0.2).Ry(1, theta=-0.3)
 
 
 backend = vulcan.VulcanSimulatorBackend()
+# backend = quasar.CirqSimulatorBackend()
+# backend = quasar.QuasarSimulatorBackend()
 
 print(circuit.nqubit)
 start = time.time()
-print(backend.run_measurement(circuit, nmeasurement=None, dtype=np.float64))
+print(backend.run_measurement(circuit, nmeasurement=1000, dtype=np.float64))
 print('%11.3E' % (time.time() - start))

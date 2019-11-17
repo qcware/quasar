@@ -2277,155 +2277,6 @@ class Circuit(object):
         
         return ascii_str
 
-    def ascii_diagram(
-        self,
-        time_lines='both',
-        ):
-
-        """ Return a simple ASCII string diagram of the circuit.
-
-        Params:
-            time_lines (str) - specification of time lines:
-                "both" - time lines on top and bottom (default)
-                "top" - time lines on top 
-                "bottom" - time lines on bottom
-                "neither" - no time lines
-        Returns:
-            (str) - the ASCII string diagram
-        """
-
-        # Left side states
-        Wd = max(len(str(_)) for _ in range(self.min_qubit, self.max_qubit+1)) if self.nqubit else 0
-        lstick = '%-*s : |\n' % (1+Wd, 'T')
-        for qubit in range(self.min_qubit, self.max_qubit+1): 
-            lstick += '%*s\n' % (5+Wd, ' ')
-            lstick += 'q%-*d : -\n' % (Wd, qubit)
-
-        # Build moment strings
-        moments = []
-        for time in range(self.min_time, self.max_time+1):
-            moments.append(self.ascii_diagram_time(
-                time=time,
-                adjust_for_time=False if time_lines=='neither' else True,
-                ))
-
-        # Unite strings
-        lines = lstick.split('\n')
-        for moment in moments:
-            for i, tok in enumerate(moment.split('\n')):
-                lines[i] += tok
-        # Time on top and bottom
-        lines.append(lines[0])
-
-        # Adjust for time lines
-        if time_lines == 'both':
-            pass
-        elif time_lines == 'top':
-            lines = lines[:-2]
-        elif time_lines == 'bottom':
-            lines = lines[2:]
-        elif time_lines == 'neither':
-            lines = lines[2:-2]
-        else:
-            raise RuntimeError('Invalid time_lines argument: %s' % time_lines)
-        
-        strval = '\n'.join(lines)
-
-        return strval
-
-    def ascii_diagram_time(
-        self,
-        time,
-        adjust_for_time=True,
-        ):
-
-        """ Return an ASCII string diagram for a given time moment time.
-
-        Users should not generally call this utility routine - see
-        ascii_diagram instead.
-
-        Params:
-            time (int) - time moment to diagram
-            adjust_for_time (bool) - add space adjustments for the length of
-                time lines.
-        Returns:
-            (str) - ASCII diagram for the given time moment.
-        """
-
-        # Subset for time, including multi-time gates
-        gates = { key[1] : gate for key, gate in self.gates.items() if time in key[0] }
-
-        # list (total seconds) of dict of A -> gate symbol
-        seconds = [{}]
-        # list (total seconds) of dict of A -> interstitial symbol
-        seconds2 = [{}]
-        for qubits, gate in gates.items():
-            # Find the first second this gate fits within (or add a new one)
-            for idx, second in enumerate(seconds):
-                fit = not any(A in second for A in range(min(qubits), max(qubits)+1))
-                if fit:
-                    break
-            if not fit:
-                seconds.append({})
-                seconds2.append({})
-                idx += 1
-            # Put the gate into that second
-            for A in range(min(qubits), max(qubits)+1):
-                # Gate symbol
-                if A in qubits:
-                    Aind = [Aind for Aind, B in enumerate(qubits) if A == B][0]
-                    seconds[idx][A] = gate.ascii_symbols[Aind] 
-                else:
-                    seconds[idx][A] = '|'
-                # Gate connector
-                if A != min(qubits):
-                    seconds2[idx][A] = '|'
-
-        # + [1] for the - null character
-        wseconds = [max([len(v) for k, v in second.items()] + [1]) for second in seconds]
-        wtot = sum(wseconds)    
-
-        # Adjust widths for T field
-        Tsymb = '%d' % time
-        if adjust_for_time:
-            if wtot < len(Tsymb): wseconds[0] += len(Tsymb) - wtot
-            wtot = sum(wseconds)    
-
-        # TODO: Print CompositeGate like
-        # 
-        # T   : |-1|0|1|2|3|4|5  |6  |7  |
-        #                                 
-        # q-1 : -H------------------------
-        #                                 
-        # q0  : ------@---@-O-A---A---A---
-        #             |   | | |===|===|   
-        # q1  : ------X-@-X-@-|-B-|-B-|-B-
-        #               |   | |=|=|=|=|=| 
-        # q2  : --------X---X-A-|-A-|-A-|-
-        #                       |===|===| 
-        # q3  : ----------------B---B---B-
-        # 
-        # T   : |-1|0|1|2|3|4|5  |6  |7  |
-        
-        Is = ['' for A in range(self.nqubit)]
-        Qs = ['' for A in range(self.nqubit)]
-        for second, second2, wsecond in zip(seconds, seconds2, wseconds):
-            for Aind, A in enumerate(range(self.min_qubit, self.max_qubit+1)):
-                Isymb = second2.get(A, ' ')
-                IwR = wsecond - len(Isymb)
-                Is[Aind] += Isymb + ' ' * IwR + ' '
-                Qsymb = second.get(A, '-')
-                QwR = wsecond - len(Qsymb)
-                Qs[Aind] += Qsymb + '-' * QwR + '-'
-
-        strval = Tsymb + ' ' * (wtot + len(wseconds) - len(Tsymb) - 1) + '|\n' 
-        for I, Q in zip(Is, Qs):
-            strval += I + '\n'
-            strval += Q + '\n'
-
-        return strval
-
-        
     # => Gate Addition Sugar <= #
 
     # TODO: Fix docs in sugar
@@ -3792,12 +3643,11 @@ class Circuit(object):
 
         for key, gate in self.gates.items(): 
             times, qubits2 = key
-            gate.apply_to_statevector(
+            statevector1, statevector2 = gate.apply_to_statevector(
                 statevector1=statevector1,
                 statevector2=statevector2,
                 qubits=tuple(qubit_map[qubit2] for qubit2 in qubits2),
                 dtype=dtype,
                 )
-            statevector1, statevector2 = statevector2, statevector1
         
         return statevector1, statevector2
