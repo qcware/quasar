@@ -1,46 +1,4 @@
-import collections
 import numpy as np
-
-class Ket(str):
-
-    def __new__(
-        self,
-        string,
-        ):
-
-        if not isinstance(string, str): raise RuntimeError('string must be str')
-        if not all(_ == '0' or _ == '1' for _ in string): raise RuntimeError('Invalid Ket: %s' % string)
-
-        return str.__new__(Ket, string)
-
-    def __getitem__(
-        self,
-        key,
-        ):
-
-        return int(super(Ket, self).__getitem__(key))
-
-    @property
-    def nqubit(self):
-        return len(self)
-
-    @staticmethod
-    def from_int(value, nqubit):
-        if value >= (1 << nqubit): raise RuntimeError('value >= 2**nqubit: value=%s, nqubit=%s' % (value, nqubit))
-        if value<0: raise RuntimeError('value must be a positive int')
-        if not isinstance(value, int): raise RuntimeError('value must be int')
-        start = bin(value)[2:]
-        padded = ('0' * (nqubit - len(start))) + start
-        return Ket(padded)
-
-    @staticmethod
-    def from_int_reverse(value, nqubit):
-        if value >= (1 << nqubit): raise RuntimeError('value >= 2**nqubit: value=%s, nqubit=%s' % (value, nqubit))
-        if value<0: raise RuntimeError('value must be a positive int')
-        if not isinstance(value, int): raise RuntimeError('value must be int')
-        start = bin(value)[2:]
-        padded = ('0' * (nqubit - len(start))) + start
-        return Ket(padded[::-1])
 
 class Histogram(object):
 
@@ -58,7 +16,7 @@ class Histogram(object):
         key,
         ):
 
-        key = Ket(key)
+        if isinstance(key, str): key = int(key, base=2)
         return self.histogram.__contains__(key)
 
     def __getitem__(
@@ -66,7 +24,7 @@ class Histogram(object):
         key,
         ):
 
-        key = Ket(key)
+        if isinstance(key, str): key = int(key, base=2)
         return self.histogram.__getitem__(key)
 
     def get(
@@ -75,42 +33,47 @@ class Histogram(object):
         default=None,
         ):
 
-        key = Ket(key)
+        if isinstance(key, str): key = int(key, base=2)
         return self.histogram.get(key, default)
-
-    @property
-    def nqubit(self):
-        return next(iter(self.histogram.keys())).nqubit if len(self.histogram) else None
 
 class ProbabilityHistogram(Histogram):
 
     def __init__(
         self,
+        nqubit,
         histogram={},
         nmeasurement=None,
         ):
 
+        self.nqubit = nqubit
         self.histogram = histogram.copy()
         self.nmeasurement = nmeasurement
 
-        for k, v in self.histogram.items():
-            if not isinstance(k, Ket): raise RuntimeError('Key must be Ket: %s' % k) 
-            if not isinstance(v, float): raise RuntimeError('Value must be float: %s' % v) 
+        if not isinstance(self.nqubit, int): 
+            raise RuntimeError('nqubit must be int')
+        if self.nmeasurement is not None and not isinstance(self.nmeasurement, (int)):
+            raise RuntimeError('nmeasurement must be int or None')
+        if not all(isinstance(key, int) for key in self.histogram.keys()):
+            raise RuntimeError('Keys must be int')
+        if not all(isinstance(value, float) for value in self.histogram.values()):
+            raise RuntimeError('Value must be float')
 
-        if len(self.histogram) == 0: return
-        if not all(_.nqubit == self.nqubit for _ in self.histogram.keys()): raise RuntimeError('All keys must have same nqubit')
-
-    def __str__(self):
+    def __str__(self): 
+    
         s = ''
-        s += 'nmeasurement : %r\n' % (self.nmeasurement) 
+        s += 'nqubit       : %r\n' % (self.nqubit)
+        s += 'nmeasurement : %r\n' % (self.nmeasurement)
         for k in sorted(self.histogram.keys()):
-            s += '|%s> : %8.6f\n' % (k, self.histogram[k])
+            ket = bin(k)[2:]
+            ket = '0' * (self.nqubit - len(ket)) + ket
+            s += '|%s> : %8.6f\n' % (ket, self.histogram[k])
         return s
 
     def to_count_histogram(self):
         if self.nmeasurement is None:
             raise RuntimeError('Cannot convert to count histogram: nmeasurement is None (infinite sampling)')
         return CountHistogram(
+            nqubit=self.nqubit,
             histogram={ k : int(round(v * self.nmeasurement)) for k, v in self.items() },
             nmeasurement=self.nmeasurement,
             )
@@ -119,37 +82,42 @@ class CountHistogram(Histogram):
 
     def __init__(
         self,
+        nqubit,
         histogram={},
         nmeasurement=None,
         ):
 
+        self.nqubit = nqubit
         self.histogram = histogram.copy()
         self.nmeasurement = nmeasurement
 
-        if self.nmeasurement is None: 
-            raise RuntimeError('nmeasurement cannot be None in CountHistogram')
+        if not isinstance(self.nqubit, int): 
+            raise RuntimeError('nqubit must be int')
+        if not isinstance(self.nmeasurement, (int)):
+            raise RuntimeError('nmeasurement must be int')
+        if not all(isinstance(key, int) for key in self.histogram.keys()):
+            raise RuntimeError('Keys must be int')
+        if not all(isinstance(value, int) for value in self.histogram.values()):
+            raise RuntimeError('Value must be int')
 
-        for k, v in self.histogram.items():
-            if not isinstance(k, Ket): raise RuntimeError('Key must be Ket: %s' % k) 
-            if not isinstance(v, int): raise RuntimeError('Value must be int: %s' % v) 
-
-        if len(self.histogram) == 0: return
-        if not all(_.nqubit == self.nqubit for _ in self.histogram.keys()): raise RuntimeError('All keys must have same nqubit')
-        if sum(self.histogram.values()) != self.nmeasurement: raise RuntimeError('Values do not sum to nmeasurement')
-
-    def __str__(self):
+    def __str__(self): 
+    
         maxval = max(_ for _ in self.histogram.values())
         maxlen = max(1, int(np.floor(np.log10(maxval))) + 1)        
         s = ''
-        s += 'nmeasurement : %r\n' % (self.nmeasurement) 
+        s += 'nqubit       : %r\n' % (self.nqubit)
+        s += 'nmeasurement : %r\n' % (self.nmeasurement)
         for k in sorted(self.histogram.keys()):
-            s += '|%s> : %*d\n' % (k, maxlen, self.histogram[k])
+            ket = bin(k)[2:]
+            ket = '0' * (self.nqubit - len(ket)) + ket
+            s += '|%s> : %*d\n' % (ket, maxlen, self.histogram[k])
         return s
 
     def to_probability_histogram(self):
         if self.nmeasurement is None:
             raise RuntimeError('nmeasurement cannot be None in CountHistogram')
         return ProbabilityHistogram(
+            nqubit=self.nqubit,
             histogram={ k : v / self.nmeasurement for k, v in self.items() },
             nmeasurement=self.nmeasurement,
             )

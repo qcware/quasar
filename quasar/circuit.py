@@ -320,6 +320,35 @@ class Gate(object):
         involutary=False,
         adjoint_function=None,
         ):
+
+        """ Gate initializer (verbatim).
+
+        Params/Attributes:
+            nqubit (int) - number of qubits.
+            operator_function (function of OrderedDict of str : float ->
+                np.ndarray of shape (2**nqubit,)*2) - function that yields the
+                Gate operator matrix corresponding to the current parameter
+                dictionary.
+            parameters (OrderedDict of str : float) - parameter declarations
+                and initial values for this Gate. Gates without parameters will
+                have an empty OrderedDict for this field.
+            name (str) - name of Gate. The name of the gate and the number of
+                qubits are occasionally used as a shorthand for the Gate
+                definition. E.g., all 1-nqubit gates with the name "Ry" are
+                assumed to be quasar Ry gates by certain transpilation and
+                runtime functions.
+            ascii_symbols (list of str of size nqubit) - ASCII symbol to
+                display on each qubit index during ASCII circuit printing.
+                involutary (bool, default False) - setting involutary to True
+                (1st priority) indicates that the gate is its own adjoint,
+                meaning that a copy of this Gate can be returned in the
+                `adjoint` function.
+            adjoint_function (function of OrderedDict of str : float -> Gate or
+                None (default)) - setting adjoint function to a non-None type
+                provides a custom recipe to return a sensible adjoint Gate for
+                this Gate, with the current parameters provided as input
+                arguments to the adjoint function.
+        """
         
         self.nqubit = nqubit 
         self.operator_function = operator_function

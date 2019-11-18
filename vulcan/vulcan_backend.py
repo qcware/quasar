@@ -421,7 +421,7 @@ class VulcanSimulatorBackend(quasar.Backend):
         counts = {}
         nqubit = circuit2.nqubit()
         for sample in samples:
-            ket = quasar.Ket.from_int(int(sample), nqubit)
+            ket = int(sample)
             counts[ket] = counts.get(ket, 0) + 1
 
         probabilities = { k : v / nmeasurement for k, v in counts.items() }

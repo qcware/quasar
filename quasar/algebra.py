@@ -1,5 +1,5 @@
 import numpy as np
-from .measurement import ProbabilityHistogram, Ket
+from .measurement import ProbabilityHistogram
     
 class Algebra(object):
 
@@ -283,7 +283,8 @@ class Algebra(object):
         # Directly return probabilities if nmeasurement is None (infinite sampling)
         if nmeasurement is None:
             return ProbabilityHistogram(
-                histogram={ Ket.from_int(k, N) : v for k, v in enumerate(probabilities) if v > cutoff},
+                nqubit=N,
+                histogram={ k : v for k, v in enumerate(probabilities) if v > cutoff},
                 nmeasurement=nmeasurement,
                 ) 
         # Otherwise, perform random sampling
@@ -291,6 +292,7 @@ class Algebra(object):
             raise RuntimeError('nmeasurement must be int: %s' % nmeasurement)
         I = list(np.searchsorted(np.cumsum(probabilities), np.random.rand(nmeasurement)))
         return ProbabilityHistogram(
-            histogram={ Ket.from_int(int(k), N) : I.count(k) / nmeasurement for k in list(sorted(set(I))) },
+            nqubit=N,
+            histogram={ int(k) : I.count(k) / nmeasurement for k in list(sorted(set(I))) },
             nmeasurement=nmeasurement,
             ) 
