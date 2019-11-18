@@ -78,6 +78,28 @@ class ProbabilityHistogram(Histogram):
             nmeasurement=self.nmeasurement,
             )
 
+    def subset(
+        self,
+        qubits,
+        ):
+
+        if len(set(qubits)) != len(qubits): raise RuntimeError('qubits are not unique')
+        if any(_ < 0 or _ >= self.nqubit for _ in qubits): raise RuntimeError('qubits do not lie in [0, nqubit)')
+
+        nqubit2 = len(qubits)
+        histogram2 = {}
+        for key, value in self.histogram.items():
+            key2 = 0
+            for qubit2, qubit in enumerate(qubits):
+                key2 += ((key & (1 << (self.nqubit - 1 - qubit))) >> (self.nqubit - 1 - qubit)) << (nqubit2 - 1 - qubit2)
+            histogram2[key2] = value + histogram2.get(key2, 0.0)
+
+        return ProbabilityHistogram(
+            nqubit=nqubit2,
+            histogram=histogram2,
+            nmeasurement=self.nmeasurement,
+            )
+
 class CountHistogram(Histogram):
 
     def __init__(
@@ -119,5 +141,27 @@ class CountHistogram(Histogram):
         return ProbabilityHistogram(
             nqubit=self.nqubit,
             histogram={ k : v / self.nmeasurement for k, v in self.items() },
+            nmeasurement=self.nmeasurement,
+            )
+
+    def subset(
+        self,
+        qubits,
+        ):
+
+        if len(set(qubits)) != len(qubits): raise RuntimeError('qubits are not unique')
+        if any(_ < 0 or _ >= self.nqubit for _ in qubits): raise RuntimeError('qubits do not lie in [0, nqubit)')
+
+        nqubit2 = len(qubits)
+        histogram2 = {}
+        for key, value in self.histogram.items():
+            key2 = 0
+            for qubit2, qubit in enumerate(qubits):
+                key2 += ((key & (1 << (self.nqubit - 1 - qubit))) >> (self.nqubit - 1 - qubit)) << (nqubit2 - 1 - qubit2)
+            histogram2[key2] = value + histogram2.get(key2, 0)
+
+        return CountHistogram(
+            nqubit=nqubit2,
+            histogram=histogram2,
             nmeasurement=self.nmeasurement,
             )
