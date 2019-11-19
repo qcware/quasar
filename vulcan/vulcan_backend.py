@@ -427,6 +427,7 @@ class VulcanSimulatorBackend(quasar.Backend):
         probabilities = { k : v / nmeasurement for k, v in counts.items() }
 
         return quasar.ProbabilityHistogram(
+            nqubit=nqubit,
             histogram=probabilities,
             nmeasurement=nmeasurement, 
             )
