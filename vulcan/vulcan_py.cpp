@@ -35,7 +35,8 @@ U* np_pointer(
 template <typename T, typename U> 
 py::array_t<U> py_run_statevector(
     const Circuit<T>& circuit,
-    const py::array_t<U>& statevector)
+    const py::array_t<U>& statevector,
+    bool compressed)
 {
     static_assert(sizeof(T) == sizeof(U), "T and U must be of equal size");
 
@@ -45,43 +46,48 @@ py::array_t<U> py_run_statevector(
 
     U* ptr2 = np_pointer(circuit.nqubit(), statevector);
 
-    vulcan::run_statevector<T>(circuit, (T*) ptr2, (T*) ptr);
+    vulcan::run_statevector<T>(circuit, (T*) ptr2, (T*) ptr, compressed);
 
     return result;
 }
 
 np_float32 py_run_statevector_float32(
     const Circuit<float32>& circuit,
-    const np_float32& statevector)
+    const np_float32& statevector,
+    bool compressed)
 {
-    return py_run_statevector<float32, float>(circuit, statevector);
+    return py_run_statevector<float32, float>(circuit, statevector, compressed);
 }
 
 np_float64 py_run_statevector_float64(
     const Circuit<float64>& circuit,
-    const np_float64& statevector)
+    const np_float64& statevector,
+    bool compressed)
 {
-    return py_run_statevector<float64, double>(circuit, statevector);
+    return py_run_statevector<float64, double>(circuit, statevector, compressed);
 }
 
 np_complex64 py_run_statevector_complex64(
     const Circuit<complex64>& circuit,
-    const np_complex64& statevector)
+    const np_complex64& statevector,
+    bool compressed)
 {
-    return py_run_statevector<complex64, std::complex<float>>(circuit, statevector);
+    return py_run_statevector<complex64, std::complex<float>>(circuit, statevector, compressed);
 }
 
 np_complex128 py_run_statevector_complex128(
     const Circuit<complex128>& circuit,
-    const np_complex128& statevector)
+    const np_complex128& statevector,
+    bool compressed)
 {
-    return py_run_statevector<complex128, std::complex<double>>(circuit, statevector);
+    return py_run_statevector<complex128, std::complex<double>>(circuit, statevector, compressed);
 }
 
 template <typename T, typename U> 
 py::array_t<U> py_run_pauli_sigma(
     const Pauli<T>& pauli,
-    const py::array_t<U>& statevector)
+    const py::array_t<U>& statevector,
+    bool compressed)
 {
     static_assert(sizeof(T) == sizeof(U), "T and U must be of equal size");
 
@@ -95,95 +101,105 @@ py::array_t<U> py_run_pauli_sigma(
     py::buffer_info buffer2 = result.request();
     U* ptr2 = (U*) buffer2.ptr;
 
-    vulcan::run_pauli_sigma<T>(pauli, (T*) ptr1, (T*) ptr2);
+    vulcan::run_pauli_sigma<T>(pauli, (T*) ptr1, (T*) ptr2, compressed);
 
     return result;
 }
 
 np_float32 py_run_pauli_sigma_float32(
     const Pauli<float32>& pauli,
-    const np_float32& statevector)
+    const np_float32& statevector,
+    bool compressed)
 {
-    return py_run_pauli_sigma<float32, float>(pauli, statevector);
+    return py_run_pauli_sigma<float32, float>(pauli, statevector, compressed);
 }
 
 np_float64 py_run_pauli_sigma_float64(
     const Pauli<float64>& pauli,
-    const np_float64& statevector)
+    const np_float64& statevector,
+    bool compressed)
 {
-    return py_run_pauli_sigma<float64, double>(pauli, statevector);
+    return py_run_pauli_sigma<float64, double>(pauli, statevector, compressed);
 }
 
 np_complex64 py_run_pauli_sigma_complex64(
     const Pauli<complex64>& pauli,
-    const np_complex64& statevector)
+    const np_complex64& statevector,
+    bool compressed)
 {
-    return py_run_pauli_sigma<complex64, std::complex<float>>(pauli, statevector);
+    return py_run_pauli_sigma<complex64, std::complex<float>>(pauli, statevector, compressed);
 }
 
 np_complex128 py_run_pauli_sigma_complex128(
     const Pauli<complex128>& pauli,
-    const np_complex128& statevector)
+    const np_complex128& statevector,
+    bool compressed)
 {
-    return py_run_pauli_sigma<complex128, std::complex<double>>(pauli, statevector);
+    return py_run_pauli_sigma<complex128, std::complex<double>>(pauli, statevector, compressed);
 }
 
 template <typename T, typename U>
 Pauli<T> py_run_pauli_expectation(
     const Circuit<T>& circuit,
     const Pauli<T>& pauli,
-    const py::array_t<U>& statevector)
+    const py::array_t<U>& statevector,
+    bool compressed)
 {
     static_assert(sizeof(T) == sizeof(U), "T and U must be of equal size");
 
     U* ptr2 = np_pointer(circuit.nqubit(), statevector);
 
-    return vulcan::run_pauli_expectation<T>(circuit, pauli, (T*) ptr2);
+    return vulcan::run_pauli_expectation<T>(circuit, pauli, (T*) ptr2, compressed);
 }
 
 Pauli<float32> py_run_pauli_expectation_float32(
     const Circuit<float32>& circuit,
     const Pauli<float32>& pauli,
-    const np_float32& statevector)
+    const np_float32& statevector,
+    bool compressed)
 {
-    return py_run_pauli_expectation<float32, float>(circuit, pauli, statevector);
+    return py_run_pauli_expectation<float32, float>(circuit, pauli, statevector, compressed);
 }
 
 Pauli<float64> py_run_pauli_expectation_float64(
     const Circuit<float64>& circuit,
     const Pauli<float64>& pauli,
-    const np_float64& statevector)
+    const np_float64& statevector,
+    bool compressed)
 {
-    return py_run_pauli_expectation<float64, double>(circuit, pauli, statevector);
+    return py_run_pauli_expectation<float64, double>(circuit, pauli, statevector, compressed);
 }
 
 Pauli<complex64> py_run_pauli_expectation_complex64(
     const Circuit<complex64>& circuit,
     const Pauli<complex64>& pauli,
-    const np_complex64& statevector)
+    const np_complex64& statevector,
+    bool compressed)
 {
-    return py_run_pauli_expectation<complex64, std::complex<float>>(circuit, pauli, statevector);
+    return py_run_pauli_expectation<complex64, std::complex<float>>(circuit, pauli, statevector, compressed);
 }
 
 Pauli<complex128> py_run_pauli_expectation_complex128(
     const Circuit<complex128>& circuit,
     const Pauli<complex128>& pauli,
-    const np_complex128& statevector)
+    const np_complex128& statevector,
+    bool compressed)
 {
-    return py_run_pauli_expectation<complex128, std::complex<double>>(circuit, pauli, statevector);
+    return py_run_pauli_expectation<complex128, std::complex<double>>(circuit, pauli, statevector, compressed);
 }
 
 template <typename T, typename U> 
 U py_run_pauli_expectation_value(
     const Circuit<T>& circuit,
     const Pauli<T>& pauli,
-    const py::array_t<U>& statevector)
+    const py::array_t<U>& statevector,
+    bool compressed)
 {
     static_assert(sizeof(T) == sizeof(U), "T and U must be of equal size");
 
     U* ptr2 = np_pointer(circuit.nqubit(), statevector);
 
-    T val = vulcan::run_pauli_expectation_value<T>(circuit, pauli, (T*) ptr2);
+    T val = vulcan::run_pauli_expectation_value<T>(circuit, pauli, (T*) ptr2, compressed);
 
     U val2;
     std::memcpy(&val2, &val, sizeof(T));
@@ -194,46 +210,51 @@ U py_run_pauli_expectation_value(
 float py_run_pauli_expectation_value_float32(
     const Circuit<float32>& circuit,
     const Pauli<float32>& pauli,
-    const np_float32& statevector)
+    const np_float32& statevector,
+    bool compressed)
 {
-    return py_run_pauli_expectation_value<float32, float>(circuit, pauli, statevector);
+    return py_run_pauli_expectation_value<float32, float>(circuit, pauli, statevector, compressed);
 }
 
 double py_run_pauli_expectation_value_float64(
     const Circuit<float64>& circuit,
     const Pauli<float64>& pauli,
-    const np_float64& statevector)
+    const np_float64& statevector,
+    bool compressed)
 {
-    return py_run_pauli_expectation_value<float64, double>(circuit, pauli, statevector);
+    return py_run_pauli_expectation_value<float64, double>(circuit, pauli, statevector, compressed);
 }
 
 std::complex<float> py_run_pauli_expectation_value_complex64(
     const Circuit<complex64>& circuit,
     const Pauli<complex64>& pauli,
-    const np_complex64& statevector)
+    const np_complex64& statevector,
+    bool compressed)
 {
-    return py_run_pauli_expectation_value<complex64, std::complex<float>>(circuit, pauli, statevector);
+    return py_run_pauli_expectation_value<complex64, std::complex<float>>(circuit, pauli, statevector, compressed);
 }
 
 std::complex<double> py_run_pauli_expectation_value_complex128(
     const Circuit<complex128>& circuit,
     const Pauli<complex128>& pauli,
-    const np_complex128& statevector)
+    const np_complex128& statevector,
+    bool compressed)
 {
-    return py_run_pauli_expectation_value<complex128, std::complex<double>>(circuit, pauli, statevector);
+    return py_run_pauli_expectation_value<complex128, std::complex<double>>(circuit, pauli, statevector, compressed);
 }
 
 template <typename T, typename U> 
 py::array_t<U> py_run_pauli_expectation_value_gradient(
     const Circuit<T>& circuit,
     const Pauli<T>& pauli,
-    const py::array_t<U>& statevector)
+    const py::array_t<U>& statevector,
+    bool compressed)
 {
     static_assert(sizeof(T) == sizeof(U), "T and U must be of equal size");
 
     U* ptr2 = np_pointer(circuit.nqubit(), statevector);
 
-    std::vector<T> val = vulcan::run_pauli_expectation_value_gradient<T>(circuit, pauli, (T*) ptr2);
+    std::vector<T> val = vulcan::run_pauli_expectation_value_gradient<T>(circuit, pauli, (T*) ptr2, compressed);
 
     py::array_t<U> result = py::array_t<U>(val.size());
     py::buffer_info buffer3 = result.request();
@@ -247,40 +268,45 @@ py::array_t<U> py_run_pauli_expectation_value_gradient(
 np_float32 py_run_pauli_expectation_value_gradient_float32(
     const Circuit<float32>& circuit,
     const Pauli<float32>& pauli,
-    const np_float32& statevector)
+    const np_float32& statevector,
+    bool compressed)
 {
-    return py_run_pauli_expectation_value_gradient<float32, float>(circuit, pauli, statevector);
+    return py_run_pauli_expectation_value_gradient<float32, float>(circuit, pauli, statevector, compressed);
 }
 
 np_float64 py_run_pauli_expectation_value_gradient_float64(
     const Circuit<float64>& circuit,
     const Pauli<float64>& pauli,
-    const np_float64& statevector)
+    const np_float64& statevector,
+    bool compressed)
 {
-    return py_run_pauli_expectation_value_gradient<float64, double>(circuit, pauli, statevector);
+    return py_run_pauli_expectation_value_gradient<float64, double>(circuit, pauli, statevector, compressed);
 }
 
 np_complex64 py_run_pauli_expectation_value_gradient_complex64(
     const Circuit<complex64>& circuit,
     const Pauli<complex64>& pauli,
-    const np_complex64& statevector)
+    const np_complex64& statevector,
+    bool compressed)
 {
-    return py_run_pauli_expectation_value_gradient<complex64, std::complex<float>>(circuit, pauli, statevector);
+    return py_run_pauli_expectation_value_gradient<complex64, std::complex<float>>(circuit, pauli, statevector, compressed);
 }
 
 np_complex128 py_run_pauli_expectation_value_gradient_complex128(
     const Circuit<complex128>& circuit,
     const Pauli<complex128>& pauli,
-    const np_complex128& statevector)
+    const np_complex128& statevector,
+    bool compressed)
 {
-    return py_run_pauli_expectation_value_gradient<complex128, std::complex<double>>(circuit, pauli, statevector);
+    return py_run_pauli_expectation_value_gradient<complex128, std::complex<double>>(circuit, pauli, statevector, compressed);
 }
 
 template <typename T, typename U, typename V, typename W> 
 py::array_t<int> py_run_measurement(
     const Circuit<T>& circuit,
     const py::array_t<U>& statevector,
-    const py::array_t<W>& randoms)
+    const py::array_t<W>& randoms,
+    bool compressed)
 {
     static_assert(sizeof(T) == sizeof(U), "T and U must be of equal size");
     static_assert(sizeof(V) == sizeof(W), "V and W must be of equal size");
@@ -298,7 +324,7 @@ py::array_t<int> py_run_measurement(
 
     U* statevector_ptr = np_pointer(circuit.nqubit(), statevector);
 
-    vulcan::run_measurement<T, V>(circuit, (T*) statevector_ptr, randoms.shape(0), (V*) randoms_ptr, result_ptr);
+    vulcan::run_measurement<T, V>(circuit, (T*) statevector_ptr, randoms.shape(0), (V*) randoms_ptr, result_ptr, compressed);
 
     return result;
 }
@@ -306,33 +332,37 @@ py::array_t<int> py_run_measurement(
 np_int32 py_run_measurement_float32(
     const Circuit<float32>& circuit,
     const np_float32& statevector,
-    const np_float32& randoms)
+    const np_float32& randoms,
+    bool compressed)
 {
-    return py_run_measurement<float32, float, float32, float>(circuit, statevector, randoms);
+    return py_run_measurement<float32, float, float32, float>(circuit, statevector, randoms, compressed);
 }
 
 np_int32 py_run_measurement_float64(
     const Circuit<float64>& circuit,
     const np_float64& statevector,
-    const np_float64& randoms)
+    const np_float64& randoms,
+    bool compressed)
 {
-    return py_run_measurement<float64, double, float64, double>(circuit, statevector, randoms);
+    return py_run_measurement<float64, double, float64, double>(circuit, statevector, randoms, compressed);
 }
 
 np_int32 py_run_measurement_complex64(
     const Circuit<complex64>& circuit,
     const np_complex64& statevector,
-    const np_float32& randoms)
+    const np_float32& randoms,
+    bool compressed)
 {
-    return py_run_measurement<complex64, std::complex<float>, float32, float>(circuit, statevector, randoms);
+    return py_run_measurement<complex64, std::complex<float>, float32, float>(circuit, statevector, randoms, compressed);
 }
 
 np_int32 py_run_measurement_complex128(
     const Circuit<complex128>& circuit,
     const np_complex128& statevector,
-    const np_float64& randoms)
+    const np_float64& randoms,
+    bool compressed)
 {
-    return py_run_measurement<complex128, std::complex<double>, float64, double>(circuit, statevector, randoms);
+    return py_run_measurement<complex128, std::complex<double>, float64, double>(circuit, statevector, randoms, compressed);
 }
 
 PYBIND11_MODULE(vulcan_plugin, m) {

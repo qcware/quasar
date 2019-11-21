@@ -216,6 +216,7 @@ class VulcanSimulatorBackend(quasar.Backend):
         min_qubit=None,
         nqubit=None,
         dtype=np.complex128,
+        compressed=True,
         ):
     
         circuit2 = VulcanSimulatorBackend.vulcan_circuit(
@@ -230,6 +231,7 @@ class VulcanSimulatorBackend(quasar.Backend):
         return VulcanSimulatorBackend.vulcan_run_statevector_method[dtype](
             circuit2,
             statevector,
+            compressed,
             )
     
     def run_pauli_sigma(
@@ -239,6 +241,7 @@ class VulcanSimulatorBackend(quasar.Backend):
         min_qubit=None,
         nqubit=None,
         dtype=np.complex128,
+        compressed=True,
         ):
     
         pauli2 = VulcanSimulatorBackend.vulcan_pauli(
@@ -251,6 +254,7 @@ class VulcanSimulatorBackend(quasar.Backend):
         return VulcanSimulatorBackend.vulcan_run_pauli_sigma_method[dtype](
             pauli2,
             statevector,
+            compressed,
             )
             
     def run_pauli_expectation(
@@ -262,6 +266,7 @@ class VulcanSimulatorBackend(quasar.Backend):
         min_qubit=None,
         nqubit=None,
         dtype=np.complex128,
+        compressed=True,
         ): 
 
         if nmeasurement is not None: 
@@ -286,12 +291,14 @@ class VulcanSimulatorBackend(quasar.Backend):
             circuit2,
             pauli2,
             statevector,
+            compressed,
             )
 
         return VulcanSimulatorBackend.quasar_pauli_expectation(
             pauli3,
             pauli,
-            dtype=dtype)
+            dtype=dtype,
+            )
             
     def run_pauli_expectation_value(
         self,
@@ -302,6 +309,7 @@ class VulcanSimulatorBackend(quasar.Backend):
         min_qubit=None,
         nqubit=None,
         dtype=np.complex128,
+        compressed=True,
         ): 
 
         if nmeasurement is not None: 
@@ -326,6 +334,7 @@ class VulcanSimulatorBackend(quasar.Backend):
             circuit2,
             pauli2,
             statevector,
+            compressed,
             )
             
     def run_pauli_expectation_value_gradient(
@@ -338,6 +347,7 @@ class VulcanSimulatorBackend(quasar.Backend):
         nqubit=None,
         dtype=np.complex128,
         parameter_indices=None,
+        compressed=True,
         ): 
              
         if nmeasurement is not None: 
@@ -375,6 +385,7 @@ class VulcanSimulatorBackend(quasar.Backend):
             circuit2,
             pauli2,
             statevector,
+            compressed,
             )[parameter_indices]
 
     def run_measurement(
@@ -385,6 +396,7 @@ class VulcanSimulatorBackend(quasar.Backend):
         min_qubit=None,
         nqubit=None,
         dtype=np.complex128,
+        compressed=True,
         ):
 
         if nmeasurement is None:
@@ -416,6 +428,7 @@ class VulcanSimulatorBackend(quasar.Backend):
             circuit2,
             statevector,
             randoms,
+            compressed,
             )
 
         counts = {}

@@ -5,8 +5,131 @@
 #include <stdexcept>
 #include <vector>
 #include <algorithm>
-    
+#include <map>
+#include <chrono>
+
 namespace vulcan {    
+
+namespace util {
+
+template <typename T>
+std::vector<T> identity2()
+{
+    std::vector<T> I(4, T(0.0));
+    I[0] = T(1.0);
+    I[3] = T(1.0);
+    return I;
+}
+
+template <typename T>
+std::vector<T> identity4()
+{
+    std::vector<T> I(16, T(0.0));
+    I[0]  = T(1.0);
+    I[5]  = T(1.0);
+    I[10] = T(1.0);
+    I[15] = T(1.0);
+    return I;
+}
+
+template <typename T>
+std::vector<T> multiply2(
+    const std::vector<T>& U1,
+    const std::vector<T>& U2)
+{
+    if (U1.size() != 4) throw std::runtime_error("U1 size != 4");    
+    if (U2.size() != 4) throw std::runtime_error("U2 size != 4");    
+    std::vector<T> U(4);
+    U[0] = U1[0] * U2[0] + U1[1] * U2[2];
+    U[1] = U1[0] * U2[1] + U1[1] * U2[3]; 
+    U[2] = U1[2] * U2[0] + U1[3] * U2[2];
+    U[3] = U1[2] * U2[1] + U1[3] * U2[3]; 
+    return U;
+}
+
+template <typename T>
+std::vector<T> multiply4(
+    const std::vector<T>& U1,
+    const std::vector<T>& U2)
+{
+    if (U1.size() != 16) throw std::runtime_error("U1 size != 16");    
+    if (U2.size() != 16) throw std::runtime_error("U2 size != 16");    
+    std::vector<T> U(16, T(0.0));
+    for (int i = 0; i < 4; i++) {
+    for (int j = 0; j < 4; j++) {
+    for (int k = 0; k < 4; k++) {
+        U[i*4 + j] += U1[i*4 + k] * U2[k*4 + j];
+    }}}
+    return U;
+}
+
+template <typename T>
+std::vector<T> kron2(
+    const std::vector<T>& U1,
+    const std::vector<T>& U2)
+{
+    if (U1.size() != 4) throw std::runtime_error("U1 size != 4");    
+    if (U2.size() != 4) throw std::runtime_error("U2 size != 4");    
+    std::vector<T> U(16); 
+    U[ 0] = U1[0] * U2[0];
+    U[ 1] = U1[0] * U2[1];
+    U[ 2] = U1[1] * U2[0];
+    U[ 3] = U1[1] * U2[1];
+    U[ 4] = U1[0] * U2[2];
+    U[ 5] = U1[0] * U2[3];
+    U[ 6] = U1[1] * U2[2];
+    U[ 7] = U1[1] * U2[3];
+    U[ 8] = U1[2] * U2[0];
+    U[ 9] = U1[2] * U2[1];
+    U[10] = U1[3] * U2[0];
+    U[11] = U1[3] * U2[1];
+    U[12] = U1[2] * U2[2];
+    U[13] = U1[2] * U2[3];
+    U[14] = U1[3] * U2[2];
+    U[15] = U1[3] * U2[3];
+    return U;
+}
+
+template <typename T>
+std::vector<T> kron2I1(
+    const std::vector<T>& U2)
+{
+    return kron2<T>(identity2<T>(), U2);
+}
+
+template <typename T>
+std::vector<T> kron2I2(
+    const std::vector<T>& U1)
+{
+    return kron2<T>(U1, identity2<T>());
+}
+
+template <typename T>
+std::vector<T> bitflip4(
+    const std::vector<T>& U)    
+{
+    if (U.size() != 16) throw std::runtime_error("U size != 16");    
+    std::vector<T> U2(16);
+    U2[0*4 + 0] = U[0*4 + 0];
+    U2[0*4 + 1] = U[0*4 + 2];
+    U2[0*4 + 2] = U[0*4 + 1];
+    U2[0*4 + 3] = U[0*4 + 3];
+    U2[1*4 + 0] = U[2*4 + 0];
+    U2[1*4 + 1] = U[2*4 + 2];
+    U2[1*4 + 2] = U[2*4 + 1];
+    U2[1*4 + 3] = U[2*4 + 3];
+    U2[2*4 + 0] = U[1*4 + 0];
+    U2[2*4 + 1] = U[1*4 + 2];
+    U2[2*4 + 2] = U[1*4 + 1];
+    U2[2*4 + 3] = U[1*4 + 3];
+    U2[3*4 + 0] = U[3*4 + 0];
+    U2[3*4 + 1] = U[3*4 + 2];
+    U2[3*4 + 2] = U[3*4 + 1];
+    U2[3*4 + 3] = U[3*4 + 3];
+    return U2;
+}
+
+} // namespace util
 
 template <typename T>
 class Gate {
@@ -110,6 +233,270 @@ Circuit<T> bit_reversal() const
         nqubit_,
         gates_,
         qubits);
+}
+
+Circuit<T> compressed() const
+{
+typedef std::chrono::high_resolution_clock Clock;
+auto t1 = Clock::now();
+
+    for (const Gate<T>& gate : gates_) {
+        if (gate.nqubit() > 2) {
+            throw std::runtime_error("compressed cannot handle nqubit > 2");
+        }
+    }
+
+    const std::vector<Gate<T>>& gates1 = gates_;
+    const std::vector<std::vector<int>>& qubits1 = qubits_;
+
+    // Jam runs of 1-body gates together into single 1-body gates
+    std::vector<Gate<T>> gates2;
+    std::vector<std::vector<int>> qubits2;
+    std::vector<std::vector<size_t>> gate_indices1(nqubit_);
+    for (size_t index = 0; index < qubits1.size(); index++) {
+        const Gate<T>& gate = gates1[index];
+        const std::vector<int>& qubits = qubits1[index];
+        if (qubits.size() == 1) {
+            gate_indices1[qubits[0]].push_back(index);
+        } else {
+            for (int qubit : qubits) {
+                if (gate_indices1[qubit].size()) {
+                    std::vector<T> U = vulcan::util::identity2<T>();
+                    for (size_t index2 : gate_indices1[qubit]) {
+                        const Gate<T>& gate2 = gates1[index2];
+                        U = vulcan::util::multiply2<T>(gate2.matrix(), U);
+                    }
+                    gates2.push_back(Gate<T>(
+                        1,
+                        "U1",
+                        U));
+                    qubits2.push_back({qubit});
+                    gate_indices1[qubit].clear();
+                }
+            }
+            gates2.push_back(gate);
+            qubits2.push_back(qubits);
+        }
+    }
+    for (int qubit = 0; qubit < nqubit_; qubit++) {
+        if (gate_indices1[qubit].size()) {
+            std::vector<T> U = vulcan::util::identity2<T>();
+            for (size_t index2 : gate_indices1[qubit]) {
+                const Gate<T>& gate2 = gates1[index2];
+                U = vulcan::util::multiply2<T>(gate2.matrix(), U);
+            }
+            gates2.push_back(Gate<T>(
+                1,
+                "U1",
+                U));
+            qubits2.push_back({qubit});
+        }
+    }
+
+    // Find and separate isolated 1-body gates
+    std::vector<bool> has_2_body(nqubit_, false);
+    for (size_t index = 0; index < gates2.size(); index++) {
+        const std::vector<int>& qubits = qubits2[index];
+        if (qubits.size() > 1) {
+            for (int qubit : qubits) {
+                has_2_body[qubit] = true;
+            }
+        }
+    }
+    std::vector<Gate<T>> gates0;
+    std::vector<std::vector<int>> qubits0;
+    std::vector<Gate<T>> gates3;
+    std::vector<std::vector<int>> qubits3;
+    for (size_t index = 0; index < gates2.size(); index++){
+        const Gate<T>& gate = gates2[index];
+        const std::vector<int>& qubits = qubits2[index];
+        if (qubits.size() == 1 && !has_2_body[qubits[0]]) {
+            gates0.push_back(gate);
+            qubits0.push_back(qubits);
+        } else {
+            gates3.push_back(gate);
+            qubits3.push_back(qubits);
+        }
+    }
+
+    // Merge 1-body gates into neighboring 2-body gates
+    std::map<size_t, std::vector<std::pair<size_t, int>>> merges;
+    for (size_t index = 0; index < gates3.size(); index++){
+        const std::vector<int>& qubits = qubits3[index];
+        if (qubits.size() != 1) continue;
+        bool found = false;
+        for (ssize_t index2 = index + 1; index2 < gates3.size(); index2++) {
+            const std::vector<int>& qubits2 = qubits3[index2];
+            if (qubits2.size() != 2) continue;
+            if (qubits[0] == qubits2[0]) {
+                if (!merges.count(index2)) merges[index2] = {};
+                merges[index2].push_back(std::pair<size_t, int>(index, 0));
+                found = true;
+                break;
+            } else if (qubits[0] == qubits2[1]) {
+                if (!merges.count(index2)) merges[index2] = {};
+                merges[index2].push_back(std::pair<size_t, int>(index, 1));
+                found = true;
+                break;
+            }
+        }
+        if (found) continue;
+        for (ssize_t index2 = index - 1; index2 >= 0; index2--) {
+            const std::vector<int>& qubits2 = qubits3[index2];
+            if (qubits2.size() != 2) continue;
+            if (qubits[0] == qubits2[0]) {
+                if (!merges.count(index2)) merges[index2] = {};
+                merges[index2].push_back(std::pair<size_t, int>(index, 0));
+                found = true;
+                break;
+            } else if (qubits[0] == qubits2[1]) {
+                if (!merges.count(index2)) merges[index2] = {};
+                merges[index2].push_back(std::pair<size_t, int>(index, 1));
+                found = true;
+                break;
+            }
+        }
+        if (!found) throw std::runtime_error("Impossible");
+    }
+
+    std::vector<Gate<T>> gates4;
+    std::vector<std::vector<int>> qubits4;
+    for (size_t index = 0; index < gates3.size(); index++){
+        const Gate<T>& gate = gates3[index];
+        const std::vector<int>& qubits = qubits3[index];
+        if (qubits.size() == 1) continue;
+        if (!merges.count(index)) {
+            gates4.push_back(gate);
+            qubits4.push_back(qubits);
+            continue;
+        }
+        std::vector<T> U = util::identity4<T>();
+        for (auto merge : merges[index]) {
+            size_t index2 = std::get<0>(merge);
+            if (index2 > index) continue;
+            int wire = std::get<1>(merge);
+            const Gate<T>& gate2 = gates3[index2]; 
+            // [RMP: kron convention checked]
+            std::vector<T> U2 = (wire == 0 ? util::kron2I2<T>(gate2.matrix()) : util::kron2I1<T>(gate2.matrix()));
+            U = util::multiply4<T>(U2, U);
+        }
+        U = util::multiply4<T>(gate.matrix(), U);
+        for (auto merge : merges[index]) {
+            size_t index2 = std::get<0>(merge);
+            if (index2 < index) continue;
+            int wire = std::get<1>(merge);
+            const Gate<T>& gate2 = gates3[index2]; 
+            // [RMP: kron convention checked]
+            std::vector<T> U2 = (wire == 0 ? util::kron2I2<T>(gate2.matrix()) : util::kron2I1<T>(gate2.matrix()));
+            U = util::multiply4<T>(U2, U);
+        }
+        gates4.push_back(Gate<T>(
+            2,
+            "U2",
+            U));
+        qubits4.push_back(qubits);
+    }
+
+    // Merge neighboring 2-body gates
+    std::vector<Gate<T>> gates5;
+    std::vector<std::vector<int>> qubits5;
+    std::vector<Gate<T>> gates_stack;
+    std::vector<std::vector<int>> qubits_stack;
+    for (size_t index = 0; index < gates4.size(); index++) {
+        const Gate<T>& gate = gates4[index];
+        const std::vector<int>& qubits = qubits4[index];
+        bool found = false;
+        std::vector<size_t> clashes;
+        for (size_t index2 = 0; index2 < gates_stack.size(); index2++) {
+            const Gate<T>& gate2 = gates_stack[index2];
+            const std::vector<int>& qubits2 = qubits_stack[index2];
+            if (qubits[0] == qubits2[0] && qubits[1] == qubits2[1]) {
+                // Match [RMP: no bitflip required, as expected]
+                std::vector<T> U = vulcan::util::multiply4<T>(gate.matrix(), gate2.matrix());
+                gates_stack[index2] = Gate<T>(
+                    2,
+                    "U2",
+                    U);
+                found = true;
+                break;
+            } else if (qubits[0] == qubits2[1] && qubits[1] == qubits2[0]) {
+                // Match (transposed) [RMP: bitflip required, as expected]
+                std::vector<T> U = vulcan::util::multiply4<T>(vulcan::util::bitflip4<T>(gate.matrix()), gate2.matrix());
+                gates_stack[index2] = Gate<T>(
+                    2,
+                    "U2",
+                    U);
+                found = true;
+                break;
+            } else if (qubits[0] == qubits2[0] || qubits[0] == qubits2[1] || qubits[1] == qubits2[0] || qubits[1] == qubits2[1]) {
+                // Clash
+                clashes.push_back(index2);
+                found = true;
+            }
+        }
+
+        // Retire clashes
+        if (clashes.size()) {
+            ssize_t swap_index = gates_stack.size() - 1;
+            for (ssize_t index3 = clashes.size() - 1; index3 >= 0; index3--) {
+                size_t index = clashes[index3];
+                gates5.push_back(gates_stack[index]);
+                qubits5.push_back(qubits_stack[index]);
+                gates_stack[index] = gates_stack[swap_index];
+                qubits_stack[index] = qubits_stack[swap_index];
+                gates_stack.pop_back();
+                qubits_stack.pop_back();
+                swap_index--;
+            }
+        }
+
+        // Not found or clashes
+        if (!found || clashes.size()) {
+            gates_stack.push_back(gate);
+            qubits_stack.push_back(qubits);
+        }
+    }
+    for (size_t index = 0; index < gates_stack.size(); index++) {
+        gates5.push_back(gates_stack[index]);
+        qubits5.push_back(qubits_stack[index]);
+    }
+
+    // Wedge isolated 1-body gates into 2-body gates
+    std::vector<Gate<T>> gates0f;
+    std::vector<std::vector<int>> qubits0f;
+    for (size_t index = 0; index < gates0.size(); index+=2) {
+        if (index + 1 == gates0.size()) {
+            const Gate<T>& gate = gates0[index];
+            const std::vector<int>& qubits = qubits0[index];
+            gates0f.push_back(gate);
+            qubits0f.push_back(qubits);
+        } else {
+            const Gate<T>& gate1 = gates0[index + 0];
+            const std::vector<int>& qubits1 = qubits0[index + 0];
+            const Gate<T>& gate2 = gates0[index + 1];
+            const std::vector<int>& qubits2 = qubits0[index + 1];
+            std::vector<T> U = vulcan::util::kron2<T>(gate1.matrix(), gate2.matrix());
+            gates0f.push_back(Gate<T>(
+                2,
+                "U2",
+                U));
+            qubits0f.push_back({qubits1[0], qubits2[0]});
+        }
+    }
+
+    gates0f.insert(gates0f.end(), gates5.begin(), gates5.end());
+    qubits0f.insert(qubits0f.end(), qubits5.begin(), qubits5.end());
+
+auto t2 = Clock::now();
+std::chrono::duration<double> elapsed = t2 - t1;
+printf("Time elapsed = %11.3E\n", elapsed.count());
+
+printf("%zu %zu\n", gates1.size(), gates0f.size());
+
+    return Circuit(
+        nqubit_,
+        gates0f,
+        qubits0f);
 }
 
 protected:
@@ -490,10 +877,11 @@ template <typename T>
 void run_statevector(
     const Circuit<T>& circuit,
     T* statevector_h,
-    T* result_h)
+    T* result_h,
+    bool compressed)
 {
     T* statevector_d = vulcan::malloc_and_initialize_statevector(circuit.nqubit(), statevector_h);
-    vulcan::util::run_statevector(circuit, statevector_d);
+    vulcan::util::run_statevector(compressed ? circuit.compressed() : circuit, statevector_d);
     vulcan::copy_statevector_to_host(circuit.nqubit(), statevector_d, result_h);
     vulcan::free_statevector(statevector_d);
 }
@@ -502,7 +890,8 @@ template <typename T>
 void run_pauli_sigma(
     const Pauli<T>& pauli,
     T* statevector_h,
-    T* result_h)
+    T* result_h,
+    bool compressed)
 {
     T* statevector1_d = vulcan::malloc_and_initialize_statevector(pauli.nqubit(), statevector_h);
     T* statevector2_d = vulcan::malloc_statevector<T>(pauli.nqubit());
@@ -518,7 +907,8 @@ template <typename T>
 Pauli<T> run_pauli_expectation(
     const Circuit<T>& circuit,
     const Pauli<T>& pauli,
-    const T* statevector_h)
+    const T* statevector_h,
+    bool compressed)
 {
     if (circuit.nqubit() != pauli.nqubit()) {
         throw std::runtime_error("circuit and pauli do not have same nqubit");
@@ -526,7 +916,7 @@ Pauli<T> run_pauli_expectation(
     
     T* statevector1_d = vulcan::malloc_and_initialize_statevector(pauli.nqubit(), statevector_h);
     T* statevector2_d = vulcan::malloc_statevector<T>(pauli.nqubit());
-    vulcan::util::run_statevector(circuit, statevector1_d);
+    vulcan::util::run_statevector(compressed ? circuit.compressed() : circuit, statevector1_d);
     Pauli<T> expectation = vulcan::util::pauli_expectation(pauli, statevector1_d, statevector2_d);
     vulcan::free_statevector(statevector1_d);
     vulcan::free_statevector(statevector2_d);
@@ -537,7 +927,8 @@ template <typename T>
 T run_pauli_expectation_value(
     const Circuit<T>& circuit,
     const Pauli<T>& pauli,
-    const T* statevector_h)
+    const T* statevector_h,
+    bool compressed)
 {
     if (pauli.nqubit() != circuit.nqubit()) {
 	throw std::runtime_error("pauli and circuit must have same nqubit");
@@ -546,7 +937,7 @@ T run_pauli_expectation_value(
     T* statevector1_d = vulcan::malloc_and_initialize_statevector(pauli.nqubit(), statevector_h);
     T* statevector2_d = vulcan::malloc_statevector<T>(pauli.nqubit());
     T* statevector3_d = vulcan::malloc_statevector<T>(pauli.nqubit());
-    vulcan::util::run_statevector(circuit, statevector1_d);
+    vulcan::util::run_statevector(compressed ? circuit.compressed() : circuit, statevector1_d);
     vulcan::util::apply_pauli(pauli, statevector1_d, statevector2_d, statevector3_d);
     T val = vulcan::dot(circuit.nqubit(), statevector1_d, statevector2_d);
     vulcan::free_statevector(statevector1_d);
@@ -559,7 +950,8 @@ template <typename T>
 std::vector<T> run_pauli_expectation_value_gradient(
     const Circuit<T>& circuit,
     const Pauli<T>& pauli,
-    const T* statevector_h)
+    const T* statevector_h, 
+    bool compressed)
 {
     if (pauli.nqubit() != circuit.nqubit()) {
 	throw std::runtime_error("pauli and circuit must have same nqubit");
@@ -568,7 +960,7 @@ std::vector<T> run_pauli_expectation_value_gradient(
     T* statevector1_d = vulcan::malloc_and_initialize_statevector(pauli.nqubit(), statevector_h);
     T* statevector2_d = vulcan::malloc_statevector<T>(pauli.nqubit());
     T* statevector3_d = vulcan::malloc_statevector<T>(pauli.nqubit());
-    vulcan::util::run_statevector(circuit, statevector1_d);
+    vulcan::util::run_statevector(compressed ? circuit.compressed() : circuit, statevector1_d);
     vulcan::util::apply_pauli(pauli, statevector1_d, statevector2_d, statevector3_d);
 
     Circuit<T> circuit2 = circuit.adjoint();
@@ -617,10 +1009,11 @@ void run_measurement(
     const T* statevector_h,
     int nmeasurement,
     const U* randoms_h,
-    int* measurements_h)
+    int* measurements_h,
+    bool compressed)
 {
     T* statevector_d = vulcan::malloc_and_initialize_statevector(circuit.nqubit(), statevector_h);
-    vulcan::util::run_statevector(circuit, statevector_d);
+    vulcan::util::run_statevector(compressed ? circuit.compressed() : circuit, statevector_d);
 
     U* pvector_d;
     if (sizeof(T) == sizeof(U)) {

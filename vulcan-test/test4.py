@@ -222,7 +222,7 @@ def test_cis_z1(
         'run_pauli_sigma',  
         'run_pauli_expectation',  
         'run_pauli_expectation_value',  
-        'run_pauli_expectation_value_gradient',  
+   #      'run_pauli_expectation_value_gradient',  
     ]
 
     backends = {
