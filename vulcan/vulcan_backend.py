@@ -39,6 +39,13 @@ class VulcanSimulatorBackend(quasar.Backend):
         np.complex128 : vulcan.Pauli_complex128,
     }
 
+    vulcan_build_circuit_method = {
+        np.float32 : vulcan.build_circuit_float32,
+        np.float64 : vulcan.build_circuit_float64,
+        np.complex64 : vulcan.build_circuit_complex64,
+        np.complex128 : vulcan.build_circuit_complex128,
+    }
+
     vulcan_run_statevector_method = {
         np.float32 : vulcan.run_statevector_float32,
         np.float64 : vulcan.run_statevector_float64,
@@ -117,6 +124,40 @@ class VulcanSimulatorBackend(quasar.Backend):
             qubits,
             )
     
+        circuit2 = circuit2.bit_reversal() # quasar/vulcan ordering
+    
+        return circuit2
+    
+    @staticmethod
+    def vulcan_circuit2(
+        circuit,
+        min_qubit=None,
+        nqubit=None,
+        dtype=np.complex128,
+        ):
+
+        min_qubit = circuit.min_qubit if min_qubit is None else min_qubit
+        nqubit = circuit.nqubit if nqubit is None else nqubit
+
+        nqubits = [] 
+        names = []
+        matrices = []
+        qubits = []
+        for key, gate in circuit.gates.items():
+            times, qubits2 = key
+            nqubits.append(gate.nqubit)
+            names.append(gate.names)
+            matrices += gate.matrix.ravel()
+            qubits += [_ - min_qubit for _ in qubits2]
+
+        circuit2 = VulcanSimulatorBackend.vulcan_build_circuit_method[dtype](
+            nqubit,
+            nqubits,
+            names,
+            matrices,
+            qubits,
+            )
+
         circuit2 = circuit2.bit_reversal() # quasar/vulcan ordering
     
         return circuit2

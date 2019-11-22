@@ -365,6 +365,104 @@ np_int32 py_run_measurement_complex128(
     return py_run_measurement<complex128, std::complex<double>, float64, double>(circuit, statevector, randoms, compressed);
 }
 
+template <typename T>
+Circuit<T> py_build_circuit(
+    int nqubit,
+    const std::vector<int>& nqubits,
+    const std::vector<std::string>& names,
+    const std::vector<std::complex<double>>& matrices,
+    const std::vector<int>& qubits)
+{
+    if (nqubits.size() != names.size()) {
+        throw std::runtime_error("nqubits.size() != names.size()");
+    }  
+
+    size_t nmatrices = 0;
+    for (nqubit2 : nqubits) {
+        nmatrices += (1 << 2*nqubit2);
+    }
+    if (matrices.size() != nmatrices) {
+        throw std::runtime_error("matrices not correctly size");
+    }
+
+    size_t nqubits = 0;
+    for (int nqubit2 : nqubits) {
+        nqubits += nqubit2;
+    }
+    if (qubits.size() != nqubits) {
+        throw std::runtime_error("qubits not correctly size");
+    }
+
+    std::vector<Gate<T>> gates;
+    std::vector<std::vector<int>> qubits2;
+    size_t matrix_index = 0;
+    size_t qubit_index = 0;
+    for (size_t index = 0; index < nqubits.size(); index++) {
+        int nqubit2 = nqubits[index];
+        std::vector<T> matrix(1 << 2*nqubit2);
+        for (size_t index2 = 0; index2 < (1 << 2*nqubit2); index2++) {
+            std::complex<double> val = matrices[index2 + matrix_index];
+            matrix[index2] = T(val.real(), val.complex());
+        }
+        matrix_index += (1 << 2*nqubit2);
+        std::vector<int> qubits3(nqubit2);
+        for (size_t index2 = 0; index2 < nqubit2; index2++) {
+            qubits3[index2] = qubits[index2 + qubit_index];
+        }
+        qubit_index += nqubit2;
+        gates.push_back(Gate<T>(
+            nqubit2,
+            names[index],
+            matrix));
+        qubits2.push_back(qubits3);
+    }
+
+    return Circuit<T>(
+        nqubit,
+        gates,
+        qubits2);
+}
+
+Circuit<float32> py_build_circuit_float32(
+    int nqubit,
+    const std::vector<int>& nqubits,
+    const std::vector<std::string>& names,
+    const std::vector<std::complex<double>>& matrices,
+    const std::vector<int>& qubits)
+{
+    return py_build_circuit<float32>(nqubit, nqubits, names, matrices, qubits);
+}
+
+Circuit<float64> py_build_circuit_float64(
+    int nqubit,
+    const std::vector<int>& nqubits,
+    const std::vector<std::string>& names,
+    const std::vector<std::complex<double>>& matrices,
+    const std::vector<int>& qubits)
+{
+    return py_build_circuit<float64>(nqubit, nqubits, names, matrices, qubits);
+}
+
+Circuit<complex64> py_build_circuit_complex64(
+    int nqubit,
+    const std::vector<int>& nqubits,
+    const std::vector<std::string>& names,
+    const std::vector<std::complex<double>>& matrices,
+    const std::vector<int>& qubits)
+{
+    return py_build_circuit<complex64>(nqubit, nqubits, names, matrices, qubits);
+}
+
+Circuit<complex128> py_build_circuit_complex128(
+    int nqubit,
+    const std::vector<int>& nqubits,
+    const std::vector<std::string>& names,
+    const std::vector<std::complex<double>>& matrices,
+    const std::vector<int>& qubits)
+{
+    return py_build_circuit<complex128>(nqubit, nqubits, names, matrices, qubits);
+}
+
 PYBIND11_MODULE(vulcan_plugin, m) {
 
     m.def("ndevice", &vulcan::ndevice);
@@ -409,6 +507,8 @@ PYBIND11_MODULE(vulcan_plugin, m) {
     .def("bit_reversal", &vulcan::Pauli<vulcan::float32>::bit_reversal)
     ; 
 
+    m.def("build_circuit_float32", py_build_circuit_float32);    
+
     m.def("run_statevector_float32", py_run_statevector_float32);
     m.def("run_pauli_sigma_float32", py_run_pauli_sigma_float32);
     m.def("run_pauli_expectation_float32", py_run_pauli_expectation_float32);
@@ -449,6 +549,8 @@ PYBIND11_MODULE(vulcan_plugin, m) {
     .def("values", &vulcan::Pauli<vulcan::float64>::values)
     .def("bit_reversal", &vulcan::Pauli<vulcan::float64>::bit_reversal)
     ; 
+
+    m.def("build_circuit_float64", py_build_circuit_float64);    
 
     m.def("run_statevector_float64", py_run_statevector_float64);
     m.def("run_pauli_sigma_float64", py_run_pauli_sigma_float64);
@@ -491,6 +593,8 @@ PYBIND11_MODULE(vulcan_plugin, m) {
     .def("bit_reversal", &vulcan::Pauli<vulcan::complex64>::bit_reversal)
     ; 
 
+    m.def("build_circuit_complex64", py_build_circuit_complex64);    
+
     m.def("run_statevector_complex64", py_run_statevector_complex64);
     m.def("run_pauli_sigma_complex64", py_run_pauli_sigma_complex64);
     m.def("run_pauli_expectation_complex64", py_run_pauli_expectation_complex64);
@@ -531,6 +635,8 @@ PYBIND11_MODULE(vulcan_plugin, m) {
     .def("values", &vulcan::Pauli<vulcan::complex128>::values)
     .def("bit_reversal", &vulcan::Pauli<vulcan::complex128>::bit_reversal)
     ; 
+
+    m.def("build_circuit_complex128", py_build_circuit_complex128);    
 
     m.def("run_statevector_complex128", py_run_statevector_complex128);
     m.def("run_pauli_sigma_complex128", py_run_pauli_sigma_complex128);
