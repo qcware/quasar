@@ -378,18 +378,18 @@ Circuit<T> py_build_circuit(
     }  
 
     size_t nmatrices = 0;
-    for (nqubit2 : nqubits) {
+    for (int nqubit2 : nqubits) {
         nmatrices += (1 << 2*nqubit2);
     }
     if (matrices.size() != nmatrices) {
         throw std::runtime_error("matrices not correctly size");
     }
 
-    size_t nqubits = 0;
+    size_t nqubits2 = 0;
     for (int nqubit2 : nqubits) {
-        nqubits += nqubit2;
+        nqubits2 += nqubit2;
     }
-    if (qubits.size() != nqubits) {
+    if (qubits.size() != nqubits2) {
         throw std::runtime_error("qubits not correctly size");
     }
 
@@ -402,7 +402,7 @@ Circuit<T> py_build_circuit(
         std::vector<T> matrix(1 << 2*nqubit2);
         for (size_t index2 = 0; index2 < (1 << 2*nqubit2); index2++) {
             std::complex<double> val = matrices[index2 + matrix_index];
-            matrix[index2] = T(val.real(), val.complex());
+            matrix[index2] = T(val.real(), val.imag());
         }
         matrix_index += (1 << 2*nqubit2);
         std::vector<int> qubits3(nqubit2);

@@ -146,8 +146,8 @@ class VulcanSimulatorBackend(quasar.Backend):
         for key, gate in circuit.gates.items():
             times, qubits2 = key
             nqubits.append(gate.nqubit)
-            names.append(gate.names)
-            matrices += gate.matrix.ravel()
+            names.append(gate.name)
+            matrices += list(gate.operator.ravel())
             qubits += [_ - min_qubit for _ in qubits2]
 
         circuit2 = VulcanSimulatorBackend.vulcan_build_circuit_method[dtype](
@@ -260,7 +260,7 @@ class VulcanSimulatorBackend(quasar.Backend):
         compressed=True,
         ):
     
-        circuit2 = VulcanSimulatorBackend.vulcan_circuit(
+        circuit2 = VulcanSimulatorBackend.vulcan_circuit2(
             circuit=circuit, 
             min_qubit=min_qubit,
             nqubit=nqubit,
@@ -313,7 +313,7 @@ class VulcanSimulatorBackend(quasar.Backend):
         if nmeasurement is not None: 
             raise NotImplementedError
              
-        circuit2 = VulcanSimulatorBackend.vulcan_circuit(
+        circuit2 = VulcanSimulatorBackend.vulcan_circuit2(
             circuit=circuit, 
             min_qubit=min_qubit,
             nqubit=nqubit,
@@ -356,7 +356,7 @@ class VulcanSimulatorBackend(quasar.Backend):
         if nmeasurement is not None: 
             raise NotImplementedError
              
-        circuit2 = VulcanSimulatorBackend.vulcan_circuit(
+        circuit2 = VulcanSimulatorBackend.vulcan_circuit2(
             circuit=circuit, 
             min_qubit=min_qubit,
             nqubit=nqubit,
@@ -407,7 +407,7 @@ class VulcanSimulatorBackend(quasar.Backend):
             if not gate.name in ('Rx', 'Ry', 'Rz'): 
                 raise RuntimeError('Unknown gradient rule: presently can only differentiate Rx, Ry, Rz gates: %s' % gate)
 
-        circuit2 = VulcanSimulatorBackend.vulcan_circuit(
+        circuit2 = VulcanSimulatorBackend.vulcan_circuit2(
             circuit=circuit, 
             min_qubit=min_qubit,
             nqubit=nqubit,
@@ -448,7 +448,7 @@ class VulcanSimulatorBackend(quasar.Backend):
                 nqubit=nqubit,
                 dtype=dtype)
 
-        circuit2 = VulcanSimulatorBackend.vulcan_circuit(
+        circuit2 = VulcanSimulatorBackend.vulcan_circuit2(
             circuit=circuit, 
             min_qubit=min_qubit,
             nqubit=nqubit,
