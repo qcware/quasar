@@ -6,7 +6,6 @@
 #include <vector>
 #include <algorithm>
 #include <map>
-#include <chrono>
 
 namespace vulcan {    
 
@@ -237,9 +236,6 @@ Circuit<T> bit_reversal() const
 
 Circuit<T> compressed() const
 {
-typedef std::chrono::high_resolution_clock Clock;
-auto t1 = Clock::now();
-
     for (const Gate<T>& gate : gates_) {
         if (gate.nqubit() > 2) {
             throw std::runtime_error("compressed cannot handle nqubit > 2");
@@ -486,12 +482,6 @@ auto t1 = Clock::now();
 
     gates0f.insert(gates0f.end(), gates5.begin(), gates5.end());
     qubits0f.insert(qubits0f.end(), qubits5.begin(), qubits5.end());
-
-auto t2 = Clock::now();
-std::chrono::duration<double> elapsed = t2 - t1;
-printf("Time elapsed = %11.3E\n", elapsed.count());
-
-printf("%zu %zu\n", gates1.size(), gates0f.size());
 
     return Circuit(
         nqubit_,
