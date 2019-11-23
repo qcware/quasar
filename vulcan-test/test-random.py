@@ -150,6 +150,14 @@ def test2():
     data = {}
 
     circuits = { nqubit : random_circuit2(nqubit, depth) for nqubit in range(min_nqubit, max_nqubit+1) }
+
+    # Burner
+    t = test_timing(
+        backend=backend,
+        circuit=circuits[min_nqubit],
+        nmeasurement=nmeasurement,
+        dtype=np.complex64,
+        compressed=True)    
     
     nqubits = []
     ts = []
@@ -168,22 +176,22 @@ def test2():
     data['nqubits_complex64_compressed'] = nqubits
     data['ts_complex64_compressed'] = ts
     
-    nqubits = []
-    ts = []
-    for nqubit in range(min_nqubit, max_nqubit+1):
-        t = test_timing(
-            backend=backend,
-            circuit=circuits[nqubit],
-            nmeasurement=nmeasurement,
-            dtype=np.complex64,
-            compressed=False)    
-        nqubits.append(nqubit)
-        ts.append(t)
-        print(nqubit, t)
-    nqubits = np.array(nqubits)
-    ts = np.array(ts)
-    data['nqubits_complex64_uncompressed'] = nqubits
-    data['ts_complex64_uncompressed'] = ts
+    # nqubits = []
+    # ts = []
+    # for nqubit in range(min_nqubit, max_nqubit+1):
+    #     t = test_timing(
+    #         backend=backend,
+    #         circuit=circuits[nqubit],
+    #         nmeasurement=nmeasurement,
+    #         dtype=np.complex64,
+    #         compressed=False)    
+    #     nqubits.append(nqubit)
+    #     ts.append(t)
+    #     print(nqubit, t)
+    # nqubits = np.array(nqubits)
+    # ts = np.array(ts)
+    # data['nqubits_complex64_uncompressed'] = nqubits
+    # data['ts_complex64_uncompressed'] = ts
     
     nqubits = []
     ts = []
@@ -202,22 +210,22 @@ def test2():
     data['nqubits_complex128_compressed'] = nqubits
     data['ts_complex128_compressed'] = ts
     
-    nqubits = []
-    ts = []
-    for nqubit in range(min_nqubit, max_nqubit):
-        t = test_timing(
-            backend=backend,
-            circuit=circuits[nqubit],
-            nmeasurement=nmeasurement,
-            dtype=np.complex128,
-            compressed=False)    
-        nqubits.append(nqubit)
-        ts.append(t)
-        print(nqubit, t)
-    nqubits = np.array(nqubits)
-    ts = np.array(ts)
-    data['nqubits_complex128_uncompressed'] = nqubits
-    data['ts_complex128_uncompressed'] = ts
+    # nqubits = []
+    # ts = []
+    # for nqubit in range(min_nqubit, max_nqubit):
+    #     t = test_timing(
+    #         backend=backend,
+    #         circuit=circuits[nqubit],
+    #         nmeasurement=nmeasurement,
+    #         dtype=np.complex128,
+    #         compressed=False)    
+    #     nqubits.append(nqubit)
+    #     ts.append(t)
+    #     print(nqubit, t)
+    # nqubits = np.array(nqubits)
+    # ts = np.array(ts)
+    # data['nqubits_complex128_uncompressed'] = nqubits
+    # data['ts_complex128_uncompressed'] = ts
 
     np.savez('timings.npz', **data)
 
