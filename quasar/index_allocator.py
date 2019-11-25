@@ -113,7 +113,7 @@ class IndexAllocator(object):
             else:
                 return self.max_index + 1
         else: 
-            
+
             if self.negative_convention:
                 for index in range(self.min_index, self.max_index + 1, -1):
                     if index not in self.indices:
