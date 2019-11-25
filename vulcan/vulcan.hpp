@@ -17,6 +17,10 @@
  * of an array of Gate objects), Pauli operators (Pauli objects), statevectors,
  * and measurements.
  *
+ * All data fields for this portion of the API are to be provided in host
+ * memory (often emphasized with the postfix _h). Memory transfers to/from
+ * device memory will be managed by the API routines.
+ *
  * Special numerical types are necessary for interoperability between host and
  * device code. These are defined in vulcan_types.hpp. Unless otherwise
  * indicated, the templated functions below are instantiated for the following
@@ -508,6 +512,23 @@ std::vector<T> values_;
 
 // => Vulcan C++ API Functions <= //
 
+/**
+ * Run a quantum circuit and return the final statevector.
+ *
+ * GPU memory:
+ *  1x statevector
+ *
+ * Host-device transfers:
+ *  2x statevector if input statevector_h is provided 
+ *  1x statevector if input statevector_h is NULL
+ *
+ * Params:
+ *  circuit (Circuit) - circuit to run
+ *  statevector_h (T*) - input statevector or NULL to indicate the |000...>
+ *      statevector
+ *  result_h (T*) - output register for final statevector
+ *  compressed (bool) - apply compression to the circuit (true) or not (false)?
+ **/
 template <typename T>
 void run_statevector(
     const Circuit<T>& circuit,
@@ -515,10 +536,10 @@ void run_statevector(
     T* result_h,
     bool compressed)
 {
-    T* statevector_d = vulcan::malloc_and_initialize_statevector(circuit.nqubit(), statevector_h);
+    T* statevector_d = vulcan::gpu::malloc_and_initialize_statevector(circuit.nqubit(), statevector_h);
     vulcan::util::run_statevector(compressed ? circuit.compressed() : circuit, statevector_d);
-    vulcan::copy_statevector_to_host(circuit.nqubit(), statevector_d, result_h);
-    vulcan::free_statevector(statevector_d);
+    vulcan::gpu::copy_statevector_to_host(circuit.nqubit(), statevector_d, result_h);
+    vulcan::gpu::free_statevector(statevector_d);
 }
 
 template <typename T>
@@ -528,14 +549,14 @@ void run_pauli_sigma(
     T* result_h,
     bool compressed)
 {
-    T* statevector1_d = vulcan::malloc_and_initialize_statevector(pauli.nqubit(), statevector_h);
-    T* statevector2_d = vulcan::malloc_statevector<T>(pauli.nqubit());
-    T* statevector3_d = vulcan::malloc_statevector<T>(pauli.nqubit());
+    T* statevector1_d = vulcan::gpu::malloc_and_initialize_statevector(pauli.nqubit(), statevector_h);
+    T* statevector2_d = vulcan::gpu::malloc_statevector<T>(pauli.nqubit());
+    T* statevector3_d = vulcan::gpu::malloc_statevector<T>(pauli.nqubit());
     vulcan::util::apply_pauli(pauli, statevector1_d, statevector2_d, statevector3_d);
-    vulcan::copy_statevector_to_host(pauli.nqubit(), statevector2_d, result_h);
-    vulcan::free_statevector(statevector1_d);
-    vulcan::free_statevector(statevector2_d);
-    vulcan::free_statevector(statevector3_d);
+    vulcan::gpu::copy_statevector_to_host(pauli.nqubit(), statevector2_d, result_h);
+    vulcan::gpu::free_statevector(statevector1_d);
+    vulcan::gpu::free_statevector(statevector2_d);
+    vulcan::gpu::free_statevector(statevector3_d);
 }
 
 template <typename T>
@@ -549,12 +570,12 @@ Pauli<T> run_pauli_expectation(
         throw std::runtime_error("circuit and pauli do not have same nqubit");
     }
     
-    T* statevector1_d = vulcan::malloc_and_initialize_statevector(pauli.nqubit(), statevector_h);
-    T* statevector2_d = vulcan::malloc_statevector<T>(pauli.nqubit());
+    T* statevector1_d = vulcan::gpu::malloc_and_initialize_statevector(pauli.nqubit(), statevector_h);
+    T* statevector2_d = vulcan::gpu::malloc_statevector<T>(pauli.nqubit());
     vulcan::util::run_statevector(compressed ? circuit.compressed() : circuit, statevector1_d);
     Pauli<T> expectation = vulcan::util::pauli_expectation(pauli, statevector1_d, statevector2_d);
-    vulcan::free_statevector(statevector1_d);
-    vulcan::free_statevector(statevector2_d);
+    vulcan::gpu::free_statevector(statevector1_d);
+    vulcan::gpu::free_statevector(statevector2_d);
     return expectation; 
 }
 
@@ -569,15 +590,15 @@ T run_pauli_expectation_value(
 	throw std::runtime_error("pauli and circuit must have same nqubit");
     }
 
-    T* statevector1_d = vulcan::malloc_and_initialize_statevector(pauli.nqubit(), statevector_h);
-    T* statevector2_d = vulcan::malloc_statevector<T>(pauli.nqubit());
-    T* statevector3_d = vulcan::malloc_statevector<T>(pauli.nqubit());
+    T* statevector1_d = vulcan::gpu::malloc_and_initialize_statevector(pauli.nqubit(), statevector_h);
+    T* statevector2_d = vulcan::gpu::malloc_statevector<T>(pauli.nqubit());
+    T* statevector3_d = vulcan::gpu::malloc_statevector<T>(pauli.nqubit());
     vulcan::util::run_statevector(compressed ? circuit.compressed() : circuit, statevector1_d);
     vulcan::util::apply_pauli(pauli, statevector1_d, statevector2_d, statevector3_d);
-    T val = vulcan::dot(circuit.nqubit(), statevector1_d, statevector2_d);
-    vulcan::free_statevector(statevector1_d);
-    vulcan::free_statevector(statevector2_d);
-    vulcan::free_statevector(statevector3_d);
+    T val = vulcan::gpu::dot(circuit.nqubit(), statevector1_d, statevector2_d);
+    vulcan::gpu::free_statevector(statevector1_d);
+    vulcan::gpu::free_statevector(statevector2_d);
+    vulcan::gpu::free_statevector(statevector3_d);
     return val;
 }
     
@@ -592,9 +613,9 @@ std::vector<T> run_pauli_expectation_value_gradient(
 	throw std::runtime_error("pauli and circuit must have same nqubit");
     }
 
-    T* statevector1_d = vulcan::malloc_and_initialize_statevector(pauli.nqubit(), statevector_h);
-    T* statevector2_d = vulcan::malloc_statevector<T>(pauli.nqubit());
-    T* statevector3_d = vulcan::malloc_statevector<T>(pauli.nqubit());
+    T* statevector1_d = vulcan::gpu::malloc_and_initialize_statevector(pauli.nqubit(), statevector_h);
+    T* statevector2_d = vulcan::gpu::malloc_statevector<T>(pauli.nqubit());
+    T* statevector3_d = vulcan::gpu::malloc_statevector<T>(pauli.nqubit());
     vulcan::util::run_statevector(compressed ? circuit.compressed() : circuit, statevector1_d);
     vulcan::util::apply_pauli(pauli, statevector1_d, statevector2_d, statevector3_d);
 
@@ -626,18 +647,62 @@ std::vector<T> run_pauli_expectation_value_gradient(
                 statevector3_d,
                 circuit2.qubits()[index][0],
                 type);
-            gradient.push_back(T(2.0 * vulcan::dot(circuit.nqubit(), statevector1_d, statevector3_d).real()));
+            gradient.push_back(T(2.0 * vulcan::gpu::dot(circuit.nqubit(), statevector1_d, statevector3_d).real()));
         }
     }
 
     std::reverse(gradient.begin(), gradient.end());
 
-    vulcan::free_statevector(statevector1_d);
-    vulcan::free_statevector(statevector2_d);
-    vulcan::free_statevector(statevector3_d);
+    vulcan::gpu::free_statevector(statevector1_d);
+    vulcan::gpu::free_statevector(statevector2_d);
+    vulcan::gpu::free_statevector(statevector3_d);
     return gradient;
 }
 
+/**
+ * Run a quantum circuit and then sample random measurements from the final
+ * statevector.
+ *
+ * Note that if an input statevector_h is not provided, this is an elegant
+ * "quantum" operation: The circuit data is sent to the GPU, the GPU
+ * initializes the quantum statevector in the |000...> state, runs the circuit,
+ * performs random measurements, and returns these measurements to the host. No
+ * 2**nqubit-sized data crosses the host-device bus, and the operation directly
+ * emulates the interface with a real quantum device.
+ *
+ * Specifically, the GPU call sequence is:
+ *  run_statevector -> abs2 -> cumsum -> measure
+ *
+ * See these specific functions in vulcan_gpu.hpp for details.
+ *
+ * GPU memory:
+ *  1x statevector if T and U are the same real type
+ *  1.5x statevector if T is complex and U is real
+ *
+ * Host-device transfers:
+ *  1x statevector if input statevector_h is provided 
+ *  Negligible if input statevector_h is NULL
+ *
+ * The statevector is run in type T, the abs2, cumsum, and measure operations
+ * are run in type U (always a real type).
+ *
+ * The following combinations of types are instantiated:
+ *   run_measurement<float32, float32> 
+ *   run_measurement<float64, float64> 
+ *   run_measurement<complex64, float32> 
+ *   run_measurement<complex128, float64> 
+ *
+ * Params:
+ *  circuit (Circuit) - circuit to run
+ *  statevector_h (T*) - input statevector or NULL to indicate the |000...>
+ *      statevector
+ *  nmeasurement (int) - number of measurements to run
+ *  randoms (U*) - input real random uniform samples in [0, 1). Size
+ *      nmeasurement
+ *  measurements_h (int*) - host register to place output measurements into.
+ *      Size nmeasurement
+ *  compressed (bool) - apply compression to the circuit (true) or not (false)?
+ **/
 template <typename T, typename U>
 void run_measurement(
     const Circuit<T>& circuit,
@@ -647,21 +712,21 @@ void run_measurement(
     int* measurements_h,
     bool compressed)
 {
-    T* statevector_d = vulcan::malloc_and_initialize_statevector(circuit.nqubit(), statevector_h);
+    T* statevector_d = vulcan::gpu::malloc_and_initialize_statevector(circuit.nqubit(), statevector_h);
     vulcan::util::run_statevector(compressed ? circuit.compressed() : circuit, statevector_d);
 
     U* pvector_d;
     if (sizeof(T) == sizeof(U)) {
         pvector_d = (U*) statevector_d; // in-place with real types
     } else if (sizeof(T) == 2*sizeof(U)) {
-        pvector_d = vulcan::malloc_statevector<U>(circuit.nqubit()); // Temporary with complex types
+        pvector_d = vulcan::gpu::malloc_statevector<U>(circuit.nqubit()); // Temporary with complex types
     } else {
         throw std::runtime_error("T/U sizes do not make sense");
     }
 
-    vulcan::abs2<T, U>(circuit.nqubit(), statevector_d, pvector_d);
+    vulcan::gpu::abs2<T, U>(circuit.nqubit(), statevector_d, pvector_d);
 
-    U sum = vulcan::cumsum<U>(circuit.nqubit(), pvector_d);
+    U sum = vulcan::gpu::cumsum<U>(circuit.nqubit(), pvector_d);
 
     U* randoms_d;
     cudaMalloc(&randoms_d, sizeof(U)*nmeasurement);
@@ -670,13 +735,13 @@ void run_measurement(
     int* measurements_d;
     cudaMalloc(&measurements_d, sizeof(int)*nmeasurement);
 
-    vulcan::measure(circuit.nqubit(), pvector_d, sum, nmeasurement, randoms_d, measurements_d); 
+    vulcan::gpu::measure(circuit.nqubit(), pvector_d, sum, nmeasurement, randoms_d, measurements_d); 
 
     cudaMemcpy(measurements_h, measurements_d, sizeof(int)*nmeasurement, cudaMemcpyDeviceToHost);
 
-    vulcan::free_statevector(statevector_d);
+    vulcan::gpu::free_statevector(statevector_d);
     if (sizeof(T) != sizeof(U)) {
-        vulcan::free_statevector(pvector_d);
+        vulcan::gpu::free_statevector(pvector_d);
     }
     cudaFree(randoms_d);
     cudaFree(measurements_d);

@@ -16,14 +16,14 @@ double time_malloc_statevector(
     cudaEventCreate(&stop);
 
     cudaEventRecord(start);
-    T* statevector = vulcan::malloc_statevector<T>(nqubit);
+    T* statevector = vulcan::gpu::malloc_statevector<T>(nqubit);
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
 
     float time_ms;
     cudaEventElapsedTime(&time_ms, start, stop);
 
-    vulcan::free_statevector(statevector);
+    vulcan::gpu::free_statevector(statevector);
     
     return 1.0E-3 * time_ms;
 }
@@ -32,14 +32,14 @@ template <typename T>
 double time_free_statevector(
     int nqubit)
 {
-    T* statevector = vulcan::malloc_statevector<T>(nqubit);
+    T* statevector = vulcan::gpu::malloc_statevector<T>(nqubit);
 
     cudaEvent_t start, stop;
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
 
     cudaEventRecord(start);
-    vulcan::free_statevector(statevector);
+    vulcan::gpu::free_statevector(statevector);
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
 
@@ -53,20 +53,20 @@ template <typename T>
 double time_zero_statevector(
     int nqubit)
 {
-    T* statevector = vulcan::malloc_statevector<T>(nqubit);
+    T* statevector = vulcan::gpu::malloc_statevector<T>(nqubit);
 
     cudaEvent_t start, stop;
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
 
     cudaEventRecord(start);
-    vulcan::zero_statevector<T>(nqubit, statevector);
+    vulcan::gpu::zero_statevector<T>(nqubit, statevector);
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
     float time_ms;
     cudaEventElapsedTime(&time_ms, start, stop);
 
-    vulcan::free_statevector(statevector);
+    vulcan::gpu::free_statevector(statevector);
 
     return 1.0E-3 * time_ms;
 }
@@ -75,20 +75,20 @@ template <typename T>
 double time_set_statevector_element(
     int nqubit)
 {
-    T* statevector = vulcan::malloc_statevector<T>(nqubit);
+    T* statevector = vulcan::gpu::malloc_statevector<T>(nqubit);
 
     cudaEvent_t start, stop;
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
 
     cudaEventRecord(start);
-    vulcan::set_statevector_element(statevector, 0, T(1.0));
+    vulcan::gpu::set_statevector_element(statevector, 0, T(1.0));
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
     float time_ms;
     cudaEventElapsedTime(&time_ms, start, stop);
 
-    vulcan::free_statevector(statevector);
+    vulcan::gpu::free_statevector(statevector);
 
     return 1.0E-3 * time_ms;
 }
@@ -97,20 +97,20 @@ template <typename T>
 double time_get_statevector_element(
     int nqubit)
 {
-    T* statevector = vulcan::malloc_statevector<T>(nqubit);
+    T* statevector = vulcan::gpu::malloc_statevector<T>(nqubit);
 
     cudaEvent_t start, stop;
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
 
     cudaEventRecord(start);
-    vulcan::get_statevector_element(statevector, 0);
+    vulcan::gpu::get_statevector_element(statevector, 0);
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
     float time_ms;
     cudaEventElapsedTime(&time_ms, start, stop);
 
-    vulcan::free_statevector(statevector);
+    vulcan::gpu::free_statevector(statevector);
 
     return 1.0E-3 * time_ms;
 }
@@ -119,9 +119,9 @@ template <typename T>
 double time_copy_statevector_to_device(
     int nqubit)
 {
-    T* statevector = vulcan::malloc_statevector<T>(nqubit);
+    T* statevector = vulcan::gpu::malloc_statevector<T>(nqubit);
     T* statevector_h = new T[(1ULL << nqubit)];
-    vulcan::zero_statevector<T>(nqubit, statevector);
+    vulcan::gpu::zero_statevector<T>(nqubit, statevector);
     std::memset(statevector_h, '\0', (1ULL << nqubit) * sizeof(T));
 
     cudaEvent_t start, stop;
@@ -129,13 +129,13 @@ double time_copy_statevector_to_device(
     cudaEventCreate(&stop);
 
     cudaEventRecord(start);
-    vulcan::copy_statevector_to_device(nqubit, statevector, statevector_h);
+    vulcan::gpu::copy_statevector_to_device(nqubit, statevector, statevector_h);
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
     float time_ms;
     cudaEventElapsedTime(&time_ms, start, stop);
 
-    vulcan::free_statevector(statevector);
+    vulcan::gpu::free_statevector(statevector);
     delete[] statevector_h;
 
     return 1.0E-3 * time_ms;
@@ -145,9 +145,9 @@ template <typename T>
 double time_copy_statevector_to_host(
     int nqubit)
 {
-    T* statevector = vulcan::malloc_statevector<T>(nqubit);
+    T* statevector = vulcan::gpu::malloc_statevector<T>(nqubit);
     T* statevector_h = new T[(1ULL << nqubit)];
-    vulcan::zero_statevector<T>(nqubit, statevector);
+    vulcan::gpu::zero_statevector<T>(nqubit, statevector);
     std::memset(statevector_h, '\0', (1ULL << nqubit) * sizeof(T));
 
     cudaEvent_t start, stop;
@@ -155,13 +155,13 @@ double time_copy_statevector_to_host(
     cudaEventCreate(&stop);
 
     cudaEventRecord(start);
-    vulcan::copy_statevector_to_host(nqubit, statevector, statevector_h);
+    vulcan::gpu::copy_statevector_to_host(nqubit, statevector, statevector_h);
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
     float time_ms;
     cudaEventElapsedTime(&time_ms, start, stop);
 
-    vulcan::free_statevector(statevector);
+    vulcan::gpu::free_statevector(statevector);
     delete[] statevector_h;
 
     return 1.0E-3 * time_ms;
@@ -172,24 +172,24 @@ double time_dot(
     int nqubit,
     bool same)
 {
-    T* statevector1 = vulcan::malloc_statevector<T>(nqubit);
-    T* statevector2 = vulcan::malloc_statevector<T>(nqubit);
-    vulcan::zero_statevector<T>(nqubit, statevector1);
-    vulcan::zero_statevector<T>(nqubit, statevector2);
+    T* statevector1 = vulcan::gpu::malloc_statevector<T>(nqubit);
+    T* statevector2 = vulcan::gpu::malloc_statevector<T>(nqubit);
+    vulcan::gpu::zero_statevector<T>(nqubit, statevector1);
+    vulcan::gpu::zero_statevector<T>(nqubit, statevector2);
 
     cudaEvent_t start, stop;
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
 
     cudaEventRecord(start);
-    vulcan::dot<T>(nqubit, statevector1, (same ? statevector1 : statevector2));
+    vulcan::gpu::dot<T>(nqubit, statevector1, (same ? statevector1 : statevector2));
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
     float time_ms;
     cudaEventElapsedTime(&time_ms, start, stop);
 
-    vulcan::free_statevector(statevector1);
-    vulcan::free_statevector(statevector2);
+    vulcan::gpu::free_statevector(statevector1);
+    vulcan::gpu::free_statevector(statevector2);
 
     return 1.0E-3 * time_ms;
 }
@@ -200,24 +200,24 @@ double time_axpby(
     T a,
     T b)
 {
-    T* statevector1 = vulcan::malloc_statevector<T>(nqubit);
-    T* statevector2 = vulcan::malloc_statevector<T>(nqubit);
-    vulcan::zero_statevector<T>(nqubit, statevector1);
-    vulcan::zero_statevector<T>(nqubit, statevector2);
+    T* statevector1 = vulcan::gpu::malloc_statevector<T>(nqubit);
+    T* statevector2 = vulcan::gpu::malloc_statevector<T>(nqubit);
+    vulcan::gpu::zero_statevector<T>(nqubit, statevector1);
+    vulcan::gpu::zero_statevector<T>(nqubit, statevector2);
 
     cudaEvent_t start, stop;
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
 
     cudaEventRecord(start);
-    vulcan::axpby<T>(nqubit, statevector1, statevector2, a, b);
+    vulcan::gpu::axpby<T>(nqubit, statevector1, statevector2, a, b);
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
     float time_ms;
     cudaEventElapsedTime(&time_ms, start, stop);
 
-    vulcan::free_statevector(statevector1);
-    vulcan::free_statevector(statevector2);
+    vulcan::gpu::free_statevector(statevector1);
+    vulcan::gpu::free_statevector(statevector2);
 
     return 1.0E-3 * time_ms;
 }
@@ -670,8 +670,8 @@ std::vector<double> time_apply_gate_1(
     T a,
     T b)
 {
-    T* statevector = vulcan::malloc_statevector<T>(nqubit);
-    vulcan::zero_statevector<T>(nqubit, statevector);
+    T* statevector = vulcan::gpu::malloc_statevector<T>(nqubit);
+    vulcan::gpu::zero_statevector<T>(nqubit, statevector);
 
     cudaEvent_t start, stop;
     cudaEventCreate(&start);
@@ -680,7 +680,7 @@ std::vector<double> time_apply_gate_1(
     std::vector<double> timings;
     for (int qubit = 0; qubit < nqubit; qubit++) {
         cudaEventRecord(start);
-        vulcan::apply_gate_1<T>(
+        vulcan::gpu::apply_gate_1<T>(
             nqubit,
             statevector,
             statevector,
@@ -698,7 +698,7 @@ std::vector<double> time_apply_gate_1(
         timings.push_back(1.0E-3 * time_ms);
     }   
 
-    vulcan::free_statevector(statevector);
+    vulcan::gpu::free_statevector(statevector);
     return timings;
 }
 
@@ -765,8 +765,8 @@ std::vector<double> time_apply_gate_2(
     T a,
     T b)
 {
-    T* statevector = vulcan::malloc_statevector<T>(nqubit);
-    vulcan::zero_statevector<T>(nqubit, statevector);
+    T* statevector = vulcan::gpu::malloc_statevector<T>(nqubit);
+    vulcan::gpu::zero_statevector<T>(nqubit, statevector);
 
     cudaEvent_t start, stop;
     cudaEventCreate(&start);
@@ -778,7 +778,7 @@ std::vector<double> time_apply_gate_2(
             if (qubitA == qubitB) continue;
 
             cudaEventRecord(start);
-            vulcan::apply_gate_2<T>(
+            vulcan::gpu::apply_gate_2<T>(
                 nqubit,
                 statevector,
                 statevector,
@@ -810,7 +810,7 @@ std::vector<double> time_apply_gate_2(
         }
     }   
 
-    vulcan::free_statevector(statevector);
+    vulcan::gpu::free_statevector(statevector);
     return timings;
 }
 
@@ -881,12 +881,12 @@ template <typename T, typename U>
 double time_abs2(
     int nqubit)
 {
-    T* statevector1 = vulcan::malloc_statevector<T>(nqubit);
+    T* statevector1 = vulcan::gpu::malloc_statevector<T>(nqubit);
     U* statevector2;
     if (sizeof(T) == sizeof(U)) {
         statevector2 = (U*) statevector1;
     } else {
-        statevector2 = vulcan::malloc_statevector<U>(nqubit);
+        statevector2 = vulcan::gpu::malloc_statevector<U>(nqubit);
     }
 
     cudaEvent_t start, stop;
@@ -894,16 +894,16 @@ double time_abs2(
     cudaEventCreate(&stop);
 
     cudaEventRecord(start);
-    vulcan::abs2<T, U>(nqubit, statevector1, statevector2);
+    vulcan::gpu::abs2<T, U>(nqubit, statevector1, statevector2);
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
 
     float time_ms;
     cudaEventElapsedTime(&time_ms, start, stop);
 
-    vulcan::free_statevector(statevector1);
+    vulcan::gpu::free_statevector(statevector1);
     if (sizeof(T) != sizeof(U)) {
-        vulcan::free_statevector(statevector2);
+        vulcan::gpu::free_statevector(statevector2);
     }
     
     return 1.0E-3 * time_ms;
@@ -913,21 +913,21 @@ template <typename T>
 double time_cumsum(
     int nqubit)
 {
-    T* statevector = vulcan::malloc_statevector<T>(nqubit);
+    T* statevector = vulcan::gpu::malloc_statevector<T>(nqubit);
 
     cudaEvent_t start, stop;
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
 
     cudaEventRecord(start);
-    vulcan::cumsum<T>(nqubit, statevector);
+    vulcan::gpu::cumsum<T>(nqubit, statevector);
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
 
     float time_ms;
     cudaEventElapsedTime(&time_ms, start, stop);
 
-    vulcan::free_statevector(statevector);
+    vulcan::gpu::free_statevector(statevector);
     
     return 1.0E-3 * time_ms;
 }

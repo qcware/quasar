@@ -45,6 +45,8 @@
     
 namespace vulcan {
 
+namespace gpu {
+
 // => Utility <= //
 
 // Maximum number of qubits the library can handle
@@ -220,11 +222,11 @@ T* malloc_and_initialize_statevector(
     int nqubit,
     const T* statevector_h)
 {
-    T* statevector_d = vulcan::malloc_statevector<T>(nqubit);
+    T* statevector_d = vulcan::gpu::malloc_statevector<T>(nqubit);
     if (statevector_h == nullptr) {
-	vulcan::initialize_zero_ket(nqubit, statevector_d);
+	vulcan::gpu::initialize_zero_ket(nqubit, statevector_d);
     } else {
-        vulcan::copy_statevector_to_device(nqubit, statevector_d, statevector_h);
+        vulcan::gpu::copy_statevector_to_device(nqubit, statevector_d, statevector_h);
     }
 
     return statevector_d;
@@ -432,13 +434,14 @@ T cumsum(
  * to random configurations (kets) sampled from the discrete probability
  * distribution of a statevector.
  * 
- * The algorithm works by determining the ket I for which:
+ * The algorithm works by determining, for each random, the ket I for which:
  *  
  *  (cumsum_d)_I <= random * sum < cumsum_(I + 1)
  * 
- * Note that we do not generate the uniform random values ourselves. These are
- * specified by the user, and may be generated as desired on the CPU or GPU and
- * then placed in global GPU memory.
+ * Note that we do not generate the uniform random values within this function.
+ * These are specified by the user as an input argument to this function, and
+ * may be generated as desired on the CPU or GPU and then placed in global GPU
+ * memory.
  * 
  * Note that the user assumes the burden of checking the numerical quality of
  * the cover of the random sampling, particularly with large statevectors with
@@ -483,5 +486,7 @@ void measure(
     int nmeasurement,
     T* randoms,
     int* measurements);
+
+} // namespace vulcan::gpu
 
 } // namespace vulcan

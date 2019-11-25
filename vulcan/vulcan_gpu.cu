@@ -3,6 +3,8 @@
 
 namespace vulcan {
 
+namespace gpu {
+
 // => Utility Functions <= //
 
 std::pair<int, int> cuda_grid_size(int nqubit, int block_size)
@@ -68,7 +70,7 @@ __inline__ __device__
 T warp_sum(T val)
 {
     for (int offset = warpSize/2; offset > 0; offset /= 2) {
-        val += vulcan::shfl_xor(val, offset);
+        val += vulcan::gpu::shfl_xor(val, offset);
     }
     return val;
 }
@@ -91,11 +93,11 @@ __inline__ __device__
 T block_sum(T val)
 {
     static __shared__ T shared[32];
-    val = warp_sum(val);
+    val = vulcan::gpu::warp_sum(val);
     if (threadIdx.x % warpSize == 0) shared[threadIdx.x / warpSize] = val;
     __syncthreads();
     val = (threadIdx.x < blockDim.x / warpSize ? shared[threadIdx.x] : T::zero());
-    if (threadIdx.x / warpSize == 0) val = warp_sum(val);
+    if (threadIdx.x / warpSize == 0) val = vulcan::gpu::warp_sum(val);
     __syncthreads(); // This syncthreads is so that nobody writes into shared before we are finished reading
     return val;
 }
@@ -112,7 +114,7 @@ __global__ void dot_kernel_1(
         val += vulcan::conj(statevector1[index]) * statevector2[index];
     }
 
-    val = block_sum(val);
+    val = vulcan::gpu::block_sum(val);
 
     if (threadIdx.x == 0) {
         output[blockIdx.x] = val;   
@@ -129,7 +131,7 @@ __global__ void dot_kernel_2(
         val += array[index];
     }
 
-    val = block_sum(val);
+    val = vulcan::gpu::block_sum(val);
 
     if (threadIdx.x == 0) {
         array[blockIdx.x] = val;   
@@ -800,5 +802,7 @@ void measure(
 
 template void measure<float64>(int, float64*, float64, int, float64*, int*);
 template void measure<float32>(int, float32*, float32, int, float32*, int*);
+
+} // namespace vulcan::gpu
 
 } // namespace vulcan
