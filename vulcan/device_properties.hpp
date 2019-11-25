@@ -4,7 +4,7 @@
 
 namespace vulcan {
 
-/// Number of devices are visible to the CUDA runtime
+/// Number of devices that are visible to the CUDA runtime
 int ndevice();
 
 /**

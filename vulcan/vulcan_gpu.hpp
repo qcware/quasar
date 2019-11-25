@@ -32,11 +32,20 @@
  *      imaginary components of the computation will be truncated to zero
  *      throughout, possibly leading to formally incorrect results. The user is
  *      responsible for verifying formal correctness when using real types.
+ *  - Special numerical types are necessary for interoperability between host
+ *      and device code. These are defined in vulcan_types.hpp. Unless
+ *      otherwise indicated, the templated functions below are instantiated for
+ *      the following types T:
+ *
+ *           vulcan::float32
+ *           vulcan::float64
+ *           vulcan::complex64
+ *           vulcan::complex128
  **/
     
 namespace vulcan {
 
-// => Utility Functions <= //
+// => Utility <= //
 
 // Maximum number of qubits the library can handle
 #define MAX_NQUBIT 31
@@ -360,19 +369,112 @@ void apply_gate_2(
     T a = T(1.0),
     T b = T(0.0));
 
-// => Measurement Operations <= //
+// => Random Quantum Measurement Operations <= //
 
+/**
+ * Place the real absolute square of statevector1_d in statevector2_d:
+ *  statevector2_d = real(abs**2(statevector1_d))
+ * 
+ * Separate types T and U are used to permit downcasting from complex
+ * statevector1_d to real statevector2_d.
+ * 
+ * Note that self-assignment is supported if T and U are the same real type.
+ * 
+ * The following combinations of types are instantiated:
+ *   abs2<float32, float32> (supports self-assignment)
+ *   abs2<float64, float64> (supports self-assignment)
+ *   abs2<complex64, float32>
+ *   abs2<complex128, float64>
+ * 
+ * Params:
+ *  nqubit (int) - number of qubits in statevector
+ *  statevector1_d (T*) - device pointer to allocated input statevector
+ *  statevector2_d (U*) - device pointer to allocated output statevector
+ * Result:
+ *  statevector2_d is overwritten with the result of the operation
+ **/
 template <typename T, typename U>
 void abs2(
     int nqubit,
     T* statevector1_d,
     U* statevector2_d);
 
+/**
+ * Form the exclusive cumulative sum of statevector_d in place. 
+ * 
+ * (statevector_d)_I = sum_{J = 0}^{I-1} (statevector_d)_J
+ * 
+ * Note that the final value of (statevector_d)_0 is 0.0.
+ * The total sum is returned to the host to preserve the full information
+ * content of statevector.
+ * 
+ * Butterfly summation is used for speed and for enhanced numerical stability
+ * 
+ * The following combinations of types are instantiated:
+ *   cumsum<float32> 
+ *   cumsum<float64> 
+ *
+ * Params:
+ *  nqubit (int) - number of qubits in statevector
+ *  statevector_d (T*) - device pointer to allocated input/output statevector
+ * Result:
+ *  statevector_d is updated with the cumulative sum.
+ * Returns:
+ *  (T) the total sum of all elements in statevector_d
+ **/ 
 template <typename T>
 T cumsum(
     int nqubit,
     T* statevector_d);
 
+/**
+ * Transformation from (pseudo)random numbers uniformly sampled in [0.0, 1.0)
+ * to random configurations (kets) sampled from the discrete probability
+ * distribution of a statevector.
+ * 
+ * The algorithm works by determining the ket I for which:
+ *  
+ *  (cumsum_d)_I <= random * sum < cumsum_(I + 1)
+ * 
+ * Note that we do not generate the uniform random values ourselves. These are
+ * specified by the user, and may be generated as desired on the CPU or GPU and
+ * then placed in global GPU memory.
+ * 
+ * Note that the user assumes the burden of checking the numerical quality of
+ * the cover of the random sampling, particularly with large statevectors with
+ * nearly uniform probability amplitudes in low precisions. For instance,
+ * sampling from the uniform |+> = \prod_I (H_I) |0> state with 32-bit
+ * precision floating point types in statevectors with >~ 22 qubits is somewhat
+ * numerically dicey: the returned samples will nicely extend across the domain
+ * from |000...> to |111...>, but not all kets will be reachable by this random
+ * sampling function. This is because there is not enough numerical precision
+ * in the mantissa of 32-bit precision floating point to distinguish the
+ * least-significant bits of the kets (a problem in both the uniqueness of the
+ * cumsum values and the entropy of the uniform random number). Sampling from
+ * the uniform |+> state is a worst-case example - quantum algorithms that
+ * concentrate amplitudes are practically found to perform quite well in
+ * float32 across all qubit sizes permitted within the library.
+ *
+ * The following combinations of types are instantiated:
+ *   measure<float32> 
+ *   measure<float64> 
+ *
+ * Params:
+ *  nqubit (int) - number of qubits in statevector
+ *  cumsum_d (T*) - device pointer to input statevector holding cumulative sum
+ *   of abs2 of statevector (the cumulative probability distribution)
+ *  sum (T) - value of total sum of abs2 of statevector returned by cumsum.
+ *   This is usually very close to 1.0, and is used here to mitigate minor
+ *   roundoff error that may have occurred in cumsum.
+ *  nmeasurement (int) - number of measurements to perform
+ *  randoms (T*) - device pointer of input uniform random numbers in the range
+ *   [0, 1). Size nmeasurement.
+ *  measurements (int) - device pointer to the output register of random ket
+ *   indices. Size nmeasurement.
+ * Result:
+ *  measurements is overwritten with the nmeasurement indices of the random
+ *   kets.
+ **/
 template <typename T>
 void measure(
     int nqubit,
