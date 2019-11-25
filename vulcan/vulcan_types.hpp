@@ -13,6 +13,17 @@
  * 
  * (1) and (3) preclude the direct use of std::complex, so we have elected to
  * write a simple header-only library to accomplish this objective.
+ *  
+ * These types support the following standard arithmetic/logic operations:
+ *  ==
+ *  !=
+ *  +
+ *  -
+ *  *
+ *  +=
+ *  *= 
+ *  conj (a - bj)
+ *  abs2 (a * a + b * b)
  **/
 
 namespace vulcan {
@@ -113,13 +124,6 @@ bool operator!=(const scalar<T>& a, const scalar<T>& b) {
 
 template <typename T>
 __host__ __device__ __forceinline__
-scalar<T> conj(const scalar<T>& a) {
-    return scalar<T>(
-        a.real());
-}
-
-template <typename T>
-__host__ __device__ __forceinline__
 scalar<T> operator+(const scalar<T>& a, const scalar<T>& b) {
     return scalar<T>(
         a.real() + b.real());
@@ -137,6 +141,13 @@ __host__ __device__ __forceinline__
 scalar<T> operator*(const scalar<T>& a, const scalar<T>& b) {
     return scalar<T>(
         a.real() * b.real());
+}
+
+template <typename T>
+__host__ __device__ __forceinline__
+scalar<T> conj(const scalar<T>& a) {
+    return scalar<T>(
+        a.real());
 }
 
 template <typename T>
@@ -197,14 +208,12 @@ complex(
     imag_(static_cast<T>(0.0))
     {}
 
-/// Additive accumulation operator
 __host__ __device__ __forceinline__
 void operator+=(const complex<T>& other) {
     real_ += other.real();
     imag_ += other.imag();
 }
 
-/// Multiplicative accumulation operator
 __host__ __device__ __forceinline__
 void operator*=(const complex<T>& other) {
     T a = real() * other.real() - imag() * other.imag();
@@ -250,14 +259,6 @@ bool operator!=(const complex<T>& a, const complex<T>& b) {
 
 template <typename T>
 __host__ __device__ __forceinline__
-complex<T> conj(const complex<T>& a) {
-    return complex<T>(
-        a.real(),
-        -a.imag());
-}
-
-template <typename T>
-__host__ __device__ __forceinline__
 complex<T> operator+(const complex<T>& a, const complex<T>& b) {
     return complex<T>(
         a.real() + b.real(),
@@ -278,6 +279,14 @@ complex<T> operator*(const complex<T>& a, const complex<T>& b) {
     return complex<T>(
         a.real() * b.real() - a.imag() * b.imag(),
         a.real() * b.imag() + a.imag() * b.real()); 
+}
+
+template <typename T>
+__host__ __device__ __forceinline__
+complex<T> conj(const complex<T>& a) {
+    return complex<T>(
+        a.real(),
+        -a.imag());
 }
 
 template <typename T>

@@ -8,15 +8,41 @@
 #include <algorithm>
 #include <map>
 
+// ==> Project Vulcan: Mid-Level C++11 CPU API <== // 
+
+/**
+ * Project Vulcan provides a C++11 API for CUDA-accelerated quantum circuit
+ * simulations. This particular part of the API provides a mid-level C++11 API
+ * for specifying and operating on quantum circuits (Circuit objects, composed
+ * of an array of Gate objects), Pauli operators (Pauli objects), statevectors,
+ * and measurements.
+ *
+ * Special numerical types are necessary for interoperability between host and
+ * device code. These are defined in vulcan_types.hpp. Unless otherwise
+ * indicated, the templated functions below are instantiated for the following
+ * types T:
+ *
+ *   vulcan::float32
+ *   vulcan::float64
+ *   vulcan::complex64
+ *   vulcan::complex128
+ **/
 namespace vulcan {    
 
 // => Vulcan C++ Data Structures <= //
 
+/**
+ * Class Gate represents a primititive quantum Gate operation, essentially a
+ * named (2^nqubit x 2^nqubit) matrix operator (typically unitary).
+ **/ 
 template <typename T>
 class Gate {
 
 public:
     
+/**
+ * Verbatim constructor, see fields below
+ **/
 Gate(
     int nqubit,
     const std::string& name,
@@ -29,10 +55,22 @@ Gate(
     }
 }
 
+/// Number of qubits in the gate
 int nqubit() const { return nqubit_; }
+/// Name of the gate, e.g., "Ry"
 const std::string& name() const { return name_; }
+/// (2^nqubit x 2^nqubit) operator matrix of the gate, in unrolled C order
 const std::vector<T>& matrix() const { return matrix_; }
 
+/**
+ * The adjoint of the gate, a Gate object with the "matrix" field transposed
+ * and conjugated.
+ *
+ * Returns:
+ *  (Gate) - the adjoint gate. Note that only the "matrix" field is updated
+ *  (with the adjoint matrix of this gate), the nqubit and name fields are not
+ *  changed.
+ **/
 Gate<T> adjoint() const 
 {
     std::vector<T> matrix(1ULL << 2*nqubit_);
@@ -60,6 +98,9 @@ class Circuit {
 
 public:
 
+/**
+ * Verbatim constructor, see fields below
+ **/
 Circuit(
     int nqubit,
     const std::vector<Gate<T>>& gates,
@@ -83,8 +124,11 @@ Circuit(
     }
 }
 
+/// Total number of qubits in this circuit
 int nqubit() const { return nqubit_; }
+/// Gate objects in this circuit, in time-based order
 const std::vector<Gate<T>>& gates() const { return gates_; }
+/// Qubit indices of Gate objects in this circuit, in time-based order
 const std::vector<std::vector<int>>& qubits() const { return qubits_; }
 
 Circuit<T> adjoint() const 
@@ -116,6 +160,20 @@ Circuit<T> bit_reversal() const
         qubits);
 }
 
+/**
+ * An equivalent Circuit with runs of 1- and 2-body gates jammed together into
+ * fewer gate objects.
+ *
+ * Steps:
+ *  - runs of 1-body gates are jammed together
+ *  - 1-body gates are jammed into neighboring 2-body gates
+ *  - runs of 2-body gates are jammed together
+ *  - isolated pairs of 1-body gates are wedged into single 2-body gates
+ *
+ * Returns:
+ *  (Circuit) - compressed circuit. All compressed gates are named "U1" or
+ *   "U2".
+ **/
 Circuit<T> compressed() const
 {
     for (const Gate<T>& gate : gates_) {
