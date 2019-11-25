@@ -5,6 +5,15 @@
 
 namespace vulcan {    
 
+template<typename T>
+class Gate;
+
+template<typename T>
+class Circuit;
+
+template<typename T>
+class Pauli;
+
 namespace util {
 
 // => 2x2 and 4x4 Linear Algebra Utility <= //
@@ -416,5 +425,7 @@ Pauli<T> pauli_expectation(
         pauli.qubits(),
         values);
 }
+
+} // namespace vulcan::util
     
 } // namespace vulcan

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "vulcan_gpu.hpp"
+#include "vulcan_types.hpp"
 #include "vulcan_util.hpp"
 #include <stdexcept>
 #include <vector>
