@@ -1,5 +1,5 @@
 from .circuit import Circuit
-from .indexallocator import IndexAllocator
+from .index_allocator import IndexAllocator
 from .autogate import AutoGate
 from copy import deepcopy
 
@@ -72,6 +72,21 @@ class AutoCircuit(Circuit):
                 ascii_symbols=None,
             )
             
+        return self
+
+    def add_gates(
+        self,
+        circuit,
+        qubits,
+        copy=False,
+        ):
+
+        for timeslice in circuit.gates:
+
+            gate = circuit.gates[timeslice]
+
+            self.add_gate(gate, qubits[:gate.nqubit-1])
+
         return self
 
 
