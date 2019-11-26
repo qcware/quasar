@@ -4,7 +4,10 @@ from .autogate import AutoGate
 from copy import deepcopy
 
 class AutoCircuit(Circuit):
-    
+    r'''
+    Adds additional functionality to Circuit, including automatically hanlding ancillas.
+    '''
+
     def __init__(self):
         super().__init__()
         self.ancilla_pool = IndexAllocator(negative_convention=True)

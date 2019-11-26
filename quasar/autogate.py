@@ -3,6 +3,10 @@ from .circuit import Gate, CompositeGate
 from copy import deepcopy
 
 class AutoGate(CompositeGate):
+    r'''
+    Adds additional functionality to CompositeGate, including automatically adding controls to a Gate,
+    using a multi-toffoli circuit.
+    '''
 
     @property
     def ntime(self):
@@ -77,7 +81,9 @@ class AutoGate(CompositeGate):
 
 
 class AutoControlledGate(AutoGate):
-
+    r'''
+    Used to manage controlled AutoGates.
+    '''
     def __init__(
         self,
         circuit,
