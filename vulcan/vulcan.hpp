@@ -97,6 +97,12 @@ std::vector<T> matrix_;
 
 };
 
+/**
+ * Class Circuit represents a quantum circuit of Gate operations, essentially a
+ * time-ordered list of Gate objects, qubit indices for these gate objects, and
+ * total number of qubits. The Circuit object always has nqubit qubits ordered
+ * [0, nqubit).
+ **/ 
 template <typename T>
 class Circuit {
 
@@ -135,6 +141,15 @@ const std::vector<Gate<T>>& gates() const { return gates_; }
 /// Qubit indices of Gate objects in this circuit, in time-based order
 const std::vector<std::vector<int>>& qubits() const { return qubits_; }
 
+/**
+ * The adjoint of this Circuit.
+ *
+ * That is, a circuit with gates in time-reversed order, with each gate
+ * adjointed.
+ *
+ * Return:
+ *  (Circuit) - the adjoint circuit
+ **/
 Circuit<T> adjoint() const 
 {
     std::vector<Gate<T>> gates;
@@ -149,6 +164,25 @@ Circuit<T> adjoint() const
         qubits);
 }
 
+/**
+ * A version of this Circuit with the endian order of the qubits reversed. 
+ *
+ * This method is used to transform a Circuit from Mike and Ike order |ABC...>
+ * (cirq, quasar) to lexical qubit order |...CBA> (qiskit, vulcan). The
+ * transformation is involutary, and can be called twice to obtain the original
+ * Circuit.
+ *
+ * Note that only the "qubits_" field of the new Circuit is updated with new 
+ * qubit indices according to the formula:
+ *
+ *      qubit <- nqubit - 1 - qubit
+ *
+ * The Gate objects in the Circuit are not modified. 
+ *
+ * Returns:
+ *  (Circuit) - bit-reversed circuit, with qubit indices replaced by
+ *      bit-reversed counterparts.
+ **/
 Circuit<T> bit_reversal() const
 {
     std::vector<std::vector<int>> qubits;
@@ -174,9 +208,13 @@ Circuit<T> bit_reversal() const
  *  - runs of 2-body gates are jammed together
  *  - isolated pairs of 1-body gates are wedged into single 2-body gates
  *
+ * Do to the nature of the routine, the resultant circuit has either zero or
+ * one 1-body gates remaining (depending on if the number of isolated 1-body
+ * gates is even or odd, respectively). 
+ *
  * Returns:
  *  (Circuit) - compressed circuit. All compressed gates are named "U1" or
- *   "U2".
+ *   "U2". Other gates are unmodified.
  **/
 Circuit<T> compressed() const
 {
@@ -441,11 +479,50 @@ std::vector<std::vector<int>> qubits_;
 
 };
 
+/**
+ * Class Pauli represents a sparse Pauli operator of the form,
+ *
+ *  \hat P = \sum_{i} w_i \hat S_i
+ *
+ * Where \hat S_i is a pauli string, w_i is a weight, and i ranges over [0,
+ * nstring). Each Pauli string is a product of X/Y/Z 1-body Pauli operators
+ * acting on qubit index k,
+ *
+ *  \hat S_i = \prod D[i]_k[i]
+ *
+ * Where the characters D (0-X, 1-Y, 2-Z) and qubit indices k are determined by
+ * the individual pauli string. For instance, one might encounter, for a
+ * 2-qubit system,
+ *
+ * I + Z[0] + X[0] * Z[1] + 0.2 * Y[0] * Y[1]
+ *
+ * This would be written as,
+ *
+ * Pauli(
+ *  2,
+ *  { {}, {2}, {0, 2}, {1, 1} },
+ *  { {}, {0}, {0, 1}, {0, 1} },
+ *  { {1.0}, {1.0}, {1.0}, {0.2} })
+ *
+ * The Pauli object always has nqubit qubits ordered [0, nqubit).
+ *
+ * Note that one often encounters the case of Pauli operators corresponding to
+ * real, symmetric operators. These are specified by Pauli operators with even
+ * numbers of 1-body Y operators in each Pauli string and by real weights. The
+ * Vulcan library is designed to produce correct results in such cases when
+ * using real types T *if* the corresponding statevectors (e.g., from quantum
+ * circuit operations) are also real-valued. This is done by substituting Y ->
+ * iY in the application of each Pauli gate, and separately accounting for the
+ * factors of (-i)^ny in the weight portion of the Pauli.
+ **/ 
 template <typename T>
 class Pauli {
 
 public:
 
+/**
+ * Verbatim constructor, see fields below
+ **/
 Pauli(
     int nqubit,
     const std::vector<std::vector<int>>& types,
@@ -480,11 +557,32 @@ Pauli(
     }
 }
 
+/// Total number of qubits in this pauli
 int nqubit() const { return nqubit_; }
+/// Characters of each Pauli string in this pauli, 0 (X), 1 (Y), or 2 (Z)
 const std::vector<std::vector<int>>& types() const { return types_; }
+/// Qubit indices of each Pauli string in this pauli
 const std::vector<std::vector<int>>& qubits() const { return qubits_; }
+/// Weights of each Pauli string
 const std::vector<T>& values() const { return values_; }
 
+/**
+ * A version of this Pauli with the endian order of the qubits reversed. 
+ *
+ * This method is used to transform a Pauli from Mike and Ike order |ABC...>
+ * (cirq, quasar) to lexical qubit order |...CBA> (qiskit, vulcan). The
+ * transformation is involutary, and can be called twice to obtain the original
+ * Pauli.
+ *
+ * Note that only the "qubits_" field of the new Pauli is updated with new 
+ * qubit indices according to the formula:
+ *
+ *      qubit <- nqubit - 1 - qubit
+ *
+ * Returns:
+ *  (Pauli) - bit-reversed pauli, with qubit indices replaced by
+ *      bit-reversed counterparts.
+ **/
 Pauli<T> bit_reversal() const
 {
     std::vector<std::vector<int>> qubits;
@@ -513,7 +611,7 @@ std::vector<T> values_;
 // => Vulcan C++ API Functions <= //
 
 /**
- * Run a quantum circuit and return the final statevector.
+ * Run a quantum circuit and return the resulting statevector to the host.
  *
  * GPU memory:
  *  1x statevector
@@ -528,6 +626,8 @@ std::vector<T> values_;
  *      statevector
  *  result_h (T*) - output register for final statevector
  *  compressed (bool) - apply compression to the circuit (true) or not (false)?
+ * Result:
+ *  result_h is overwritten with the final statevector 
  **/
 template <typename T>
 void run_statevector(
@@ -542,6 +642,26 @@ void run_statevector(
     vulcan::gpu::free_statevector(statevector_d);
 }
 
+/**
+ * Apply a Pauli operator to a statevector and return the resulting statevector
+ * to the host.
+ *
+ * GPU memory:
+ *  3x statevector
+ *
+ * Host-device transfers:
+ *  2x statevector if input statevector_h is provided 
+ *  1x statevector if input statevector_h is NULL
+ *
+ * Params:
+ *  circuit (Circuit) - circuit to run
+ *  statevector_h (T*) - input statevector or NULL to indicate the |000...>
+ *      statevector
+ *  result_h (T*) - output register for final statevector
+ *  compressed (bool) - apply compression to the Pauli (true) or not (false)?
+ * Result:
+ *  result_h is overwritten with the final statevector 
+ **/
 template <typename T>
 void run_pauli_sigma(
     const Pauli<T>& pauli,
@@ -559,6 +679,38 @@ void run_pauli_sigma(
     vulcan::gpu::free_statevector(statevector3_d);
 }
 
+/**
+ * Run a quantum circuit and evaluate the expectation value of the resultant
+ * statevector over the various Pauli strings of a sparse Pauli operator. The
+ * operation is,
+ *
+ * { S_i } = { <psi | \hat S_i | psi > }
+ *
+ * Where { \hat S_i } are the Pauli strings of the input pauli, and psi is the
+ * statevector obtained by running the input circuit on the input
+ * statevector_h. { S_i } are the scalar Pauli expectation values of each Pauli
+ * string.
+ *
+ * GPU memory:
+ *  2x statevector
+ *
+ * Host-device transfers:
+ *  1x statevector if input statevector_h is provided 
+ *  Negligible if input statevector_h is NULL
+ *
+ * Params:
+ *  circuit (Circuit) - circuit to run
+ *  pauli (Pauli) - pauli operator indicating strings to evaluate expectation
+ *      values for (weight values are ignored).
+ *  statevector_h (T*) - input statevector or NULL to indicate the |000...>
+ *      statevector
+ *  compressed (bool) - apply compression to the circuit (true) or not (false)?
+ * Returns: 
+ *  (Pauli) - pauli object with equivalent strings as input pauli, but with
+ *      values fields overwritten with <psi|\hat S_i|psi> expectation values
+ *      for each Pauli string \hat S_i. |psi> is the statevector obtained by
+ *      running the circuit on statevector_h.
+ **/
 template <typename T>
 Pauli<T> run_pauli_expectation(
     const Circuit<T>& circuit,
@@ -579,6 +731,37 @@ Pauli<T> run_pauli_expectation(
     return expectation; 
 }
 
+/**
+ * Run a quantum circuit and evaluate the expectation value of the resultant
+ * statevector over a sparse Pauli operator. The operation is,
+ *
+ * S = \sum_i w_i <psi | \hat S_i | psi > 
+ *
+ * Where { \hat S_i } are the Pauli strings of the input pauli, { w_i } are the
+ * weights of the input pauli, and psi is the statevector obtained by running
+ * the input circuit on the input statevector_h. 
+ *
+ * This operation requires slightly more memory than run_pauli_expectation, but
+ * requires many fewer dot iterations. Moreover, this operation is highly
+ * similar in implementation to run_pauli_expectation_value_gradient below.
+ *
+ * GPU memory:
+ *  3x statevector
+ *
+ * Host-device transfers:
+ *  1x statevector if input statevector_h is provided 
+ *  Negligible if input statevector_h is NULL
+ *
+ * Params:
+ *  circuit (Circuit) - circuit to run
+ *  pauli (Pauli) - pauli operator indicating operator to evaluate expectation
+ *      value for
+ *  statevector_h (T*) - input statevector or NULL to indicate the |000...>
+ *      statevector
+ *  compressed (bool) - apply compression to the circuit (true) or not (false)?
+ * Returns: 
+ *  (T) - the scalar expectation value over the sparse Pauli operator.
+ **/
 template <typename T>
 T run_pauli_expectation_value(
     const Circuit<T>& circuit,
@@ -602,6 +785,51 @@ T run_pauli_expectation_value(
     return val;
 }
     
+/**
+ * Run a quantum circuit, evaluate the expectation value of the resultant
+ * statevector over a sparse Pauli operator, and then evaluate the gradient of
+ * this expectation value with respect to the "theta" angle parameters of all
+ * 1-qubit Rx/Ry/Rz gates in the original quantum circuit. The operation is,
+ *
+ * { d S / d theta_g } = (d / d theta_g) 
+ *  \sum_i w_i <psi ({ theta_g }) | \hat S_i | psi ({ theta_g })> 
+ *
+ * Where { \hat S_i } are the Pauli strings of the input pauli, { w_i } are the
+ * weights of the input pauli, and psi is the statevector obtained by running
+ * the input circuit on the input statevector_h. { theta_g } are the set of
+ * input angles to the Rx/Ry/Rz gates of the input circuit. 
+ *
+ * Note that the R_G angles are defined in full-angle convention, e.g., R_G =
+ * e^{-i theta G}. 
+ *
+ * Note that only the 1-qubit size and Rx/Ry/Rz name fields of the gates are
+ * checked to determine which gates contain derivative generators. The specific
+ * matrix values of the gates are not checked.
+ *
+ * Note that the method is built to return correctly in real types for real
+ * statevectors/operators, i.e., if the statevector is real-valued, contains
+ * only Ry parametrized gates (no Rx/Rz gates), and is evaluated over a real,
+ * symmetric Pauli operator.
+ *
+ * GPU memory:
+ *  3x statevector
+ *
+ * Host-device transfers:
+ *  1x statevector if input statevector_h is provided 
+ *  Negligible if input statevector_h is NULL
+ *
+ * Params:
+ *  circuit (Circuit) - circuit to run
+ *  pauli (Pauli) - pauli operator indicating operator to evaluate expectation
+ *      value for
+ *  statevector_h (T*) - input statevector or NULL to indicate the |000...>
+ *      statevector
+ *  compressed (bool) - apply compression to the circuit (true) or not (false)?
+ * Returns: 
+ *  (std::vector<T>) - the gradient of the scalar Pauli expectation value with
+ *      respect to the theta angles of all 1-qubit Rx/Ry/Rz gates encountered
+ *      in the circuit, returned in time-ordered sorting
+ **/
 template <typename T>
 std::vector<T> run_pauli_expectation_value_gradient(
     const Circuit<T>& circuit,
@@ -660,8 +888,8 @@ std::vector<T> run_pauli_expectation_value_gradient(
 }
 
 /**
- * Run a quantum circuit and then sample random measurements from the final
- * statevector.
+ * Run a quantum circuit and then sample random measurements (kets) from the
+ * final statevector.
  *
  * Note that if an input statevector_h is not provided, this is an elegant
  * "quantum" operation: The circuit data is sent to the GPU, the GPU
@@ -702,6 +930,8 @@ std::vector<T> run_pauli_expectation_value_gradient(
  *  measurements_h (int*) - host register to place output measurements into.
  *      Size nmeasurement
  *  compressed (bool) - apply compression to the circuit (true) or not (false)?
+ * Result:
+ *  measurements_h is overwritten with the randomly sampled kets
  **/
 template <typename T, typename U>
 void run_measurement(
