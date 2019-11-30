@@ -1,5 +1,6 @@
 import numpy as np
 from .backend import Backend
+from .measurement import ProbabilityHistogram
 
 class QiskitBackend(Backend):
 
@@ -173,3 +174,88 @@ class QiskitSimulatorBackend(QiskitBackend):
         **kwargs):
     
         raise NotImplementedError
+
+class QiskitHardwareBackend(QiskitBackend):
+
+    def __init__(
+        self,
+        backend,
+        optimization_level=0,
+        initial_layout=None,
+        ):
+
+        self.backend = backend
+        self.optimization_level = optimization_level
+        self.initial_layout = initial_layout
+
+    def __str__(self):
+        s = 'Qiskit Hardware Backend:\n'
+        s += '  name = %s\n' % (self.backend.name())
+        return s
+
+    @property
+    def summary_str(self):
+        s = 'Qiskit Hardware Backend:\n'
+        s += '  name               = %s\n' % (self.backend.name())
+        s += '  provider           = (hub=%s, group=%s, project=%s)\n' % (
+            self.backend.hub,
+            self.backend.group,
+            self.backend.project,
+            )
+        s += '  operational        = %s\n' % (self.backend.status().operational)
+        s += '  pending_jobs       = %s\n' % (self.backend.status().pending_jobs)
+        s += '  optimization_level = %s\n' % (self.optimization_level)
+        s += '  initial_layout     = %s\n' % (self.initial_layout)
+        # s += '  configuration = %s\n' % (self.backend.configuration())
+        # s += '  properties = %s\n' % (self.backend.properties())
+        return s
+
+    @property
+    def has_run_statevector(self):
+        return False
+
+    @property
+    def has_statevector_input(self):
+        return False
+
+    def run_measurement(
+        self,
+        circuit,
+        nmeasurement=1000,
+        min_qubit=None,
+        nqubit=None,
+        **kwargs):
+
+        if not isinstance(nmeasurement, int):
+            raise RuntimeError('nmeasurement must be int: %s' % nmeasurement)
+    
+        min_qubit = circuit.min_qubit if min_qubit is None else min_qubit
+        nqubit = circuit.nqubit if nqubit is None else nqubit
+
+        import qiskit
+        circuit_native = self.build_native_circuit_measurement(
+            circuit,
+            bit_reversal=False, 
+            min_qubit=min_qubit, 
+            nqubit=nqubit,
+            )
+        circuit_transpiled = qiskit.transpile(
+            circuit_native, 
+            backend=self.backend,
+            optimization_level=self.optimization_level,
+            initial_layout=None if self.initial_layout is None else self.initial_layout[:nqubit],
+            )
+        qobj = qiskit.assemble(
+            circuit_transpiled,
+            backend=self.backend,
+            shots=nmeasurement,
+            )
+        job = self.backend.run(qobj)
+        result = job.result()
+        counts = result.get_counts()
+        probabilities = ProbabilityHistogram(
+            nqubit=circuit.nqubit,
+            nmeasurement=nmeasurement,
+            histogram={int(k[::-1], base=2) : v / nmeasurement for k, v in counts.items()},
+            )
+        return probabilities

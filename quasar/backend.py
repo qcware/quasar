@@ -1,5 +1,7 @@
 import numpy as np
-from .pauli import Pauli, PauliExpectation
+import collections
+import sortedcollections
+from .pauli import Pauli, PauliExpectation, PauliString
 from .algebra import Algebra
 from .circuit import Gate, Circuit
 
@@ -554,3 +556,136 @@ class Backend(object):
             **kwargs)
 
         return np.sum(statevector.conj() * statevector2)
+
+    # => Measurement-based Pauli expectations <= #
+
+    # TODO: As always, there remains much work to be done in the conceptual,
+    # pragmatical, and syntactical elements of this functionality
+
+    def run_pauli_expectation_measurement(
+        self,
+        circuit,
+        pauli,
+        nmeasurement,
+        statevector=None,
+        min_qubit=None,
+        nqubit=None,
+        dtype=np.complex128,
+        **kwargs):
+
+        min_qubit = pauli.min_qubit if min_qubit is None else min_qubit
+        nqubit = pauli.nqubit if nqubit is None else nqubit
+
+        # Determine commuting group
+        groups = self.linear_commuting_group(
+            pauli,
+            min_qubit=min_qubit,
+            nqubit=nqubit,
+            )
+        # Else exception will be raised if unknown commuting group
+        # TODO: Optimally cover all commuting groups
+
+        # Modified circuits for basis transformations
+        circuits = [self.circuit_in_basis(
+            circuit, 
+            basis,
+            min_qubit=min_qubit,
+            nqubit=nqubit,
+            ) 
+            for basis in groups.keys()]
+    
+        # Measurements in commuting group (quantum heavy)
+        probabilities = [self.run_measurement(
+            circuit=circuit,
+            nmeasurement=nmeasurement,
+            statevector=statevector,
+            min_qubit=min_qubit,
+            nqubit=nqubit,
+            dtype=dtype,
+            **kwargs) for circuit in circuits]
+
+        # Convert to counts
+        results = [_.to_count_histogram() for _ in probabilities]
+    
+        # Counts for pauli strings
+        counts = { _ : 0 for _ in pauli.keys() }
+        ns = { _ : 0 for _ in pauli.keys() }
+        for group, result in zip(groups.keys(), results):
+            strings = groups[group]
+            for string in strings:
+                qubits = string.qubits
+                ns[string] += nmeasurement
+                for ket, count in result.items():
+                    parity = sum(ket & (1 << (nqubit - 1 - (_ - min_qubit))) >> (nqubit - 1 - (_ - min_qubit)) for _ in qubits) % 2
+                    counts[string] += (-count) if parity else (+count)
+    
+        # Pauli density matrix values
+        pauli_expectation = PauliExpectation(collections.OrderedDict([
+            (_, counts[_] / max(ns[_], 1)) for _ in pauli.keys()]))
+        if PauliString.I() in pauli_expectation:
+            pauli_expectation[PauliString.I()] = 1.0 
+        return pauli_expectation
+
+    @staticmethod
+    def linear_commuting_group(
+        pauli,
+        min_qubit=None,
+        nqubit=None,
+        ):
+
+        min_qubit = pauli.min_qubit if min_qubit is None else min_qubit
+        nqubit = pauli.nqubit if nqubit is None else nqubit
+
+        keys = sortedcollections.SortedSet()
+        for string in pauli.keys():
+            for qubit, char in string:
+                keys.add(char)
+        
+        groups = collections.OrderedDict()
+        for keyA in keys:
+            for keyB in keys:
+                groups[((keyA + keyB)*nqubit)[:nqubit]] = []
+
+        for string in pauli.keys():
+
+            # Do not do the identity operator
+            if string.order == 0: continue
+
+            # Add to all valid commuting groups
+            found = False
+            for group, strings2 in groups.items():
+                valid = True
+                for qubits, char in string:
+                    if group[qubit - min_qubit] != char:
+                        valid = False
+                        break
+                if not valid: continue
+                strings2.append(string)
+                found = True
+            if not found: raise RuntimeError('Invalid string - not in linear commuting group: %s' % str(string))
+
+        return groups
+
+    @staticmethod
+    def circuit_in_basis(
+        circuit,
+        basis,
+        min_qubit=None,
+        nqubit=None,
+        ):
+
+        min_qubit = circuit.min_qubit if min_qubit is None else min_qubit
+        nqubit = circuit.nqubit if nqubit is None else nqubit
+
+        if len(basis) != nqubit: raise RuntimeError('len(basis) != nqubit')
+
+        basis_circuit = Circuit()
+        for A, char in enumerate(basis): 
+            qubit = A - min_qubit
+            if char == 'X': basis_circuit.H(qubit)
+            elif char == 'Y': basis_circuit.Rx2(qubit)
+            elif char == 'Z': continue # Computational basis
+            else: raise RuntimeError('Unknown basis: %s' % char)
+    
+        return Circuit.join_in_time([circuit, basis_circuit])
+            
