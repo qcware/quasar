@@ -606,7 +606,7 @@ class Backend(object):
 
         # Convert to counts
         results = [_.to_count_histogram() for _ in probabilities]
-    
+
         # Counts for pauli strings
         counts = { _ : 0 for _ in pauli.keys() }
         ns = { _ : 0 for _ in pauli.keys() }
@@ -616,9 +616,9 @@ class Backend(object):
                 qubits = string.qubits
                 ns[string] += nmeasurement
                 for ket, count in result.items():
-                    parity = sum(ket & (1 << (nqubit - 1 - (_ - min_qubit))) >> (nqubit - 1 - (_ - min_qubit)) for _ in qubits) % 2
+                    parity = sum((ket & (1 << (nqubit - 1 - (_ - min_qubit)))) >> (nqubit - 1 - (_ - min_qubit)) for _ in qubits) % 2
                     counts[string] += (-count) if parity else (+count)
-    
+
         # Pauli density matrix values
         pauli_expectation = PauliExpectation(collections.OrderedDict([
             (_, counts[_] / max(ns[_], 1)) for _ in pauli.keys()]))
