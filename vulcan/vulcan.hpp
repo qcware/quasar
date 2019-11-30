@@ -14,8 +14,9 @@
  * Project Vulcan provides a C++11 API for CUDA-accelerated quantum circuit
  * simulations. This particular part of the API provides a mid-level C++11 API
  * for specifying and operating on quantum circuits (Circuit objects, composed
- * of an array of Gate objects), Pauli operators (Pauli objects), statevectors,
- * and measurements.
+ * of an array of Gate objects), Pauli operators (Pauli objects), statevectors
+ * (2**nqubit-sized arrays of primitive T types), and measurements
+ * (nmeasurement-sized arrays of ints).
  *
  * All data fields for this portion of the API are to be provided in host
  * memory (often emphasized with the postfix _h). Memory transfers to/from
@@ -36,8 +37,8 @@ namespace vulcan {
 // => Vulcan C++ Data Structures <= //
 
 /**
- * Class Gate represents a primititive quantum Gate operation, essentially a
- * named (2^nqubit x 2^nqubit) matrix operator (typically unitary).
+ * Class Gate represents a primitive quantum Gate operation, essentially a
+ * named (2**nqubit x 2**nqubit) matrix operator (typically unitary).
  **/ 
 template <typename T>
 class Gate {
@@ -63,7 +64,7 @@ Gate(
 int nqubit() const { return nqubit_; }
 /// Name of the gate, e.g., "Ry"
 const std::string& name() const { return name_; }
-/// (2^nqubit x 2^nqubit) operator matrix of the gate, in unrolled C order
+/// (2**nqubit x 2**nqubit) operator matrix of the gate, in unrolled C order
 const std::vector<T>& matrix() const { return matrix_; }
 
 /**
