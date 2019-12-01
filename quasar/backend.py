@@ -129,6 +129,32 @@ class Backend(object):
 
         return statevector2
 
+    def run_pauli_diagonal(
+        self,
+        pauli,
+        min_qubit=None,
+        nqubit=None,
+        dtype=np.complex128,
+        **kwargs):
+
+        min_qubit = pauli.min_qubit if min_qubit is None else min_qubit
+        nqubit = pauli.nqubit if nqubit is None else nqubit
+
+        # All I or Z strings
+        pauli2 = Pauli.zero()
+        for string, value in pauli.items():
+            if len(string) == 0 or all(_ == 'Z' for _ in string.chars):
+                pauli2[string] = value
+
+        statevector = np.ones((2**nqubit,), dtype=dtype)
+        return self.run_pauli_sigma(
+            pauli=pauli2,
+            statevector=statevector,
+            min_qubit=min_qubit,
+            nqubit=nqubit,
+            dtype=dtype,
+            **kwargs)
+
     def run_unitary(
         self,
         circuit,
