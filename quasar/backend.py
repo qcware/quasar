@@ -715,3 +715,48 @@ class Backend(object):
     
         return Circuit.join_in_time([circuit, basis_circuit])
             
+    # => Subset Hamiltonian Utilities <= #
+
+    def run_pauli_matrix_subset(
+        self,
+        pauli,
+        kets,
+        min_qubit=None,
+        nqubit=None,
+        dtype=np.complex128,
+        ):
+
+        min_qubit = pauli.min_qubit if min_qubit is None else min_qubit
+        nqubit = pauli.nqubit if nqubit is None else nqubit
+
+        if len(set(kets)) != len(kets): 
+            raise RuntimeError('Kets are not unique')
+
+        kets2 = { ket : index for index, ket in enumerate(kets) }
+
+        H = np.zeros((len(kets),)*2, dtype=np.complex128)
+        for ket_index, ket in enumerate(kets):
+            for string, value in pauli.items():
+                value = value + 0.j # Make sure value is complex
+                bra = ket
+                for qubit2, char in string:
+                    qubit = qubit2 - min_qubit
+                    if char == 'Z':
+                        value *= -1.0 if (ket & (1 << (nqubit - 1 - qubit))) else 1.0
+                    elif char == 'X':
+                        bra ^= (1 << (nqubit - 1 - qubit))
+                    elif char == 'Y':
+                        value *= -1.j if (ket & (1 << (nqubit - 1 - qubit))) else 1.j
+                        bra ^= (1 << (nqubit - 1 - qubit))
+                bra_index = kets2.get(bra, None)
+                if bra_index is None: continue
+                H[bra_index, ket_index] += value
+        
+        return np.array(H, dtype=dtype)
+                    
+                 
+        
+
+        
+        
+    

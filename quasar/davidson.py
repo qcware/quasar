@@ -29,11 +29,11 @@ class Davidson(object):
 
     def __str__(self):
         s = 'Davidson:\n'
-        s += '  %21s = %11d\n' % ('nstate', self.nstate)
-        s += '  %21s = %11d\n' % ('nsubspace', self.nsubspace)
-        s += '  %21s = %11.3E\n' % ('convergence_threshold', self.convergence_threshold)
-        s += '  %21s = %11.3E\n' % ('condition_threshold', self.condition_threshold)
-        s += '  %21s = %11s\n' % ('dtype', self.dtype)
+        s += '  %-21s = %11d\n' % ('nstate', self.nstate)
+        s += '  %-21s = %11d\n' % ('nsubspace', self.nsubspace)
+        s += '  %-21s = %11.3E\n' % ('convergence_threshold', self.convergence_threshold)
+        s += '  %-21s = %11.3E\n' % ('condition_threshold', self.condition_threshold)
+        s += '  %-21s = %11s\n' % ('dtype', self.dtype)
         return s
     
     @property
@@ -183,7 +183,7 @@ def run_davidson(
     import time
     
     if print_level:
-        print('%4s: %11s %11s %11s' % ('Iter', 'Max Rnorm','N sigma', 'Time [s]'))
+        print('%-4s: %11s %11s %11s %11s' % ('Iter', 'Max Rnorm','N sigma', 'N subspace', 'Time [s]'))
     converged = False
     start = time.time()
     for iteration in range(maxiter):
@@ -195,7 +195,7 @@ def run_davidson(
         stop = time.time()
     
         if print_level:
-            print('%4d: %11.3E %11d %11.3E' % (iteration, dav.max_rnorm, len(bs), stop - start)) 
+            print('%-4d: %11.3E %11d %11d %11.3E' % (iteration, dav.max_rnorm, len(bs), len(dav.bs), stop - start)) 
 
         start = stop
 
