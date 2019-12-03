@@ -146,3 +146,73 @@ class Davidson(object):
 
         return self.cs
 
+def run_davidson(
+    Ab_method,
+    Adiag,
+    nstate=1,
+    nguess_per_state=1,
+    nsubspace_per_state=5,
+    maxiter=100,
+    print_level=1,
+    convergence_threshold=1.0E-7,
+    condition_threshold=0.0,
+    dtype=np.complex128,
+    ):
+
+    nguess = nstate * nguess_per_state
+    nsubspace = nstate * nsubspace_per_state
+
+    dav = Davidson(
+        nstate=nstate,
+        nsubspace=nsubspace,
+        convergence_threshold=convergence_threshold,
+        condition_threshold=condition_threshold,
+        dtype=dtype,
+        )
+    if print_level:
+        print(dav)
+
+    I = np.argsort(Adiag)
+    
+    bs = []
+    for index in range(nguess):
+        b = np.zeros(Adiag.shape, dtype=dtype)
+        b[I[index]] = 1.0
+        bs.append(b)
+
+    import time
+    
+    if print_level:
+        print('%4s: %11s %11s %11s' % ('Iter', 'Max Rnorm','N sigma', 'Time [s]'))
+    converged = False
+    start = time.time()
+    for iteration in range(maxiter):
+        
+        Abs = [Ab_method(b) for b in bs]
+
+        rs, es = dav.add_vectors(bs=bs, Abs=Abs, Sbs=bs)
+
+        stop = time.time()
+    
+        if print_level:
+            print('%4d: %11.3E %11d %11.3E' % (iteration, dav.max_rnorm, len(bs), stop - start)) 
+
+        start = stop
+
+        if dav.is_converged:
+            converged = True
+            break
+
+        ds = [-r / (Adiag - e) for r, e in zip(rs, es)]
+
+        bs = dav.add_preconditioned(ds)
+
+    if print_level:
+        print('')
+        if converged:
+            print('Davidson Converged')
+        else:
+            print('Davidson Failed')
+        print('')
+
+    return dav.evals, dav.evecs
