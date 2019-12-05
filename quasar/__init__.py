@@ -14,3 +14,7 @@ from .ionq_backend import IonQBackend
 from .measurement import Histogram, ProbabilityHistogram, CountHistogram
 from .format import format_statevector
 from .davidson import Davidson, run_davidson
+from .parameters import ParameterGroup, FixedParameterGroup, IdentityParameterGroup, LinearParameterGroup, CompositeParameterGroup
+from .observable import VariationalObservable
+from .optimizer import Optimizer, BFGSOptimizer
+from .options import Options
