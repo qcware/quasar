@@ -89,22 +89,6 @@ class PauliString(tuple):
     def I():
         return PauliString(tuple())
 
-    def __lt__(self, other):
-        if len(self) < len(other): return True
-        return super().__lt__(other)
-
-    def __gt__(self, other):
-        if len(self) > len(other): return True
-        return super().__gt__(other)
-
-    def __le__(self, other):
-        if len(self) < len(other): return True
-        return super().__le__(other)
-
-    def __ge__(self, other):
-        if len(self) > len(other): return True
-        return super().__ge__(other)
-
 class Pauli(sortedcontainers.SortedDict):
 
     def __init__(
