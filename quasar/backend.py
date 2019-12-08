@@ -681,7 +681,7 @@ class Backend(object):
             found = False
             for group, strings2 in groups.items():
                 valid = True
-                for qubits, char in string:
+                for qubit, char in string:
                     if group[qubit - min_qubit] != char:
                         valid = False
                         break
