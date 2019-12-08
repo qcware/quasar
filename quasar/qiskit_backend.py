@@ -198,7 +198,6 @@ class QiskitSimulatorBackend(QiskitBackend):
         probabilities = ProbabilityHistogram(
             nqubit=nqubit,
             nmeasurement=nmeasurement,
-            # histogram={int(k[::-1], base=2) : v / nmeasurement for k, v in counts.items()}, # WRONG
             histogram={int(k, base=2) : v / nmeasurement for k, v in counts.items()},
             )
         return probabilities
@@ -287,7 +286,6 @@ class QiskitHardwareBackend(QiskitBackend):
         probabilities = ProbabilityHistogram(
             nqubit=nqubit,
             nmeasurement=nmeasurement,
-            # histogram={int(k[::-1], base=2) : v / nmeasurement for k, v in counts.items()}, # WRONG
-            histogram={int(k, base=2) : v / nmeasurement for k, v in counts.items()},
+            histogram={int(k[::-1], base=2) : v / nmeasurement for k, v in counts.items()}, # WRONG
             )
         return probabilities
