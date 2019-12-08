@@ -171,9 +171,37 @@ class QiskitSimulatorBackend(QiskitBackend):
         self,
         circuit,
         nmeasurement=1000,
+        min_qubit=None,
+        nqubit=None,
         **kwargs):
     
-        raise NotImplementedError
+        if not isinstance(nmeasurement, int):
+            raise RuntimeError('nmeasurement must be int: %s' % nmeasurement)
+    
+        min_qubit = circuit.min_qubit if min_qubit is None else min_qubit
+        nqubit = circuit.nqubit if nqubit is None else nqubit
+
+        import qiskit
+        circuit_native = self.build_native_circuit_measurement(
+            circuit, 
+            bit_reversal=True, 
+            min_qubit=min_qubit, 
+            nqubit=nqubit,
+            )
+        job = qiskit.execute(
+            circuit_native, 
+            backend=self.qasm_backend, 
+            shots=nmeasurement,
+            )
+        result = job.result()
+        counts = result.get_counts()
+        probabilities = ProbabilityHistogram(
+            nqubit=nqubit,
+            nmeasurement=nmeasurement,
+            # histogram={int(k[::-1], base=2) : v / nmeasurement for k, v in counts.items()}, # WRONG
+            histogram={int(k, base=2) : v / nmeasurement for k, v in counts.items()},
+            )
+        return probabilities
 
 class QiskitHardwareBackend(QiskitBackend):
 
@@ -232,6 +260,9 @@ class QiskitHardwareBackend(QiskitBackend):
         min_qubit = circuit.min_qubit if min_qubit is None else min_qubit
         nqubit = circuit.nqubit if nqubit is None else nqubit
 
+        print('@IBM Call')
+        print(circuit)
+
         import qiskit
         circuit_native = self.build_native_circuit_measurement(
             circuit,
@@ -254,8 +285,9 @@ class QiskitHardwareBackend(QiskitBackend):
         result = job.result()
         counts = result.get_counts()
         probabilities = ProbabilityHistogram(
-            nqubit=circuit.nqubit,
+            nqubit=nqubit,
             nmeasurement=nmeasurement,
-            histogram={int(k[::-1], base=2) : v / nmeasurement for k, v in counts.items()},
+            # histogram={int(k[::-1], base=2) : v / nmeasurement for k, v in counts.items()}, # WRONG
+            histogram={int(k, base=2) : v / nmeasurement for k, v in counts.items()},
             )
         return probabilities
