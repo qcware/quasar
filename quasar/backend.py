@@ -1,6 +1,6 @@
 import numpy as np
 import collections
-import sortedcollections
+import sortedcontainers
 from .pauli import Pauli, PauliExpectation, PauliString
 from .algebra import Algebra
 from .circuit import Gate, Circuit
@@ -662,7 +662,7 @@ class Backend(object):
         min_qubit = pauli.min_qubit if min_qubit is None else min_qubit
         nqubit = pauli.nqubit if nqubit is None else nqubit
 
-        keys = sortedcollections.SortedSet()
+        keys = sortedcontainers.SortedSet()
         for string in pauli.keys():
             for qubit, char in string:
                 keys.add(char)
