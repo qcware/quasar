@@ -188,98 +188,100 @@ void run_statevector(
     }
 }
 
-template <typename T> 
-void apply_pauli_1(
-    int nqubit,
+/**
+ * Apply a Pauli operator to statevector1_d, placing the result in
+ * statevector2_d
+ *
+ *  statevector2_d = Pauli (statevector1_d)
+ *
+ * NOTE: we use apply_pauli_1_mody with adjusted coefficients to apply the
+ * individual 1-body Pauli operators. This yields correct results with scalar
+ * types if the Pauli operator is real symmetric (has real coefficients and
+ * only even powers of Y).
+ *
+ * Params:
+ *  pauli (Pauli<T>) - Pauli operator to apply
+ *  statevector1_d (T*) - device pointer to allocated input statevector (not
+ *    modified)
+ *  statevector2_d (T*) - device pointer to allocated input statevector
+ *    (overwritten)
+ *  Result:
+ *    statevector2_d is overwritten with the result
+ **/
+template <typename T>
+void apply_pauli(
+    const Pauli<T>& pauli,
     T* statevector1_d,
-    T* statevector2_d,
-    int qubitA,
-    int type,
-    T a = T(1.0),
-    T b = T(0.0))
+    T* statevector2_d)
 {
-    T O00;
-    T O01;
-    T O10;
-    T O11;
-
-    if (type == 0) {
-        O00 = T(0.0, 0.0);
-        O01 = T(1.0, 0.0);
-        O10 = T(1.0, 0.0);
-        O11 = T(0.0, 0.0);
-    } else if (type == 1) {
-        O00 = T(0.0, 0.0);
-        O01 = T(0.0, -1.0);
-        O10 = T(0.0, 1.0);
-        O11 = T(0.0, 0.0);
-    } else if (type == 2) {
-        O00 = T(1.0, 0.0);
-        O01 = T(0.0, 0.0);
-        O10 = T(0.0, 0.0);
-        O11 = T(-1.0, 0.0);
-    } else {
-        throw std::runtime_error("type must be 0 (X), 1 (Y), or 2 (Z)");
+    vulcan::gpu::zero_statevector(pauli.nqubit(), statevector2_d);
+    for (size_t index = 0; index < pauli.types().size(); index++) {
+        const std::vector<int>& types = pauli.types()[index];
+        const std::vector<int>& qubits = pauli.qubits()[index];
+        T val = pauli.values()[index];
+        int Xmask = 0;
+        int Ymask = 0;
+        int Zmask = 0;
+        for (size_t index2 = 0; index2 < types.size(); index2++) {
+            if (types[index2] == 0) {
+                Xmask += (1 << qubits[index2]);
+            } else if (types[index2] == 1) {
+                Ymask += (1 << qubits[index2]);
+            } else {
+                Zmask += (1 << qubits[index2]);
+            }
+        }
+        vulcan::gpu::apply_pauli(
+            pauli.nqubit(),
+            statevector1_d,
+            statevector2_d,
+            Xmask,
+            Ymask,
+            Zmask,
+            val,
+            T(1.0));
     }
-
-    vulcan::gpu::apply_gate_1(
-        nqubit,
-        statevector1_d,
-        statevector2_d,
-        qubitA,
-        O00,
-        O01,
-        O10,
-        O11,
-        a,
-        b);
 }
 
-template <typename T> 
-void apply_pauli_1_mody(
-    int nqubit,
+template <typename T>
+Pauli<T> pauli_expectation(
+    const Pauli<T>& pauli,
     T* statevector1_d,
-    T* statevector2_d,
-    int qubitA,
-    int type,
-    T a = T(1.0),
-    T b = T(0.0))
+    T* statevector2_d)
 {
-    T O00;
-    T O01;
-    T O10;
-    T O11;
-
-    if (type == 0) {
-        O00 = T(0.0, 0.0);
-        O01 = T(1.0, 0.0);
-        O10 = T(1.0, 0.0);
-        O11 = T(0.0, 0.0);
-    } else if (type == 1) {
-        O00 = T(0.0, 0.0);
-        O01 = T(1.0, 0.0);
-        O10 = T(-1.0, 0.0);
-        O11 = T(0.0, 0.0);
-    } else if (type == 2) {
-        O00 = T(1.0, 0.0);
-        O01 = T(0.0, 0.0);
-        O10 = T(0.0, 0.0);
-        O11 = T(-1.0, 0.0);
-    } else {
-        throw std::runtime_error("type must be 0 (X), 1 (Y), or 2 (Z)");
+    std::vector<T> values(pauli.types().size());
+    for (size_t index = 0; index < pauli.types().size(); index++) {
+        const std::vector<int>& types = pauli.types()[index];
+        const std::vector<int>& qubits = pauli.qubits()[index];
+        int Xmask = 0;
+        int Ymask = 0;
+        int Zmask = 0;
+        for (size_t index2 = 0; index2 < types.size(); index2++) {
+            if (types[index2] == 0) {
+                Xmask += (1 << qubits[index2]);
+            } else if (types[index2] == 1) {
+                Ymask += (1 << qubits[index2]);
+            } else {
+                Zmask += (1 << qubits[index2]);
+            }
+        }
+        vulcan::gpu::apply_pauli(
+            pauli.nqubit(),
+            statevector1_d,
+            statevector2_d,
+            Xmask,
+            Ymask,
+            Zmask,
+            T(1.0),
+            T(0.0));
+        values[index] = vulcan::gpu::dot(pauli.nqubit(), statevector1_d, statevector2_d); 
     }
-
-    vulcan::gpu::apply_gate_1(
-        nqubit,
-        statevector1_d,
-        statevector2_d,
-        qubitA,
-        O00,
-        O01,
-        O10,
-        O11,
-        a,
-        b);
+    
+    return Pauli<T>(
+        pauli.nqubit(),
+        pauli.types(),
+        pauli.qubits(),
+        values);
 }
 
 template <typename T> 
@@ -327,103 +329,6 @@ void apply_ipauli_1(
         O11,
         a,
         b);
-}
-
-/**
- * (-i)**n. Returns correct result if T is a scalar quantity and n is even.
- *
- * Params:
- *  n (int) - desired integral power of (-i)
- * Returns:
- *  (T) - (-i)**n. 0.0 (incorrect) if T is scalar and n is odd.
- **/
-template <typename T>
-T mi_pow_n(int n)
-{
-    if (n % 2 == 0) {
-        return T(((n / 2) % 2) == 0 ? 1.0 : -1.0, 0.0);
-    } else {
-        return T(0.0, (((n + 1) / 2) % 2) == 0 ? 1.0 : -1.0);
-    }
-}
-
-/**
- * Apply a Pauli operator to statevector1_d, placing the result in
- * statevector2_d, using statevector3_d as a temporary buffer array:
- *
- *  statevector2_d = Pauli (statevector1_d)
- *
- * NOTE: we use apply_pauli_1_mody with adjusted coefficients to apply the
- * individual 1-body Pauli operators. This yields correct results with scalar
- * types if the Pauli operator is real symmetric (has real coefficients and
- * only even powers of Y).
- *
- * Params:
- *  pauli (Pauli<T>) - Pauli operator to apply
- *  statevector1_d (T*) - device pointer to allocated input statevector (not
- *    modified)
- *  statevector2_d (T*) - device pointer to allocated input statevector
- *    (overwritten)
- *  statevector3_d (T*) - device pointer to allocated input statevector
- *    (overwritten)
- *  Result:
- *    statevector2_d is overwritten with the result
- *    statevector3_d is overwritten with temporary working data
- **/
-template <typename T>
-void apply_pauli(
-    const Pauli<T>& pauli,
-    T* statevector1_d,
-    T* statevector2_d,
-    T* statevector3_d)
-{
-    vulcan::gpu::zero_statevector(pauli.nqubit(), statevector2_d);
-    for (size_t index = 0; index < pauli.types().size(); index++) {
-        const std::vector<int>& types = pauli.types()[index];
-        const std::vector<int>& qubits = pauli.qubits()[index];
-        T val = pauli.values()[index];
-        vulcan::gpu::axpby(pauli.nqubit(), statevector1_d, statevector3_d);
-        int ny = 0;
-        for (size_t index2 = 0; index2 < types.size(); index2++) {
-            int type = types[index2];
-            int qubit = qubits[index2];          
-            if (type == 1) ny += 1;
-            vulcan::util::apply_pauli_1_mody(pauli.nqubit(), statevector3_d, statevector3_d, qubit, type);
-        }  
-        // (-i)**ny
-        T scal = mi_pow_n<T>(ny);
-        vulcan::gpu::axpby(pauli.nqubit(), statevector3_d, statevector2_d, scal*val, T(1.0));
-    }
-}
-
-template <typename T>
-Pauli<T> pauli_expectation(
-    const Pauli<T>& pauli,
-    T* statevector1_d,
-    T* statevector2_d)
-{
-    std::vector<T> values(pauli.types().size());
-    for (size_t index = 0; index < pauli.types().size(); index++) {
-        const std::vector<int>& types = pauli.types()[index];
-        const std::vector<int>& qubits = pauli.qubits()[index];
-        vulcan::gpu::axpby(pauli.nqubit(), statevector1_d, statevector2_d);
-        int ny = 0;
-        for (size_t index2 = 0; index2 < types.size(); index2++) {
-            int type = types[index2];
-            int qubit = qubits[index2];          
-            if (type == 1) ny += 1;
-            vulcan::util::apply_pauli_1_mody(pauli.nqubit(), statevector2_d, statevector2_d, qubit, type);
-        }  
-        // (-i)**ny
-        T scal = mi_pow_n<T>(ny);
-        values[index] = scal*vulcan::gpu::dot(pauli.nqubit(), statevector1_d, statevector2_d); 
-    }
-    
-    return Pauli<T>(
-        pauli.nqubit(),
-        pauli.types(),
-        pauli.qubits(),
-        values);
 }
 
 } // namespace vulcan::util

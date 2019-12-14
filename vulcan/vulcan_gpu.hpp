@@ -24,10 +24,10 @@
  *     
  *     If b is 0.0, statevector2 is not loaded, providing a modest performance
  *     improvement.
- *  - All BLAS1/2-like functions support self assignment, e.g., the function
- *     must return correctly if statevector1 and statevector2 are identical.
- *     This can be useful for in-place gate applications, saving one
- *     statevector worth of device memory.
+ *  - Unless otherwise noted, all BLAS1/2-like functions support self
+ *      assignment, e.g., the function must return correctly if statevector1
+ *      and statevector2 are identical.  This can be useful for in-place gate
+ *      applications, saving one statevector worth of device memory.
  *  - All functions are templated for type T. If real types are used any
  *      imaginary components of the computation will be truncated to zero
  *      throughout, possibly leading to formally incorrect results. The user is
@@ -368,6 +368,19 @@ void apply_gate_2(
     T O31,
     T O32,
     T O33,
+    T a = T(1.0),
+    T b = T(0.0));
+
+// => Specialized Pauli Operators <= //
+
+template <typename T>
+void apply_pauli(
+    int nqubit,
+    T* statevector1_d,
+    T* statevector2_d,
+    int Xmask,
+    int Ymask,
+    int Zmask,
     T a = T(1.0),
     T b = T(0.0));
 

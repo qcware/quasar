@@ -17,6 +17,24 @@ std::pair<int, int> cuda_grid_size(int nqubit, int block_size)
     }
 }
 
+/**
+ * (+i)**n. Returns correct result if T is a scalar quantity and n is even.
+ *
+ * Params:
+ *  n (int) - desired integral power of (+i)
+ * Returns:
+ *  (T) - (+i)**n. 0.0 (incorrect) if T is scalar and n is odd.
+ **/
+template <typename T>
+T i_pow_n(int n)
+{
+    if (n % 2 == 0) {
+        return T(((n / 2) % 2) == 0 ? 1.0 : -1.0, 0.0);
+    } else {
+        return T(0.0, (((n + 1) / 2) % 2) == 0 ? -1.0 : 1.0);
+    }
+}
+
 // => Dot Kernel <= //
 
 // > Warp and Block Binary Summation Functions < //
@@ -625,6 +643,115 @@ template void apply_gate_2<complex64>(
    complex64, 
    complex64, 
    complex64);
+
+// => Pauli Operators <= //
+
+template <typename T>
+__global__ void pauli_kernel(
+    T* statevector1,
+    T* statevector2,
+    int swap_mask,
+    int phase_mask,
+    T a,
+    T b)
+{
+    int index1 = threadIdx.x + blockIdx.x * blockDim.x;
+    int index2 = index1 ^ swap_mask;
+   
+    T val = statevector1[index1]; 
+    val *= a;
+    if (__popc(phase_mask & index1) & 1) {
+        val *= T(-1.0);
+    }
+
+    if (b != T::zero()) {
+        val += b * statevector2[index2];
+    }
+
+    statevector2[index2] = val;
+}
+
+template<typename T>
+int apply_pauli_block_size();
+
+template<>
+int apply_pauli_block_size<float32>() { return 256; }
+
+template<>
+int apply_pauli_block_size<float64>() { return 128; }
+
+template<>
+int apply_pauli_block_size<complex64>() { return 64; }
+
+template<>
+int apply_pauli_block_size<complex128>() { return 64; }
+
+template <typename T>
+void apply_pauli(
+    int nqubit,
+    T* statevector1_d,
+    T* statevector2_d,
+    int Xmask,
+    int Ymask,
+    int Zmask,
+    T a,
+    T b) 
+{
+    int swap_mask = Xmask | Ymask;
+    int phase_mask = Ymask | Zmask; 
+
+    T a2 = a * i_pow_n<T>(__builtin_popcount(Ymask));
+
+    std::pair<int, int> grid_size = cuda_grid_size(nqubit, apply_pauli_block_size<T>());
+
+    pauli_kernel<<<std::get<0>(grid_size), std::get<1>(grid_size)>>>(
+        statevector1_d,
+        statevector2_d,
+        swap_mask,
+        phase_mask,
+        a2,
+        b);
+}
+
+template void apply_pauli<float64>(
+    int,
+    float64*,
+    float64*,
+    int,
+    int,
+    int,
+    float64,
+    float64);
+
+template void apply_pauli<float32>(
+    int,
+    float32*,
+    float32*,
+    int,
+    int,
+    int,
+    float32,
+    float32);
+
+template void apply_pauli<complex128>(
+    int,
+    complex128*,
+    complex128*,
+    int,
+    int,
+    int,
+    complex128,
+    complex128);
+
+template void apply_pauli<complex64>(
+    int,
+    complex64*,
+    complex64*,
+    int,
+    int,
+    int,
+    complex64,
+    complex64);
 
 // => Measurement Operations <= //
 

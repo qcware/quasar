@@ -648,7 +648,7 @@ void run_statevector(
  * to the host.
  *
  * GPU memory:
- *  3x statevector
+ *  2x statevector
  *
  * Host-device transfers:
  *  2x statevector if input statevector_h is provided 
@@ -672,12 +672,10 @@ void run_pauli_sigma(
 {
     T* statevector1_d = vulcan::gpu::malloc_and_initialize_statevector(pauli.nqubit(), statevector_h);
     T* statevector2_d = vulcan::gpu::malloc_statevector<T>(pauli.nqubit());
-    T* statevector3_d = vulcan::gpu::malloc_statevector<T>(pauli.nqubit());
-    vulcan::util::apply_pauli(pauli, statevector1_d, statevector2_d, statevector3_d);
+    vulcan::util::apply_pauli(pauli, statevector1_d, statevector2_d);
     vulcan::gpu::copy_statevector_to_host(pauli.nqubit(), statevector2_d, result_h);
     vulcan::gpu::free_statevector(statevector1_d);
     vulcan::gpu::free_statevector(statevector2_d);
-    vulcan::gpu::free_statevector(statevector3_d);
 }
 
 /**
@@ -747,7 +745,7 @@ Pauli<T> run_pauli_expectation(
  * similar in implementation to run_pauli_expectation_value_gradient below.
  *
  * GPU memory:
- *  3x statevector
+ *  2x statevector
  *
  * Host-device transfers:
  *  1x statevector if input statevector_h is provided 
@@ -776,13 +774,11 @@ T run_pauli_expectation_value(
 
     T* statevector1_d = vulcan::gpu::malloc_and_initialize_statevector(pauli.nqubit(), statevector_h);
     T* statevector2_d = vulcan::gpu::malloc_statevector<T>(pauli.nqubit());
-    T* statevector3_d = vulcan::gpu::malloc_statevector<T>(pauli.nqubit());
     vulcan::util::run_statevector(compressed ? circuit.compressed() : circuit, statevector1_d);
-    vulcan::util::apply_pauli(pauli, statevector1_d, statevector2_d, statevector3_d);
+    vulcan::util::apply_pauli(pauli, statevector1_d, statevector2_d);
     T val = vulcan::gpu::dot(circuit.nqubit(), statevector1_d, statevector2_d);
     vulcan::gpu::free_statevector(statevector1_d);
     vulcan::gpu::free_statevector(statevector2_d);
-    vulcan::gpu::free_statevector(statevector3_d);
     return val;
 }
     
@@ -846,7 +842,7 @@ std::vector<T> run_pauli_expectation_value_gradient(
     T* statevector2_d = vulcan::gpu::malloc_statevector<T>(pauli.nqubit());
     T* statevector3_d = vulcan::gpu::malloc_statevector<T>(pauli.nqubit());
     vulcan::util::run_statevector(compressed ? circuit.compressed() : circuit, statevector1_d);
-    vulcan::util::apply_pauli(pauli, statevector1_d, statevector2_d, statevector3_d);
+    vulcan::util::apply_pauli(pauli, statevector1_d, statevector2_d);
 
     Circuit<T> circuit2 = circuit.adjoint();
      

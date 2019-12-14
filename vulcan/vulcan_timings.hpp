@@ -877,6 +877,135 @@ void run_timings_gate_2(
     printf("\n");
 }
 
+template <typename T>
+std::vector<double> time_apply_pauli(
+    int nqubit,
+    const std::vector<int>& Xmask,
+    const std::vector<int>& Ymask,
+    const std::vector<int>& Zmask,
+    T a,
+    T b)
+{
+    T* statevector1 = vulcan::gpu::malloc_statevector<T>(nqubit);
+    T* statevector2 = vulcan::gpu::malloc_statevector<T>(nqubit);
+    vulcan::gpu::zero_statevector<T>(nqubit, statevector1);
+
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+
+    std::vector<double> timings;
+    for (size_t index = 0; index < Xmask.size(); index++) {
+        cudaEventRecord(start);
+        vulcan::gpu::apply_pauli<T>(
+            nqubit,
+            statevector1,
+            statevector2,
+            Xmask[index],
+            Ymask[index],
+            Zmask[index],
+            a,
+            b);
+        cudaEventRecord(stop);
+        cudaEventSynchronize(stop);
+        float time_ms;
+        cudaEventElapsedTime(&time_ms, start, stop);
+        timings.push_back(1.0E-3 * time_ms);
+    }   
+
+    vulcan::gpu::free_statevector(statevector1);
+    vulcan::gpu::free_statevector(statevector2);
+    return timings;
+}
+
+void run_timings_pauli(
+    int nqubit)
+{
+    printf("==> Pauli Timings <==\n\n");
+    
+    printf("nqubit = %d\n\n", nqubit);
+
+    printf("T in [s]\n");
+    printf("B in [GiB / s]\n");
+    printf("\n");
+
+    size_t multiplier = 0;
+
+    printf("=> x = G(x) <=\n\n");
+    multiplier = 2;
+    printf("Multiplier = %zu\n", multiplier);
+    printf("\n");
+    printf("%10s %10s %10s: %12s %12s %12s %12s %12s %12s %12s %12s\n",
+        "Xmask",
+        "Ymask",
+        "Zmask",
+        "T float32",
+        "T float64",
+        "T complex64",
+        "T complex128",
+        "B float32",
+        "B float64",
+        "B complex64",
+        "B complex128"
+        );
+
+    std::vector<int> Xmask;
+    std::vector<int> Ymask;
+    std::vector<int> Zmask;
+
+    for (int qubit = 0; qubit < nqubit; qubit++) {
+        Xmask.push_back(1 << qubit);
+        Ymask.push_back(0);
+        Zmask.push_back(0);
+    }
+
+    for (int qubit = 0; qubit < nqubit; qubit++) {
+        Xmask.push_back(0);
+        Ymask.push_back(1 << qubit);
+        Zmask.push_back(0);
+    }
+
+    for (int qubit = 0; qubit < nqubit; qubit++) {
+        Xmask.push_back(0);
+        Ymask.push_back(0);
+        Zmask.push_back(1 << qubit);
+    }
+
+    Xmask.push_back((1 << nqubit) - 1);
+    Ymask.push_back(0);
+    Zmask.push_back(0);
+
+    std::vector<double> Ts_float32 = time_apply_pauli<float32>(nqubit, Xmask, Ymask, Zmask, float32(1.0), float32(0.0));
+    std::vector<double> Ts_float64 = time_apply_pauli<float64>(nqubit, Xmask, Ymask, Zmask, float64(1.0), float64(0.0));
+    std::vector<double> Ts_complex64 = time_apply_pauli<complex64>(nqubit, Xmask, Ymask, Zmask, complex64(1.0), complex64(0.0));
+    std::vector<double> Ts_complex128 = time_apply_pauli<complex128>(nqubit, Xmask, Ymask, Zmask, complex128(1.0), complex128(0.0));
+    for (size_t index = 0; index < Xmask.size(); index++) {
+        double T_float32 = Ts_float32[index];
+        double T_float64 = Ts_float64[index];
+        double T_complex64 = Ts_complex64[index];
+        double T_complex128 = Ts_complex128[index];
+        size_t ndata = (1ULL << nqubit) * multiplier;
+        double B_float32 = ndata * sizeof(float32) / T_float32 / 1E9;
+        double B_float64 = ndata * sizeof(float64) / T_float64 / 1E9;
+        double B_complex64 = ndata * sizeof(complex64) / T_complex64 / 1E9;
+        double B_complex128 = ndata * sizeof(complex128) / T_complex128 / 1E9;
+        printf("%10d %10d %10d: %12.3E %12.3E %12.3E %12.3E %12.3E %12.3E %12.3E %12.3E\n",
+            Xmask[index],
+            Ymask[index],
+            Zmask[index],
+            T_float32,
+            T_float64,
+            T_complex64,
+            T_complex128,
+            B_float32,
+            B_float64,
+            B_complex64,
+            B_complex128
+            );
+    }
+    printf("\n");
+}
+
 template <typename T, typename U>
 double time_abs2(
     int nqubit)
