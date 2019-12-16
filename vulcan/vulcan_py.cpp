@@ -382,7 +382,7 @@ Circuit<T> py_build_circuit(
         nmatrices += (1 << 2*nqubit2);
     }
     if (matrices.size() != nmatrices) {
-        throw std::runtime_error("matrices not correctly size");
+        throw std::runtime_error("matrices not correctly sized");
     }
 
     size_t nqubits2 = 0;
@@ -390,7 +390,7 @@ Circuit<T> py_build_circuit(
         nqubits2 += nqubit2;
     }
     if (qubits.size() != nqubits2) {
-        throw std::runtime_error("qubits not correctly size");
+        throw std::runtime_error("qubits not correctly sized");
     }
 
     std::vector<Gate<T>> gates;
@@ -463,6 +463,94 @@ Circuit<complex128> py_build_circuit_complex128(
     return py_build_circuit<complex128>(nqubit, nqubits, names, matrices, qubits);
 }
 
+template <typename T>
+Pauli<T> py_build_pauli(
+    int nqubit,
+    const std::vector<int>& nterms,
+    const std::vector<int>& types,
+    const std::vector<int>& qubits,
+    const std::vector<std::complex<double>>& values)
+{
+    if (nterms.size() != values.size()) {
+        throw std::runtime_error("nterms.size() != values.size()");
+    } 
+
+    size_t nterm_total = 0;
+    for (int nterm : nterms) {
+        nterm_total += nterm;
+    }
+    if (types.size() != nterm_total) {
+        throw std::runtime_error("types not correctly sized");
+    }
+    if (qubits.size() != nterm_total) {
+        throw std::runtime_error("qubits not correctly sized");
+    }
+
+    std::vector<std::vector<int>> types2;
+    std::vector<std::vector<int>> qubits2;
+    std::vector<T> values2;
+    size_t offset = 0;
+    for (size_t index = 0; index < nterms.size(); index++) {
+        std::vector<int> types3;
+        std::vector<int> qubits3;
+        for (size_t index2 = 0; index2 < nterms[index]; index2++) {
+            types3.push_back(types[index2 + offset]);
+            qubits3.push_back(qubits[index2 + offset]);
+        }
+        types2.push_back(types3);
+        qubits2.push_back(qubits3);
+        offset += nterms[index];
+        std::complex<double> val = values[index];
+        values2.push_back(T(val.real(), val.imag()));
+    }
+
+    return Pauli<T>(
+        nqubit,
+        types2,
+        qubits2,
+        values2);
+}
+
+Pauli<float32> py_build_pauli_float32(
+    int nqubit,
+    const std::vector<int>& nterms,
+    const std::vector<int>& types,
+    const std::vector<int>& qubits,
+    const std::vector<std::complex<double>>& values)
+{
+    return py_build_pauli<float32>(nqubit, nterms, types, qubits, values);
+}
+
+Pauli<float64> py_build_pauli_float64(
+    int nqubit,
+    const std::vector<int>& nterms,
+    const std::vector<int>& types,
+    const std::vector<int>& qubits,
+    const std::vector<std::complex<double>>& values)
+{
+    return py_build_pauli<float64>(nqubit, nterms, types, qubits, values);
+}
+
+Pauli<complex64> py_build_pauli_complex64(
+    int nqubit,
+    const std::vector<int>& nterms,
+    const std::vector<int>& types,
+    const std::vector<int>& qubits,
+    const std::vector<std::complex<double>>& values)
+{
+    return py_build_pauli<complex64>(nqubit, nterms, types, qubits, values);
+}
+
+Pauli<complex128> py_build_pauli_complex128(
+    int nqubit,
+    const std::vector<int>& nterms,
+    const std::vector<int>& types,
+    const std::vector<int>& qubits,
+    const std::vector<std::complex<double>>& values)
+{
+    return py_build_pauli<complex128>(nqubit, nterms, types, qubits, values);
+}
+
 PYBIND11_MODULE(vulcan_plugin, m) {
 
     m.def("ndevice", &vulcan::ndevice);
@@ -509,6 +597,7 @@ PYBIND11_MODULE(vulcan_plugin, m) {
     ; 
 
     m.def("build_circuit_float32", py_build_circuit_float32);    
+    m.def("build_pauli_float32", py_build_pauli_float32);    
 
     m.def("run_statevector_float32", py_run_statevector_float32);
     m.def("run_pauli_sigma_float32", py_run_pauli_sigma_float32);
@@ -552,6 +641,7 @@ PYBIND11_MODULE(vulcan_plugin, m) {
     ; 
 
     m.def("build_circuit_float64", py_build_circuit_float64);    
+    m.def("build_pauli_float64", py_build_pauli_float64);    
 
     m.def("run_statevector_float64", py_run_statevector_float64);
     m.def("run_pauli_sigma_float64", py_run_pauli_sigma_float64);
@@ -595,6 +685,7 @@ PYBIND11_MODULE(vulcan_plugin, m) {
     ; 
 
     m.def("build_circuit_complex64", py_build_circuit_complex64);    
+    m.def("build_pauli_complex64", py_build_pauli_complex64);    
 
     m.def("run_statevector_complex64", py_run_statevector_complex64);
     m.def("run_pauli_sigma_complex64", py_run_pauli_sigma_complex64);
@@ -638,6 +729,7 @@ PYBIND11_MODULE(vulcan_plugin, m) {
     ; 
 
     m.def("build_circuit_complex128", py_build_circuit_complex128);    
+    m.def("build_pauli_complex128", py_build_pauli_complex128);    
 
     m.def("run_statevector_complex128", py_run_statevector_complex128);
     m.def("run_pauli_sigma_complex128", py_run_pauli_sigma_complex128);

@@ -528,7 +528,7 @@ Pauli(
     int nqubit,
     const std::vector<std::vector<int>>& types,
     const std::vector<std::vector<int>>& qubits,
-    const std::vector<T> values) :
+    const std::vector<T>& values) :
     nqubit_(nqubit),
     types_(types),
     qubits_(qubits),

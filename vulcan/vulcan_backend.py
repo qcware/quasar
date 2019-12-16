@@ -46,6 +46,13 @@ class VulcanSimulatorBackend(quasar.Backend):
         np.complex128 : vulcan.build_circuit_complex128,
     }
 
+    vulcan_build_pauli_method = {
+        np.float32 : vulcan.build_pauli_float32,
+        np.float64 : vulcan.build_pauli_float64,
+        np.complex64 : vulcan.build_pauli_complex64,
+        np.complex128 : vulcan.build_pauli_complex128,
+    }
+
     vulcan_run_statevector_method = {
         np.float32 : vulcan.run_statevector_float32,
         np.float64 : vulcan.run_statevector_float64,
@@ -195,6 +202,39 @@ class VulcanSimulatorBackend(quasar.Backend):
         return pauli2
     
     @staticmethod
+    def vulcan_pauli2(
+        pauli,
+        min_qubit=None,
+        nqubit=None,
+        dtype=np.complex128,
+        ):
+
+        min_qubit = pauli.min_qubit if min_qubit is None else min_qubit
+        nqubit = pauli.nqubit if nqubit is None else nqubit
+
+        nterms = []
+        types = []
+        qubits = []
+        values = []
+        for string, value in pauli.items():
+            nterms.append(len(string.qubits))
+            types += [0 if _ == 'X' else 1 if _ == 'Y' else 2 for _ in string.chars]
+            qubits += [_ - min_qubit for _ in string.qubits]
+            values.append(value.real + 1.j * value.imag)
+
+        pauli2 = VulcanSimulatorBackend.vulcan_build_pauli_method[dtype](
+            nqubit,
+            nterms,
+            types,
+            qubits,
+            values,
+            )
+
+        pauli2 = pauli2.bit_reversal() # quasar/vulcan ordering
+
+        return pauli2
+    
+    @staticmethod
     def quasar_number(
         vulcan_number,
         dtype=np.complex128,
@@ -285,7 +325,7 @@ class VulcanSimulatorBackend(quasar.Backend):
         compressed=True,
         ):
     
-        pauli2 = VulcanSimulatorBackend.vulcan_pauli(
+        pauli2 = VulcanSimulatorBackend.vulcan_pauli2(
             pauli=pauli,
             min_qubit=min_qubit,
             nqubit=nqubit,
@@ -319,7 +359,7 @@ class VulcanSimulatorBackend(quasar.Backend):
             nqubit=nqubit,
             dtype=dtype,
             )
-        pauli2 = VulcanSimulatorBackend.vulcan_pauli(
+        pauli2 = VulcanSimulatorBackend.vulcan_pauli2(
             pauli=pauli,
             min_qubit=min_qubit,
             nqubit=nqubit,
@@ -362,7 +402,7 @@ class VulcanSimulatorBackend(quasar.Backend):
             nqubit=nqubit,
             dtype=dtype,
             )
-        pauli2 = VulcanSimulatorBackend.vulcan_pauli(
+        pauli2 = VulcanSimulatorBackend.vulcan_pauli2(
             pauli=pauli,
             min_qubit=min_qubit,
             nqubit=nqubit,
@@ -413,7 +453,7 @@ class VulcanSimulatorBackend(quasar.Backend):
             nqubit=nqubit,
             dtype=dtype,
             )
-        pauli2 = VulcanSimulatorBackend.vulcan_pauli(
+        pauli2 = VulcanSimulatorBackend.vulcan_pauli2(
             pauli=pauli,
             min_qubit=min_qubit,
             nqubit=nqubit,
