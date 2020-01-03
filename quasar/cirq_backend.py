@@ -1,16 +1,12 @@
 import numpy as np
-from .circuit import Circuit
 from .backend import Backend
-from .measurement import Ket, MeasurementResult
-
-# => Cirq <= #
 
 class CirqBackend(Backend):
 
     def __init__(
         self,
         ):
-
+        
         pass 
 
     @staticmethod
@@ -29,23 +25,23 @@ class CirqBackend(Backend):
     def build_native_circuit(
         self,
         circuit,
+        bit_reversal=False,
+        min_qubit=None,
+        nqubit=None,
         ):
 
-        # Dropthrough
-        if isinstance(circuit, self.native_circuit_type): return circuit
-    
-        # Can only convert quasar -> cirq
-        if not isinstance(circuit, Circuit): 
-            raise RuntimeError('circuit must be Circuit type for build_native_circuit: %s' % (circuit))
+        min_qubit = circuit.min_qubit if min_qubit is None else min_qubit
+        nqubit = circuit.nqubit if nqubit is None else nqubit
 
         import cirq
-        q = [cirq.LineQubit(A) for A in range(circuit.N)]
+        q = [cirq.LineQubit(A) for A in range(nqubit)]
         qc = cirq.Circuit()
-        for key in sorted(circuit.gates.keys()):
-            T, qubits = key
-            gate = circuit.gates[key]
-            if gate.N == 1:
-                qubit = qubits[0]
+        for key, gate in circuit.gates.items():
+            times, qubits = key
+            if gate.nqubit == 1:
+                qubit = qubits[0] - min_qubit
+                if bit_reversal:
+                    qubit = nqubit - qubit - 1
                 if gate.name == 'I':
                     qc.append(cirq.I(q[qubit]))
                 elif gate.name == 'X':
@@ -61,16 +57,19 @@ class CirqBackend(Backend):
                 elif gate.name == 'T':
                     qc.append(cirq.T(q[qubit]))
                 elif gate.name == 'Rx':
-                    qc.append(cirq.Rx(CirqBackend.quasar_to_cirq_angle(gate.params['theta']))(q[qubit]))
+                    qc.append(cirq.Rx(CirqBackend.quasar_to_cirq_angle(gate.parameters['theta']))(q[qubit]))
                 elif gate.name == 'Ry':
-                    qc.append(cirq.Ry(CirqBackend.quasar_to_cirq_angle(gate.params['theta']))(q[qubit]))
+                    qc.append(cirq.Ry(CirqBackend.quasar_to_cirq_angle(gate.parameters['theta']))(q[qubit]))
                 elif gate.name == 'Rz':
-                    qc.append(cirq.Rz(CirqBackend.quasar_to_cirq_angle(gate.params['theta']))(q[qubit]))
+                    qc.append(cirq.Rz(CirqBackend.quasar_to_cirq_angle(gate.parameters['theta']))(q[qubit]))
                 else:
                     raise RuntimeError('Gate translation to cirq not known: %s' % gate)
-            elif gate.N == 2:
-                qubitA = qubits[0]
-                qubitB = qubits[1]
+            elif gate.nqubit == 2:
+                qubitA = qubits[0] - min_qubit
+                qubitB = qubits[1] - min_qubit
+                if bit_reversal:
+                    qubitA = nqubit - qubitA - 1
+                    qubitB = nqubit - qubitB - 1
                 if gate.name == 'CX':
                     qc.append(cirq.CNOT(q[qubitA], q[qubitB]))
                 # elif gate.name == 'CY':
@@ -83,104 +82,19 @@ class CirqBackend(Backend):
                     raise RuntimeError('Gate translation to cirq not known: %s' % gate)
             else:
                 raise RuntimeError('Cannot translate cirq for N > 2')
+
+        for qubit in range(nqubit):
+            qc.append(cirq.I(q[qubit]))
                 
         return qc
 
-    def build_quasar_circuit(
-        self,
-        native_circuit,
-        ):
-
-        # Dropthrough
-        if isinstance(native_circuit, Circuit): return native_circuit
-    
-        # Can only convert quasar -> cirq
-        if not isinstance(native_circuit, self.native_circuit_type): 
-            raise RuntimeError('native_circuit must be Circuit type for build_native_native_circuit: %s' % (native_circuit))
-
-        import cirq
-        if not all(isinstance(qubit, cirq.LineQubit) for qubit in native_circuit.all_qubits()):
-            raise RuntimeError('Translation from cirq only valid from LineQubit-based circuits')
-
-        circuit = Circuit(N=len(native_circuit.all_qubits()))
-
-        for time, moment in enumerate(native_circuit):
-            for gate in moment.operations:
-                qubits = gate.qubits
-                gate2 = gate.gate
-                strname = str(gate2)
-                if len(qubits) == 1:
-                    qubit = qubits[0].x
-                    if strname == 'I':
-                        circuit.I(qubit, time=time)
-                    elif strname == 'X':
-                        circuit.X(qubit, time=time)
-                    elif strname == 'Y':
-                        circuit.Y(qubit, time=time)
-                    elif strname == 'Z':
-                        circuit.Z(qubit, time=time)
-                    elif strname == 'H':
-                        circuit.H(qubit, time=time)
-                    elif strname == 'S':
-                        circuit.S(qubit, time=time)
-                    elif strname == 'T':
-                        circuit.T(qubit, time=time)
-                    elif strname == 'H':
-                        circuit.H(qubit, time=time)
-                    elif strname[:2] == 'Rx':
-                        circuit.Rx(qubit, time=time, theta=CirqBackend.cirq_to_quasar_angle(np.pi * gate2.exponent))
-                    elif strname[:2] == 'Ry':
-                        circuit.Ry(qubit, time=time, theta=CirqBackend.cirq_to_quasar_angle(np.pi * gate2.exponent))
-                    elif strname[:2] == 'Rz':
-                        circuit.Rz(qubit, time=time, theta=CirqBackend.cirq_to_quasar_angle(np.pi * gate2.exponent))
-                    else:
-                        raise RuntimeError('Gate translation from cirq not known: %s' % gate)
-                elif len(qubits) == 2:
-                    qubitA = qubits[0].x
-                    qubitB = qubits[1].x
-                    if strname == 'CNOT':
-                        circuit.CX(qubitA, qubitB, time=time)
-                    # elif strname == 'CY':
-                    #     circuit.CY(qubitA, qubitB, time=time)
-                    elif strname == 'CZ':
-                        circuit.CZ(qubitA, qubitB, time=time)
-                    elif strname == 'SWAP':
-                        circuit.SWAP(qubitA, qubitB, time=time)
-                    else:
-                        raise RuntimeError('Gate translation from cirq not known: %s' % gate)
-                else:
-                    raise RuntimeError('Cannot translate cirq for N > 2')
-
-        return circuit
-
-    def build_native_circuit_in_basis(
-        self,
-        circuit,
-        basis,
-        ):
-
-        circuit = self.build_native_circuit(circuit)
-    
-        if len(basis) > len(circuit.all_qubits()): raise RuntimeError('len(basis) > circuit.N. Often implies pauli.N > circuit.N')
-        
-        import cirq
-        q = [cirq.LineQubit(A) for A in range(len(circuit.all_qubits()))]
-        basis_circuit = cirq.Circuit()
-        for A, char in enumerate(basis):
-            if char == 'X': basis_circuit.append(cirq.H(q[A]))
-            elif char == 'Y': basis_circuit.append(cirq.Rx(CirqBackend.quasar_to_cirq_angle(-np.pi / 4.0))(q[A]))
-            elif char == 'Z': continue
-            else: raise RuntimeError('Unknown basis: %s' % char)
-        
-        return circuit + basis_circuit
-            
     def build_native_circuit_measurement(
         self,
         circuit,
-        ):
+        **kwargs):
 
         import cirq
-        qc = self.build_native_circuit(circuit).copy()
+        qc = self.build_native_circuit(circuit, **kwargs).copy()
         for qubit in qc.all_qubits():
             qc.append(cirq.measure(qubit))
         return qc
@@ -193,7 +107,7 @@ class CirqSimulatorBackend(CirqBackend):
 
         import cirq
         self.simulator = cirq.Simulator()
-        
+
     def __str__(self):
         return 'Cirq Simulator Backend'
 
@@ -202,24 +116,36 @@ class CirqSimulatorBackend(CirqBackend):
         return 'Cirq Simulator Backend'
 
     @property
-    def has_statevector(self):
+    def has_run_statevector(self):
         return True
 
     @property
-    def has_measurement(self):
+    def has_statevector_input(self):
         return True
 
     def run_statevector(
         self,
         circuit,
+        statevector=None,
+        min_qubit=None,
+        nqubit=None,
+        dtype=np.complex128,
         **kwargs):
 
         import cirq
-        circuit_native = self.build_native_circuit(circuit)
-        result = self.simulator.simulate(circuit_native, **kwargs)
+        circuit_native = self.build_native_circuit(
+            circuit, 
+            bit_reversal=False, 
+            min_qubit=min_qubit, 
+            nqubit=nqubit,
+            )
+        statevector = np.array(statevector, dtype=np.complex64) if statevector is not None else statevector
+        result = self.simulator.simulate(
+            circuit_native, 
+            initial_state=statevector,
+            **kwargs)
         statevector = result.state_vector()
-        statevector = np.array(statevector, dtype=np.complex128)
-        # TODO: verify ordering, particularly for large qubit counts (looks corrects! -Tim)
+        statevector = np.array(statevector, dtype=dtype)
         return statevector
 
     def run_measurement(
@@ -228,13 +154,4 @@ class CirqSimulatorBackend(CirqBackend):
         nmeasurement=1000,
         **kwargs):
     
-        import cirq
-        circuit_native = self.build_native_circuit_measurement(circuit)
-        result = self.simulator.run(circuit_native, repetitions=nmeasurement, **kwargs)
-        table = np.hstack(tuple(result.measurements[key] for key in sorted(result.measurements.keys())))
-        results = MeasurementResult()
-        for A in range(table.shape[0]):
-            ket = Ket(''.join('1' if table[A,B] else '0' for B in range(table.shape[1])))
-            results[ket] = 1 + results.get(ket, 0)
-        return results
-        
+        raise NotImplementedError

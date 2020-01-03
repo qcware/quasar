@@ -1,0 +1,64 @@
+=> vulcan: An ultrafast CUDA quantum circuit simulation library <=
+
+=> Requirements <= 
+
+    * c++11 compiler
+    * nvcc compiler and runtime
+    * pybind11
+    * python3.6+
+    * quasar
+    * make
+
+=> Build <=
+
+    >> cd $VULCAN
+    # Make the library
+    >> make 
+    # Did the C++/CUDA library build?
+    >> ls vulcan_plugin.so
+    >> cd ..
+    # Did the Python/C++/CUDA library build and link?
+    >> python -c "import vulcan"
+    # What GPU can we see?
+    >> python -c "import vulcan; print(vulcan.device_property_string(0))"
+
+See Makefile for needed compile options and include/link paths.
+
+=> Directory <=
+
+ * vulcan.hpp - main C++ API for CPU memory statevector quantities. Manages GPU
+    memory allocations, transfers, and kernel invocations.
+ * vulcan_gpu.hpp - C++ API for quantum circuit simulation operations on GPU
+    memory statevector quantities.
+ * vulcan_gpu.cu - C++/CUDA implementation of GPU quantum circuit simulation
+    operations.
+ * vulcan_types.hpp - scalar and complex types for CUDA (std::complex does not
+    work in device code): 
+        * vulcan::scalar<T> is type punnable with T.
+        * vulcan::complex<T> is type punnable with std::complex<T>.
+ * vulcan_timings.hpp - utility methods to perform detailed timings checks on
+    CUDA kernal performance.
+ * vulcan_py.cpp - pybind11 wrapping of vulcan API to python, with statevector
+    quantities represented in numpy arrays in C order.
+ * vulcan_backend.py - quasar backend for vulcan.
+ * __init__.py - vulcan python module (quasar backend for vulcan + utility
+   functions).
+ * Makefile - makefile targeting vulcan_plugin.so.
+
+ * cuerr.h - utility file to catch/diagnose CUDA errors.
+ * sprintf2.hpp - utility to return std::string from printf-like method.
+ * sprintf2.cpp - utility to return std::string from printf-like method.
+ * device_properties.hpp - utility to determine CUDA runtime devices.
+ * device_properties.cpp - utility to determine CUDA runtime devices.
+
+=> Authors <=
+
+Rob Parrish (rob.parrish@qcware.com)
+
+=> Performance Notes (V100) <=
+
+All ops negligible or running on the memory bandwidth line unless otherwise
+specified.
+
+Dot - Uneven performance.
+AXPBY (b=0) - 30% slow for complex types

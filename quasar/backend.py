@@ -1,72 +1,35 @@
 import numpy as np
 import collections
-import itertools
+import sortedcontainers
 from .pauli import Pauli, PauliExpectation, PauliString
-from .circuit import Circuit
-
-""" File backend.py contains some utility classes that standardize the
-    input/output data for quantum circuits and some utility functions that
-    abstract the details of the quantum backend from the user.
-
-    It seems that there are two primary input data types for quantum circuits: 
-        (1) a circuit - the specification of the quantum circuit, starting from
-            the all-zero reference state. Here, we require that the input
-            circuit be a quasar.Circuit object.
-        (2) a many-body Pauli operator - the specification of the bases and
-            sparsity patterns of the relevant outputs of the quantum circuit,
-            e.g., as would be needed to construct a sparse Pauli-basis
-            many-body density matrix. Here, we require that the input Pauli
-            operator be a Pauli object.
-
-    It seems that there are several primary output data types for NISQ-era
-    quantum circuit manipulations:
-        (1) the native circuit - the representation of the quantum circuit in
-            the native object representation of the backend API. This can be
-            useful for printing, inspection, etc. Here, the output type depends
-            on the quantum backend.
-        (2) the discrete quantum measurements - A set of kets |AB...Z> and the
-            corresponding count of observations. Here, we represent this by the
-            MeasurementResult class, which is a dict of Ket : count pairs. Class Ket
-            wraps an str and makes it unambiguous as to the qubit ordering in
-            the ket.
-        (3) the simulated statevector - a 2**N-dimensional real or complex
-            vector of Hilbert-space amplitudes. Here, we use a np.ndarray of
-            shape (2**N,) in Quasar/Cirq/Nielson-Chuang order.
-        (4) a Pauli expectation value set - a higher-level object formed by
-            infinite-sampling contraction of a simulated statevector or by
-            statistical expectation value over a set of strings of many-body
-            Pauli operators. Here, we compute this ourselves using either a
-            simulated statevector or a set of MeasurementResult objects computed in
-            the "commuting group" space for the relevant Pauli operator. This
-            object is returned as a Pauli object.
-
-    The point here is that you spin up a Backend object of a specific type
-    (such as a QuasarSimulatorBackend, QiskitSimulatorBackend,
-    QiskitHardwareBackend, etc), pass Quasar circuits and Pauli objects as
-    arguments into the backend object's functions, and receive output in the
-    Quasar output types and ordering conventions described above.
-""" 
+from .algebra import Algebra
+from .circuit import Gate, Circuit
 
 class Backend(object):
 
     """ Class Backend represents a physical or simulated quantum circuit
-        resource, which might support statevector simulation and/or measurement. 
-
-        Class Backend declares an abstract set of API functions that must be
-        overloaded by each specific Backend subclass, as well as some utility
-        functions that are common to all Backend subclasses.
+        resource. Backends must implement `run_measurement`, from which many
+        higher-order quantities may be computed, e.g., `run_pauli_expectation`,
+        `run_pauli_expectation_value`, `run_pauli_expectation_value_gradient`,
+        etc. Backends supporting classical statevector-based simulation may
+        also optionally implement `run_statevector,` from which many additional
+        higher-order quantities may be computed, e.g., `run_unitary`,
+        `run_density_matrix`, and ideal-infinite-sampled versions of the
+        previously-discussed higher-order quantities. Backends may additionally
+        overload any of the stock higher-order methods declared here,
+        potentially providing increased performance or additional methodology.
     """ 
 
     def __init__(
         self,
         ):
-        pass
 
         """ Constructor, initializes and holds quantum resource pointers such
             as API keys.
 
         Backend subclasses should OVERLOAD this method.
         """
+        pass
 
     def __str__(self):
         """ A 1-line string representation of this Backend
@@ -91,7 +54,10 @@ class Backend(object):
         raise NotImplementedError
 
     @property
-    def has_statevector(self):
+    def has_run_statevector(
+        self,
+        ):
+
         """ Does this Backend support run_statevector? 
 
         Returns:
@@ -99,283 +65,574 @@ class Backend(object):
 
         Backend subclasses should OVERLOAD this method.
         """ 
-        raise NotImplementedError
+        return NotImplementedError
 
     @property
-    def has_measurement(self):
-        """ Does this Backend support run_measurement? 
-
-        Returns:
-            (bool) - True if run_measurement is supported else False.
-
-        Backend subclasses should OVERLOAD this method.
-        """ 
-        raise NotImplementedError
-
-    @property
-    def native_circuit_type(self):
-        """ The native circuit type for this backend, to identify drop-through. 
-
-        Returns:
-            (? - native datatype) - Native circuit object representation
-                datatype.
-
-        Backend subclasses should OVERLOAD this method.
-        """ 
-        raise NotImplementedError
-
-    def build_native_circuit(
+    def has_statevector_input(
         self,
-        circuit,
         ):
-        """ Return the native object representation of the input Quasar circuit. 
-        
-        Params:
-            circuit (quasar.Circuit or native circuit type) - Quasar circuit to
-                translate to native representation *OR* native circuit
-                representation (for dropthrough).
+
+        """ Does this Backend allow statevector to be passed as input argument
+            to various run methods?
+
         Returns:
-            (native_circuit_type) - Native circuit object representation. If
-                input circuit is quasar circuit, translation is performed. If
-                input circuit is native circuit, this method drops through and
-                immediately returns the unmodified native circuit.
+            (bool) - True if statevector input arguments can be supplied else
+                False.
 
         Backend subclasses should OVERLOAD this method.
         """
-        raise NotImplementedError
 
-    def build_native_circuit_in_basis(
-        self,
-        circuit,
-        basis,
-        ):
-        """ Return the native object representation of the input Quasar
-            circuit, in a given X/Y/Z basis on each qubit. This is often used
-            to compute Pauli expectations by measurements in the appropriate
-            basis.
-        
-        Params:
-            circuit (quasar.Circuit or native circuit type) - Quasar circuit to
-                translate to native representation *OR* native circuit
-                representation (for dropthrough).
-            basis (str of x/Y/Z chars of len(circuit.N)) - basis to rotate each
-                qubit in circuit to at the end of the computation.
-        Returns:
-            (native_circuit_type) - Native circuit object representation. If
-                input circuit is quasar circuit, translation is performed. If
-                input circuit is native circuit, this method drops through and
-                immediately returns the unmodified native circuit, plus the
-                basis rotations.
-
-        Backend subclasses should OVERLOAD this method.
-        """
-        raise NotImplementedError
-        
-
-    def build_quasar_circuit(
-        self,
-        native_circuit,
-        ):
-
-        """ Return the Quasar representation of the input native circuit representation.
-
-        Params:
-            native_circuit (native circuit type or quasar.Circuit) - native
-            type to translate to translate to Quasar circuit *OR* Quasar
-            circuit (for dropthrough).
-        Return:
-            (Circuit) - Quasar circuit object representation. If the input
-                circuit is native circuit, translation is performed. If input
-                circuit is Quasar circuit, this method drops through and
-                immediately returns the unmodified Quasar circuit.
-        Backend subclasses should OVERLOAD this method.
-        """
-        raise NotImplementedError
+        return NotImplementedError
 
     def run_statevector(
         self,
         circuit,
+        statevector=None,   
+        min_qubit=None,
+        nqubit=None,
+        dtype=np.complex128,
         **kwargs):
-        """ Return the statevector after the action of circuit on the reference
-            ket. Generally this involves the translation of circuit to native
-            form, a call to the native statevector simulator (possibly
-            including high-performance components or noise channels), and then
-            a reordering/retyping step to return the statevector in Quasar
-            convention.
 
-            The output from this function is usually deterministic, though this
-            can change depending on the specific backend.
+        return NotImplementedError
 
-        Params:
-            circuit (quasar.Circuit) - Quasar circuit to simulate *OR* native
-                circuit to simulate (dropthrough).
-        Returns:
-            (np.ndarray of shape (2**N,), dtype determined by backend) - the
-                statevector in Quasar Hilbert space order.
+    def run_pauli_sigma(
+        self,
+        pauli,
+        statevector,
+        min_qubit=None,
+        nqubit=None,
+        dtype=np.complex128,
+        **kwargs):
 
-        Backend subclasses should OVERLOAD this method.
-        """
-        raise NotImplementedError
+        min_qubit = pauli.min_qubit if min_qubit is None else min_qubit
+        nqubit = pauli.nqubit if nqubit is None else nqubit
+
+        pauli_gates = {
+            'X' : Gate.X,
+            'Y' : Gate.Y,
+            'Z' : Gate.Z,
+        }
+
+        statevector2 = np.zeros_like(statevector)
+        for string, value in pauli.items():
+            circuit2 = Circuit()
+            for qubit, char in string:
+                circuit2.add_gate(pauli_gates[char], qubit)
+            statevector3 = self.run_statevector(
+                circuit=circuit2,
+                statevector=statevector,
+                dtype=dtype,
+                min_qubit=min_qubit,
+                nqubit=nqubit,
+                )
+            statevector2 += value * statevector3
+
+        return statevector2
+
+    def run_pauli_diagonal(
+        self,
+        pauli,
+        min_qubit=None,
+        nqubit=None,
+        dtype=np.complex128,
+        **kwargs):
+
+        min_qubit = pauli.min_qubit if min_qubit is None else min_qubit
+        nqubit = pauli.nqubit if nqubit is None else nqubit
+
+        # All I or Z strings
+        pauli2 = Pauli.zero()
+        for string, value in pauli.items():
+            if len(string) == 0 or all(_ == 'Z' for _ in string.chars):
+                pauli2[string] = value
+
+        statevector = np.ones((2**nqubit,), dtype=dtype)
+        return self.run_pauli_sigma(
+            pauli=pauli2,
+            statevector=statevector,
+            min_qubit=min_qubit,
+            nqubit=nqubit,
+            dtype=dtype,
+            **kwargs)
+
+    def run_unitary(
+        self,
+        circuit,
+        min_qubit=None,
+        nqubit=None,
+        dtype=np.complex128,
+        **kwargs):
+
+        nqubit = circuit.nqubit if nqubit is None else nqubit
+
+        U = np.zeros((2**nqubit,)*2, dtype=dtype)
+        for i in range(2**nqubit):
+            statevector = np.zeros((2**nqubit,), dtype=dtype)
+            statevector[i] = 1.0
+            U[:, i] = self.run_statevector(circuit, statevector=statevector, dtype=dtype, **kwargs)
+
+        return U
+
+    def run_density_matrix(
+        self,
+        circuit,
+        statevector=None,
+        min_qubit=None,
+        nqubit=None,
+        dtype=np.complex128,
+        **kwargs):
+
+        statevector = self.run_statevector(
+            circuit=circuit,
+            statevector=statevector,
+            min_qubit=min_qubit,
+            nqubit=nqubit,
+            dtype=dtype,
+            **kwargs)
+
+        return np.outer(statevector, statevector.conj())
 
     def run_measurement(
         self,
         circuit,
-        nmeasurement=1000,
+        nmeasurement=None,
+        statevector=None,
+        min_qubit=None,
+        nqubit=None,
+        dtype=np.complex128,
         **kwargs):
-        """ Return a MeasurementResult object with the results of repeated quantum
-            circuit preparation and measurement in the computational basis.
 
-            The output from this function is generally stochastic.
+        statevector = self.run_statevector(
+            circuit=circuit,
+            statevector=statevector,
+            min_qubit=min_qubit,
+            nqubit=nqubit,
+            dtype=dtype,
+            **kwargs)
 
-        Params:
-            circuit (quasar.Circuit) - Quasar circuit to measure.
-            nmeasurement (int) - number of measurement
-        Returns:
-            (MeasurementResult) - a MeasurementResult object with the observed measurements
-                in the computational basis, nmeasurement total measurements.
-    
-        Backend subclasses should OVERLOAD this method.
-        """
-        raise NotImplementedError
+        return Algebra.sample_histogram_from_probabilities(
+            probabilities=(np.conj(statevector) * statevector).real,
+            nmeasurement=nmeasurement,
+            )
 
     def run_pauli_expectation(
         self,
         circuit,
         pauli,
         nmeasurement=None,
-        **kwargs):
-
-        """ Return a Pauli object representating the density matrix of the quantum circuit. 
-
-        Params:
-            circuit (quasar.Circuit) - Quasar circuit to simulate *OR* native
-                circuit to simulate (dropthrough).
-            pauli (Pauli) - Pauli object to use as a stencil for required Pauli
-                density matrix elements. The strings in 
-            nmeasurement (int or None) - integer number of measurements
-                (backend must support run_measurement) or None to indicate
-                infinite-sampling statevector contraction (backend must support
-                run_statevector).
-        Returns:
-            (Pauli) - Pauli object representing the Pauli density matrix.
-            
-        Note that the number of measurements for each Pauli string are
-        guaranteed to be *at least* nmeasurement, but more measurements may be
-        taken for certain Pauli strings. The reason for this is that generally
-        several versions of the quantum circuit must be constructed with
-        one-qubit basis-transformation gates applied at the end (e.g., H to
-        measure in the X basis), and then each version is sampled nmeasurement
-        times. However, some Pauli strings might appear in multiple versions of
-        the circuit, and we will take advantage of this to provide increased
-        statistical convergence of these operators. For example, consider a
-        2-qubit circuit with all X/Z Pauli density matrices requested: XA, ZA,
-        XB, ZB, XX, XZ, ZX, and ZZ. This set of Pauli operators falls in the
-        linear X/Z commuting group of XX, XZ, ZX, and ZZ, so 4x versions of
-        circuit are prepared and measured nmeasurement times each. This
-        provides nmeasurement observations for the Pauli density matrix
-        elements XX, XZ, ZX, and ZZ, but 2*nmeasurement observations for the
-        Pauli density matrix elements XA, ZA, XB, and ZB.
-        """
-
-        if nmeasurement is None:
-            return self.run_pauli_expectation_from_statevector(circuit, pauli, **kwargs)
-        else:
-            return self.run_pauli_expectation_from_measurement(circuit, pauli, nmeasurement, **kwargs)
-
-        return pauli_expectation
-
-    # => Utility Methods (Users should generally not call these) <= #
-    def run_unitary(
-        self,
-        circuit,
+        statevector=None,
+        min_qubit=None,
+        nqubit=None,
         dtype=np.complex128,
-        compressed=True,
-        ):
-    
-        if not isinstance(circuit, Circuit):
-            circuit = self.build_quasar_circuit(circuit)
+        **kwargs):
         
-        unitary = np.zeros((2**circuit.N,2**circuit.N), dtype=dtype)
-        for i in range(2**circuit.N):
-            wfn = np.zeros((2**circuit.N,), dtype=dtype)
-            wfn[i] = 1.0
-            unitary[:, i] = (circuit.compressed() if compressed else circuit).simulate(wfn=wfn)
-    
-        return unitary
-    
-    def run_density_matrix(
-        self,
-        circuit,
-        wavefunction=None,
-        compressed=True,
-        ):
-
-        if not isinstance(circuit, Circuit):
-            circuit = self.build_quasar_circuit(circuit)
-
-        if wavefunction is None:
-            wfn1 = circuit.simulate()
+        if nmeasurement is None:
+            return self.run_pauli_expectation_ideal(
+                circuit=circuit,
+                pauli=pauli,
+                statevector=statevector,
+                min_qubit=min_qubit,
+                nqubit=nqubit,
+                dtype=dtype,
+                **kwargs)
         else:
-            wfn1 = circuit.simulate(wfn=wavefunction)
+            return self.run_pauli_expectation_measurement(
+                circuit=circuit,
+                pauli=pauli,
+                nmeasurement=nmeasurement,
+                statevector=statevector,
+                min_qubit=min_qubit,
+                nqubit=nqubit,
+                dtype=dtype,
+                **kwargs)
 
-        # outer product of the wafefunction after running the circuit
-        dm = np.outer(wfn1, wfn1.conj())
-        
-        return dm    
-    
-    def run_pauli_expectation_from_statevector(
+    def run_pauli_expectation_value(
         self,
         circuit,
         pauli,
-        **kwargs): 
+        nmeasurement=None,
+        statevector=None,
+        min_qubit=None,
+        nqubit=None,
+        dtype=np.complex128,
+        **kwargs):
 
-        if not self.has_statevector: 
-            raise RuntimeError('Backend does not have statevector')
+        if nmeasurement is None:
+            return self.run_pauli_expectation_value_ideal(
+                circuit=circuit,
+                pauli=pauli,
+                statevector=statevector,
+                min_qubit=min_qubit,
+                nqubit=nqubit,
+                dtype=dtype,
+                **kwargs)
+        else:
+            pauli_expectation = self.run_pauli_expectation_measurement(
+                circuit=circuit,
+                pauli=pauli,
+                nmeasurement=nmeasurement,
+                statevector=statevector,
+                min_qubit=min_qubit,
+                nqubit=nqubit,
+                dtype=dtype,
+                **kwargs)
+            return pauli_expectation.dot(pauli)
 
-        statevector = self.run_statevector(circuit, **kwargs)
+    def run_pauli_expectation_value_gradient(
+        self,
+        circuit,
+        pauli,
+        nmeasurement=None,
+        statevector=None,
+        min_qubit=None,
+        nqubit=None,
+        dtype=np.complex128,
+        parameter_indices=None,
+        **kwargs):
+        
+        # Current circuit parameter values
+        parameter_values = circuit.parameter_values
 
-        # Validity check
-        N = (statevector.shape[0]&-statevector.shape[0]).bit_length()-1
-        if pauli.N > N: raise RuntimeError('pauli.N > circuit.N')
+        # Default to taking the gradient with respect to all parameters
+        if parameter_indices is None:
+            parameter_indices = list(range(len(parameter_values)))
 
-        pauli_expectation = PauliExpectation.zeros_like(pauli)
-        if PauliString.I in pauli_expectation:
-            pauli_expectation[PauliString.I] = 1.0
-        for order in range(1, pauli_expectation.max_order+1):
-            for qubits in pauli_expectation.extract_orders((order,)).qubits:
-                P = Circuit.compute_pauli_n(wfn=statevector, qubits=qubits)
-                for index in itertools.product(range(1,4), repeat=order):
-                    key = PauliString.from_string('*'.join('%s%d' % ('XYZ'[I - 1], A) for I, A in zip(index, qubits)))
-                    if key in pauli_expectation:
-                        pauli_expectation[key] = P[index]
+        # Check that the gradient formula is known for these parameters (i.e., Rx, Ry, Rz gates)
+        parameter_keys = circuit.parameter_keys
+        for parameter_index in parameter_indices:
+            key = parameter_keys[parameter_index]
+            times, qubits, key2 = key
+            gate = circuit.gates[(times, qubits)]
+            if not gate.name in ('Rx', 'Ry', 'Rz'): 
+                raise RuntimeError('Unknown gradient rule: presently can only differentiate Rx, Ry, Rz gates: %s' % gate)
+
+        # Evaluate the gradient by the parameter shift rule
+        gradient = np.zeros((len(parameter_indices),), dtype=dtype)
+        circuit2 = circuit.copy()
+        for index, parameter_index in enumerate(parameter_indices):
+            # +
+            parameter_values2 = parameter_values.copy()
+            parameter_values2[parameter_index] += np.pi / 4.0
+            circuit2.set_parameter_values(parameter_values2)
+            Ep = self.run_pauli_expectation_value(
+                circuit=circuit2,
+                pauli=pauli,
+                nmeasurement=nmeasurement,
+                statevector=statevector,
+                min_qubit=min_qubit,
+                nqubit=nqubit,
+                dtype=dtype,
+                **kwargs)
+            # -
+            parameter_values2 = parameter_values.copy()
+            parameter_values2[parameter_index] -= np.pi / 4.0
+            circuit2.set_parameter_values(parameter_values2)
+            Em = self.run_pauli_expectation_value(
+                circuit=circuit2,
+                pauli=pauli,
+                nmeasurement=nmeasurement,
+                statevector=statevector,
+                min_qubit=min_qubit,
+                nqubit=nqubit,
+                dtype=dtype,
+                **kwargs)
+            # Assembly
+            gradient[index] = Ep - Em
+
+        return gradient
+
+    def run_pauli_expectation_value_hessian(
+        self,
+        circuit,
+        pauli,
+        nmeasurement=None,
+        statevector=None,
+        min_qubit=None,
+        nqubit=None,
+        dtype=np.complex128,
+        parameter_pair_indices=None,
+        **kwargs):
+
+        # Current circuit parameter values
+        parameter_values = circuit.parameter_values
+
+        # Default to taking the gradient with respect to all parameters
+        if parameter_pair_indices is None:
+            parameter_pair_indices = []
+            for i in range(len(parameter_values)):
+                for j in range(len(parameter_values)):
+                    parameter_pair_indices.append((i,j))
+
+        # Check that the Hessian formula is known for these parameters (i.e., Rx, Ry, Rz gates)
+        parameter_keys = circuit.parameter_keys
+        for parameter_index1, parameter_index2 in parameter_pair_indices:
+            key = parameter_keys[parameter_index1]
+            times, qubits, key2 = key
+            gate = circuit.gates[(times, qubits)]
+            if not gate.name in ('Rx', 'Ry', 'Rz'): 
+                raise RuntimeError('Unknown Hessian rule: presently can only differentiate Rx, Ry, Rz gates: %s' % gate)
+            key = parameter_keys[parameter_index2]
+            times, qubits, key2 = key
+            gate = circuit.gates[(times, qubits)]
+            if not gate.name in ('Rx', 'Ry', 'Rz'): 
+                raise RuntimeError('Unknown Hessian rule: presently can only differentiate Rx, Ry, Rz gates: %s' % gate)
+
+        # Evaluate the gradient by the parameter shift rule
+        hessian = np.zeros((len(parameter_pair_indices),), dtype=dtype)
+        circuit2 = circuit.copy()
+        for index, parameter_pair_index in enumerate(parameter_pair_indices):
+            parameter_index1, parameter_index2 = parameter_pair_index
+            symmetric = (parameter_index2, parameter_index1) in parameter_pair_indices
+            if symmetric and parameter_index1 > parameter_index2: continue
+            # ++
+            parameter_values2 = parameter_values.copy()
+            parameter_values2[parameter_index1] += np.pi / 4.0
+            parameter_values2[parameter_index2] += np.pi / 4.0
+            circuit2.set_parameter_values(parameter_values2)
+            Epp = self.run_pauli_expectation_value(
+                circuit=circuit2,
+                pauli=pauli,
+                nmeasurement=nmeasurement,
+                statevector=statevector,
+                min_qubit=min_qubit,
+                nqubit=nqubit,
+                dtype=dtype,
+                **kwargs)
+            # +-
+            parameter_values2 = parameter_values.copy()
+            parameter_values2[parameter_index1] += np.pi / 4.0
+            parameter_values2[parameter_index2] -= np.pi / 4.0
+            circuit2.set_parameter_values(parameter_values2)
+            Epm = self.run_pauli_expectation_value(
+                circuit=circuit2,
+                pauli=pauli,
+                nmeasurement=nmeasurement,
+                statevector=statevector,
+                min_qubit=min_qubit,
+                nqubit=nqubit,
+                dtype=dtype,
+                **kwargs)
+            # -+
+            parameter_values2 = parameter_values.copy()
+            parameter_values2[parameter_index1] -= np.pi / 4.0
+            parameter_values2[parameter_index2] += np.pi / 4.0
+            circuit2.set_parameter_values(parameter_values2)
+            Emp = self.run_pauli_expectation_value(
+                circuit=circuit2,
+                pauli=pauli,
+                nmeasurement=nmeasurement,
+                statevector=statevector,
+                min_qubit=min_qubit,
+                nqubit=nqubit,
+                dtype=dtype,
+                **kwargs)
+            # --
+            parameter_values2 = parameter_values.copy()
+            parameter_values2[parameter_index1] -= np.pi / 4.0
+            parameter_values2[parameter_index2] -= np.pi / 4.0
+            circuit2.set_parameter_values(parameter_values2)
+            Emm = self.run_pauli_expectation_value(
+                circuit=circuit2,
+                pauli=pauli,
+                nmeasurement=nmeasurement,
+                statevector=statevector,
+                min_qubit=min_qubit,
+                nqubit=nqubit,
+                dtype=dtype,
+                **kwargs)
+            # Assembly
+            hessian[index] = Epp - Epm - Emp + Emm
+            if symmetric:
+                hessian[parameter_pair_indices.index((parameter_index2, parameter_index1))] = hessian[index]
+
+        return hessian
+
+    def run_pauli_expectation_value_gradient_pauli_contraction(
+        self,
+        circuit,
+        pauli,
+        parameter_coefficients,
+        nmeasurement=None,
+        statevector=None,
+        min_qubit=None,
+        nqubit=None,
+        dtype=np.complex128,
+        parameter_indices=None,
+        **kwargs):
+        
+        # Current circuit parameter values
+        parameter_values = circuit.parameter_values
+
+        # Default to taking the gradient with respect to all parameters
+        if parameter_indices is None:
+            parameter_indices = list(range(len(parameter_values)))
+
+        # Check that parameter coefficients make sense
+        if len(parameter_coefficients) != len(parameter_indices):
+           raise RuntimeError('len(parameter_coefficients) != len(parameter_indices)')
+
+        # Check that the gradient formula is known for these parameters (i.e., Rx, Ry, Rz gates)
+        parameter_keys = circuit.parameter_keys
+        for parameter_index in parameter_indices:
+            key = parameter_keys[parameter_index]
+            times, qubits, key2 = key
+            gate = circuit.gates[(times, qubits)]
+            if not gate.name in ('Rx', 'Ry', 'Rz'): 
+                raise RuntimeError('Unknown gradient rule: presently can only differentiate Rx, Ry, Rz gates: %s' % gate)
+
+        # Evaluate the gradient by the parameter shift rule
+        pauli_gradient = PauliExpectation.zero()
+        circuit2 = circuit.copy()
+        for index, parameter_index in enumerate(parameter_indices):
+            # +
+            parameter_values2 = parameter_values.copy()
+            parameter_values2[parameter_index] += np.pi / 4.0
+            circuit2.set_parameter_values(parameter_values2)
+            Gp = self.run_pauli_expectation(
+                circuit=circuit2,
+                pauli=pauli,
+                nmeasurement=nmeasurement,
+                statevector=statevector,
+                min_qubit=min_qubit,
+                nqubit=nqubit,
+                dtype=dtype,
+                **kwargs)
+            # -
+            parameter_values2 = parameter_values.copy()
+            parameter_values2[parameter_index] -= np.pi / 4.0
+            circuit2.set_parameter_values(parameter_values2)
+            Gm = self.run_pauli_expectation(
+                circuit=circuit2,
+                pauli=pauli,
+                nmeasurement=nmeasurement,
+                statevector=statevector,
+                min_qubit=min_qubit,
+                nqubit=nqubit,
+                dtype=dtype,
+                **kwargs)
+            # Assembly
+            pauli_gradient += parameter_coefficients[index] * (Gp - Gm)
+
+        return pauli_gradient
+
+    # => Utility Methods <= #
+
+    def run_pauli_expectation_ideal(
+        self,
+        circuit,
+        pauli,
+        statevector=None,
+        min_qubit=None,
+        nqubit=None,
+        dtype=np.complex128,
+        **kwargs):
+
+        min_qubit = pauli.min_qubit if min_qubit is None else min_qubit
+        nqubit = pauli.nqubit if nqubit is None else nqubit
+
+        statevector = self.run_statevector(
+            circuit=circuit,
+            statevector=statevector,
+            min_qubit=min_qubit,
+            nqubit=nqubit,
+            dtype=dtype,
+            **kwargs)
+
+        pauli_expectation = PauliExpectation.zero()
+        for string in pauli.keys():
+
+            pauli2 = Pauli.zero()
+            pauli2[string] = 1.0 
+            statevector2 = self.run_pauli_sigma(
+                pauli=pauli2,
+                statevector=statevector,
+                dtype=dtype,
+                min_qubit=min_qubit,
+                nqubit=nqubit,
+                )
+            scal = np.sum(statevector.conj() * statevector2)
+            pauli_expectation[string] = scal
 
         return pauli_expectation
 
-    def run_pauli_expectation_from_measurement(
+    def run_pauli_expectation_value_ideal(
+        self,
+        circuit,
+        pauli,
+        statevector=None,
+        min_qubit=None,
+        nqubit=None,
+        dtype=np.complex128,
+        **kwargs):
+
+        statevector = self.run_statevector(
+            circuit=circuit,
+            statevector=statevector,
+            min_qubit=min_qubit,
+            nqubit=nqubit,
+            dtype=dtype,
+            **kwargs)
+
+        statevector2 = self.run_pauli_sigma(
+            pauli=pauli,
+            statevector=statevector,
+            min_qubit=min_qubit,
+            nqubit=nqubit,
+            dtype=dtype,
+            **kwargs)
+
+        return np.sum(statevector.conj() * statevector2)
+
+    # => Measurement-based Pauli expectations <= #
+
+    # TODO: As always, there remains much work to be done in the conceptual,
+    # pragmatical, and syntactical elements of this functionality
+
+    def run_pauli_expectation_measurement(
         self,
         circuit,
         pauli,
         nmeasurement,
+        statevector=None,
+        min_qubit=None,
+        nqubit=None,
+        dtype=np.complex128,
         **kwargs):
 
-        if not self.has_measurement: 
-            raise RuntimeError('Backend does not have measurement')
+        min_qubit = pauli.min_qubit if min_qubit is None else min_qubit
+        nqubit = pauli.nqubit if nqubit is None else nqubit
 
         # Determine commuting group
-        groups = Backend.linear_commuting_group(pauli, pauli.unique_chars)
+        groups = self.linear_commuting_group(
+            pauli,
+            min_qubit=min_qubit,
+            nqubit=nqubit,
+            )
         # Else exception will be raised if unknown commuting group
         # TODO: Optimally cover all commuting groups
 
         # Modified circuits for basis transformations
-        circuits = [self.build_native_circuit_in_basis(circuit, basis) 
+        circuits = [self.circuit_in_basis(
+            circuit, 
+            basis,
+            min_qubit=min_qubit,
+            nqubit=nqubit,
+            ) 
             for basis in groups.keys()]
     
-        # MeasurementResults in commuting group (quantum heavy)
-        results = [self.run_measurement(
-            circuit=_,
+        # Measurements in commuting group (quantum heavy)
+        probabilities = [self.run_measurement(
+            circuit=circuit,
             nmeasurement=nmeasurement,
-            **kwargs) for _ in circuits]
-            
+            statevector=statevector,
+            min_qubit=min_qubit,
+            nqubit=nqubit,
+            dtype=dtype,
+            **kwargs) for circuit in circuits]
+
+        # Convert to counts
+        results = [_.to_count_histogram() for _ in probabilities]
+
         # Counts for pauli strings
         counts = { _ : 0 for _ in pauli.keys() }
         ns = { _ : 0 for _ in pauli.keys() }
@@ -385,42 +642,38 @@ class Backend(object):
                 qubits = string.qubits
                 ns[string] += nmeasurement
                 for ket, count in result.items():
-                    parity = sum(ket[_] for _ in qubits) % 2
+                    parity = sum((ket & (1 << (nqubit - 1 - (_ - min_qubit)))) >> (nqubit - 1 - (_ - min_qubit)) for _ in qubits) % 2
                     counts[string] += (-count) if parity else (+count)
-                
+
         # Pauli density matrix values
         pauli_expectation = PauliExpectation(collections.OrderedDict([
             (_, counts[_] / max(ns[_], 1)) for _ in pauli.keys()]))
-        if PauliString.I in pauli_expectation:
-            pauli_expectation[PauliString.I] = 1.0
+        if PauliString.I() in pauli_expectation:
+            pauli_expectation[PauliString.I()] = 1.0 
         return pauli_expectation
 
     @staticmethod
-    def bit_reversal_permutation(N):
-        seq = [0]
-        for k in range(N):
-            seq = [2*_ for _ in seq] + [2*_+1 for _ in seq]
-        return seq
-
-    @staticmethod
-    def statevector_bit_reversal_permutation(
-        statevector_native,
+    def linear_commuting_group(
+        pauli,
+        min_qubit=None,
+        nqubit=None,
         ):
 
-        N = (statevector_native.shape[0]&-statevector_native.shape[0]).bit_length()-1
-        statevector = statevector_native[Backend.bit_reversal_permutation(N=N)]
-        return statevector
+        min_qubit = pauli.min_qubit if min_qubit is None else min_qubit
+        nqubit = pauli.nqubit if nqubit is None else nqubit
 
-    @staticmethod
-    def linear_commuting_group(pauli, keys):
-
+        keys = sortedcontainers.SortedSet()
+        for string in pauli.keys():
+            for qubit, char in string:
+                keys.add(char)
+        
         groups = collections.OrderedDict()
         for keyA in keys:
             for keyB in keys:
-                groups[((keyA + keyB)*pauli.N)[:pauli.N]] = []
+                groups[((keyA + keyB)*nqubit)[:nqubit]] = []
 
         for string in pauli.keys():
-            
+
             # Do not do the identity operator
             if string.order == 0: continue
 
@@ -428,15 +681,82 @@ class Backend(object):
             found = False
             for group, strings2 in groups.items():
                 valid = True
-                for operator in string:
-                    qubit = operator.qubit
-                    char = operator.char
-                    if group[qubit] != char:
+                for qubit, char in string:
+                    if group[qubit - min_qubit] != char:
                         valid = False
                         break
                 if not valid: continue
                 strings2.append(string)
                 found = True
-            if not found: raise RuntimeError('Invalid string - not in linear commuting group: %s' % string)
+            if not found: raise RuntimeError('Invalid string - not in linear commuting group: %s' % str(string))
 
         return groups
+
+    @staticmethod
+    def circuit_in_basis(
+        circuit,
+        basis,
+        min_qubit=None,
+        nqubit=None,
+        ):
+
+        min_qubit = circuit.min_qubit if min_qubit is None else min_qubit
+        nqubit = circuit.nqubit if nqubit is None else nqubit
+
+        if len(basis) != nqubit: raise RuntimeError('len(basis) != nqubit')
+
+        basis_circuit = Circuit()
+        for A, char in enumerate(basis): 
+            qubit = A - min_qubit
+            if char == 'X': basis_circuit.H(qubit)
+            elif char == 'Y': basis_circuit.Rx2(qubit)
+            elif char == 'Z': continue # Computational basis
+            else: raise RuntimeError('Unknown basis: %s' % char)
+    
+        return Circuit.join_in_time([circuit, basis_circuit])
+            
+    # => Subset Hamiltonian Utilities <= #
+
+    def run_pauli_matrix_subset(
+        self,
+        pauli,
+        kets,
+        min_qubit=None,
+        nqubit=None,
+        dtype=np.complex128,
+        ):
+
+        min_qubit = pauli.min_qubit if min_qubit is None else min_qubit
+        nqubit = pauli.nqubit if nqubit is None else nqubit
+
+        if len(set(kets)) != len(kets): 
+            raise RuntimeError('Kets are not unique')
+
+        kets2 = { ket : index for index, ket in enumerate(kets) }
+
+        H = np.zeros((len(kets),)*2, dtype=np.complex128)
+        for ket_index, ket in enumerate(kets):
+            for string, value in pauli.items():
+                value = value + 0.j # Make sure value is complex
+                bra = ket
+                for qubit2, char in string:
+                    qubit = qubit2 - min_qubit
+                    if char == 'Z':
+                        value *= -1.0 if (ket & (1 << (nqubit - 1 - qubit))) else 1.0
+                    elif char == 'X':
+                        bra ^= (1 << (nqubit - 1 - qubit))
+                    elif char == 'Y':
+                        value *= -1.j if (ket & (1 << (nqubit - 1 - qubit))) else 1.j
+                        bra ^= (1 << (nqubit - 1 - qubit))
+                bra_index = kets2.get(bra, None)
+                if bra_index is None: continue
+                H[bra_index, ket_index] += value
+        
+        return np.array(H, dtype=dtype)
+                    
+                 
+        
+
+        
+        
+    

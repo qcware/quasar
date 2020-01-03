@@ -1,0 +1,42 @@
+import quasar
+import time
+
+start = time.time()
+allocator = quasar.IndexAllocator()
+print(allocator.allocate())
+print(allocator.allocate())
+print(allocator.allocate())
+print(allocator.allocate())
+allocator.deallocate(1)
+allocator.deallocate(2)
+print(allocator.allocate())
+print(allocator.allocate())
+print(allocator.allocate())
+print(allocator.allocate(-5))
+print(allocator.allocate())
+print(allocator.allocate())
+print(allocator.allocate())
+print(allocator.allocate())
+print(allocator.allocate())
+print(allocator.indices)
+# allocator.deallocate(11)
+
+allocator = quasar.IndexAllocator.build(10)
+print(allocator.indices)
+print(allocator.next_index)
+print('%11.3E' % (time.time() - start))
+
+allocator = quasar.IndexAllocator()
+index0 = allocator.allocate()
+index1 = allocator.allocate()
+index2 = allocator.allocate()
+print(allocator.next_index)
+allocator.deallocate(index1)
+print(allocator.next_index)
+
+allocator = quasar.IndexAllocator.build(10)
+print(allocator.next_index)
+
+allocator = quasar.IndexAllocator()
+allocator.allocate(-5)
+print(allocator.next_index)
