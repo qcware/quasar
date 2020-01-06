@@ -16,6 +16,7 @@ CXXFLAGS = \
     -std=c++11 \
     -fopenmp \
     -fPIC \
+    `python3 -m pybind11 --includes` \
     -O3 \
     -Wall \
     -Wuninitialized \
@@ -35,8 +36,7 @@ NVCCFLAGS = \
     --compiler-options '-fPIC -O3' \
 
 INCLUDES = \
-    -I/usr/local/cuda/include \
-    -I/home/ec2-user/anaconda3/envs/python3/include/python3.6m \
+    -I/usr/local/cuda/include
 
 LIBRARIES = \
     -L/usr/local/cuda/lib64 -lcudart

@@ -15,7 +15,7 @@ setuptools.setup(
     packages=setuptools.find_packages(),
     package_data={'': ['*.dat']},
     install_requires=[
-        "numpy==1.17.4",
+        "numpy==1.18.0",
         "scipy==1.3.3",
         "sortedcontainers==2.1.0"
     ],
