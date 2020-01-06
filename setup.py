@@ -17,12 +17,12 @@ setuptools.setup(
     install_requires=[
         "numpy==1.18.0",
         "scipy==1.3.3",
-        "sortedcontainers==2.1.0"
+        "sortedcontainers==2.1.0",
+        "requests>=2.22.0"
     ],
     extras_require={
         "qiskit": ["qiskit==0.9.0", "networkx==2.3"],
-        "cirq": ["cirq==0.5.0"],
-        "ionq": ["requests>=2.22.0"]
+        "cirq": ["cirq==0.5.0"]
     },
     classifiers=[
         "Programming Language :: Python :: 3",
