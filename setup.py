@@ -22,6 +22,7 @@ setuptools.setup(
     extras_require={
         "qiskit": ["qiskit==0.9.0", "networkx==2.3"],
         "cirq": ["cirq==0.5.0"],
+        "ionq": ["requests>=2.22.0"]
     },
     classifiers=[
         "Programming Language :: Python :: 3",
