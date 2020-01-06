@@ -33,7 +33,7 @@ NVCCFLAGS = \
     --ptxas-options=-v \
     --std=c++11 \
     -O3 \
-    --compiler-options '-fPIC -O3' \
+    --compiler-options '-fPIC -O3 `python3 -m pybind11 --includes`' \
 
 INCLUDES = \
     -I/usr/local/cuda/include
