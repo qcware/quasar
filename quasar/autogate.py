@@ -1,4 +1,5 @@
 from .circuit import Gate, CompositeGate
+from functools import reduce
 
 from copy import deepcopy
 
@@ -21,62 +22,96 @@ class AutoGate(CompositeGate):
         if self.name == "MTOF":
             return mtof_builder(self.nqubit-1+num_of_controls)
 
-        controlled_circuit = self.circuit.copy(copy_gates=False)
+        elif num_of_controls == 1 and reduce(lambda x,y: x and y, [self.circuit.gates[timeslice].nqubit == 1 for timeslice in self.circuit.gates]):
 
-        ancilla = controlled_circuit.get_ancillas(1)[0]
+            controlled_circuit = self.circuit.copy(copy_gates=False)
 
-        control_indices = [i for i in range(self.logical_n, self.logical_n + num_of_controls)]
+            for slc in self.circuit.gates:
 
-        #initial m_tof
-        
-        mtof_instance = mtof_builder(num_of_controls)
+                gate = self.circuit.gates[slc]
+                recipients = slc[1]
+                
+                if isinstance(gate, AutoControlledGate):
 
-        mtof_qubits = tuple(control_indices) + (ancilla, )
+                    recipients = tuple(filter(lambda x: x >= 0, list(recipients)))
+                    #print(recipients)
 
-        controlled_circuit.add_gate(mtof_instance, mtof_qubits)
+                    controlled_circuit.add_gate(    
+                        gate=gate.uncontrolled_gate.add_controls(1+gate.num_of_controls, mtof_builder),
+                        qubits= (self.nqubit, ) + recipients
+                    )
 
-        #control every other gate with this ancilla
-        for slc in self.circuit.gates:
+                else:
 
-            gate = self.circuit.gates[slc]
-            recipients = slc[1]
+                    cu_qubits = (self.nqubit, ) + recipients
+
+                    controlled_circuit.add_controlled_gate(    
+                        gate=gate,
+                        controls=[True],
+                        qubits= cu_qubits,
+                        copy= False,
+                    )
+
+            return controlled_circuit
+
+        else: #else use an ancilla to control every other gate
+
+            controlled_circuit = self.circuit.copy(copy_gates=False)
+
+            ancilla = controlled_circuit.get_ancillas(1)[0]
+
+            control_indices = [i for i in range(self.logical_n, self.logical_n + num_of_controls)]
+
+            #initial m_tof
             
-            if isinstance(gate, AutoControlledGate):
+            mtof_instance = mtof_builder(num_of_controls)
 
-                recipients = tuple(filter(lambda x: x >= 0, list(recipients)))
-                print(recipients)
+            mtof_qubits = tuple(control_indices) + (ancilla, )
 
-                controlled_circuit.add_gate(    
-                    gate=gate.uncontrolled_gate.add_controls(1+gate.num_of_controls, mtof_builder),
-                    qubits= (ancilla, ) + recipients
-                )
+            controlled_circuit.add_gate(mtof_instance, mtof_qubits)
 
-            else:
+            #control every other gate with this ancilla
+            for slc in self.circuit.gates:
 
-                cu_qubits = (ancilla, ) + recipients
+                gate = self.circuit.gates[slc]
+                recipients = slc[1]
+                
+                if isinstance(gate, AutoControlledGate):
 
-                controlled_circuit.add_controlled_gate(    
-                    gate=gate,
-                    controls=[True],
-                    qubits= cu_qubits,
-                    copy= False,
-                )
+                    recipients = tuple(filter(lambda x: x >= 0, list(recipients)))
+                    #print(recipients)
 
-        how_many_ancillas = len(list(filter(lambda x: x < 0, controlled_circuit.qubits)))
-        ascii_symbols = ["anc" for i in range(how_many_ancillas)] + self.ascii_symbols + ["@" for i in range(num_of_controls)]
+                    controlled_circuit.add_gate(    
+                        gate=gate.uncontrolled_gate.add_controls(1+gate.num_of_controls, mtof_builder),
+                        qubits= (ancilla, ) + recipients
+                    )
+
+                else:
+
+                    cu_qubits = (ancilla, ) + recipients
+
+                    controlled_circuit.add_controlled_gate(    
+                        gate=gate,
+                        controls=[True],
+                        qubits= cu_qubits,
+                        copy= False,
+                    )
+
+            how_many_ancillas = len(list(filter(lambda x: x < 0, controlled_circuit.qubits)))
+            ascii_symbols = ["anc" for i in range(how_many_ancillas)] + self.ascii_symbols + ["@" for i in range(num_of_controls)]
 
 
 
-        #undo initial mtof
+            #undo initial mtof
 
-        controlled_circuit.add_gate(mtof_instance, mtof_qubits)
-        controlled_circuit.free_ancillas([ancilla])
+            controlled_circuit.add_gate(mtof_instance, mtof_qubits)
+            controlled_circuit.free_ancillas([ancilla])
 
 
 
-        return AutoControlledGate(
-            controlled_circuit, deepcopy(self), num_of_controls, 
-            name = "Controlled-"+self.name, ascii_symbols = ascii_symbols)
+            return AutoControlledGate(
+                controlled_circuit, deepcopy(self), num_of_controls, 
+                name = "Controlled-"+self.name, ascii_symbols = ascii_symbols)
 
 
 
