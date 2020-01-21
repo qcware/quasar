@@ -6,7 +6,7 @@ start = time.time()
 circuit = quasar.Circuit().Ry(-1, 0.1).Ry(0, -0.2).CX(-1, 0)
 print(circuit)
 
-backend = quasar.QuasarSimulatorBackendP()
+backend = quasar.QuasarSimulatorBackend()
 print(backend)
 print(backend.has_run_statevector)
 print(backend.has_statevector_input)
