@@ -1,0 +1,16 @@
+version: '3'
+services:
+
+  rigetti_quilc:
+    # exposes on port 5555
+    ports:
+      - 5555:5555
+    image: 'rigetti/quilc:58870604'
+    command: ['-S']
+
+  rigetti_qvm:
+    ports:
+      - 5000:5000
+    # exposes on port 5000
+    image: 'rigetti/qvm:684ba3d3'
+    command: ['-S']

@@ -143,4 +143,5 @@ class PyquilSimulatorBackend(PyquilBackend):
         nmeasurement=1000,
         ):
     
-        raise NotImplementedError
+        # raise NotImplementedError
+        return super().run_measurement(circuit, nmeasurement)
