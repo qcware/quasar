@@ -52,7 +52,9 @@ class AutoGate(CompositeGate):
                         copy= False,
                     )
 
-            return controlled_circuit
+            return AutoControlledGate(
+                controlled_circuit, deepcopy(self), num_of_controls, 
+                name = "Controlled-"+self.name, ascii_symbols = self.ascii_symbols + ["@" for i in range(num_of_controls)])
 
         else: #else use an ancilla to control every other gate
 
