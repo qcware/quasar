@@ -22,7 +22,8 @@ class AutoGate(CompositeGate):
         if self.name == "MTOF":
             return mtof_builder(self.nqubit-1+num_of_controls)
 
-        elif num_of_controls == 1 and reduce(lambda x,y: x and y, [self.circuit.gates[timeslice].nqubit == 1 for timeslice in self.circuit.gates]):
+        elif num_of_controls == 1 and reduce(lambda x,y: x and y, [((self.circuit.gates[timeslice].nqubit == 1) or 
+            self.circuit.gates[timeslice]  == Gate.CX) for timeslice in self.circuit.gates]):
 
             controlled_circuit = self.circuit.copy(copy_gates=False)
 
@@ -30,6 +31,9 @@ class AutoGate(CompositeGate):
 
                 gate = self.circuit.gates[slc]
                 recipients = slc[1]
+
+                if gate  == Gate.CX:
+                    controlled_circuit.add_gate(gate=gate.CCX, qubits= (self.nqubit, ) + recipients)
                 
                 if isinstance(gate, AutoControlledGate):
 
