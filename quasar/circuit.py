@@ -995,7 +995,7 @@ def _CF(theta=0.0):
         parameters=collections.OrderedDict([('theta', theta)]),
         name='CF',
         ascii_symbols=['@', 'F'],
-        adjoint_function=lambda parameters : Gate.CF(**{ k : -v for k, v in parameters.items()})
+        #adjoint_function=lambda parameters : Gate.CF(**{ k : -v for k, v in parameters.items()})
         )
 
 Gate.CF = _CF
