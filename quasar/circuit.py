@@ -968,7 +968,7 @@ def _GateSO42(thetaIY=0.0, thetaYI=0.0, thetaXY=0.0, thetaYX=0.0, thetaZY=0.0, t
         ]),
         name='SO42',
         ascii_symbols=['SO42A', 'SO42B'],
-        adjoint_function=lambda parameters : Gate.SO42(**{ k : -v for k, v in parameters.items()})
+        #adjoint_function=lambda parameters : Gate.SO42(**{ k : -v for k, v in parameters.items()})
         )
 
 Gate.SO42 = _GateSO42
