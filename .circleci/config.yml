@@ -1,0 +1,38 @@
+version: 2.1
+orbs:
+  python: circleci/python@0.2.1
+  
+jobs:
+  build_and_test:
+    executor: python/default
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - 'pip-{{ checksum "setup.py" }}'
+      - run:
+          name: "Install with deps"
+          command: |
+            pip install --user -e .[qiskit,cirq,pyquil,ionq]
+      - save_cache:
+          key: 'pip-{{ checksum "setup.py" }}'
+          paths:
+            - /home/circleci/.local/lib
+      - run: echo "===Starting Test==="
+      - run: mkdir /tmp/test_artifacts
+      - run:
+          name: "Run unit tests"
+          command: |
+            pip install --user pytest
+            python -m pytest test/utest --junitxml=/tmp/test_artifacts/junit/$1.xml
+      - store_test_results:
+          path: /tmp/test_artifacts/junit
+
+workflows:
+  version: 2
+  on_commit:
+    jobs:
+      - build_and_test:
+          filters:
+            tags:
+              only: /.*/

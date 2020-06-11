@@ -1,0 +1,11 @@
+*.so
+*.o
+*.d
+*.pyc
+*.swp
+.ipynb_checkpoints
+docs/build
+docs/source/_autosummary
+build/*
+quasar.egg-info/*
+
