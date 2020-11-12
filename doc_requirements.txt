@@ -1,0 +1,2 @@
+numpy >= 1.18.0
+sortedcontainers == 2.1.0

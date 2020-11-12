@@ -1,0 +1,22 @@
+=> Immediate Upgrades: <=
+
+Faster Ket objects
+
+=> Extensions: <=
+
+Tomography
+Backends
+Measurement-based Pauli
+Gate substitution
+
+=> Enhancements: <=
+
+Noise Models
+More Ultrafast Methods
+
+=> Wish List: <=
+
+Noise Model Gradients
+Faster ControlledGate apply_to_statevector
+run_statevector without allocation
+Explosion with gate placement memory
