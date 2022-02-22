@@ -1,0 +1,39 @@
+version: 2.1
+orbs:
+  python: circleci/python@1.3.2
+  
+jobs:
+  build_and_test:
+    executor: python/default
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - 'pip-{{ checksum "pyproject.toml" }}'
+      - run:
+          name: "Install with deps"
+          command: |
+            pip install --user flit
+            python -m flit install --user --symlink --deps develop --extras all
+      - save_cache:
+          key: 'pip-{{ checksum "pyproject.toml" }}'
+          paths:
+            - /home/circleci/.local/lib
+      - run: echo "===Starting Test==="
+      - run: mkdir /tmp/test_artifacts
+      - run:
+          name: "Run unit tests"
+          command: |
+            pip install --user pytest
+            python -m pytest test/utest --junitxml=/tmp/test_artifacts/junit/$1.xml
+      - store_test_results:
+          path: /tmp/test_artifacts/junit
+
+workflows:
+  version: 2
+  on_commit:
+    jobs:
+      - build_and_test:
+          filters:
+            tags:
+              only: /.*/
